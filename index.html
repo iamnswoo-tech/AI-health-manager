@@ -1,0 +1,3781 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="건강측정">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>건강 측정 앱</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg:#f2f4f7;--bg2:#ffffff;--bg3:#eef0f5;--card:#ffffff;
+  --border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.12);
+  --accent:#2563eb;--accent2:#3b82f6;--accent3:#60a5fa;
+  --green:#16a34a;--green2:#22c55e;
+  --warn:#d97706;--warn2:#f59e0b;
+  --danger:#dc2626;--danger2:#ef4444;
+  --purple:#7c3aed;
+  --text:#111827;--text2:#374151;--muted:#6b7280;--muted2:#9ca3af;
+  --sans:'Noto Sans KR',system-ui,sans-serif;
+  --radius:16px;--radius-sm:10px;
+  --shadow:0 2px 12px rgba(0,0,0,.08);
+  --shadow-lg:0 4px 24px rgba(0,0,0,.12);
+  --grad:linear-gradient(135deg,#2563eb 0%,#3b82f6 100%);
+  --grad-green:linear-gradient(135deg,#16a34a 0%,#22c55e 100%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100dvh;overflow-x:hidden;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* ── HEADER ── */
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;padding-top:max(14px,env(safe-area-inset-top));background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo svg{width:30px;height:30px}
+.logo-text{font-size:19px;font-weight:800;color:var(--text)}
+.logo-text span{color:var(--accent)}
+.hbadge{font-size:11px;font-weight:700;color:var(--accent);background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.18);border-radius:20px;padding:3px 10px}
+
+/* ── TABS ── */
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:57px;z-index:39}
+.tab{flex:1;padding:13px 4px;font-size:14px;font-weight:500;color:var(--muted);background:none;border:none;border-bottom:2.5px solid transparent;cursor:pointer;font-family:var(--sans);transition:all .2s;letter-spacing:-.01em}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+
+/* ── SCREENS ── */
+.screen{display:none}
+.screen.on{display:block;animation:fadeUp .18s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ── MODE CARDS (Samsung Health 스타일) ── */
+.mode-wrap{padding:16px 16px 0}
+.mode-title{font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.mode-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode-card{background:var(--card);border:2px solid var(--border);border-radius:var(--radius);padding:18px 14px;cursor:pointer;transition:all .18s;text-align:center;box-shadow:var(--shadow)}
+.mode-card.selected{border-color:var(--accent);background:#eff6ff;box-shadow:0 0 0 4px rgba(37,99,235,.1)}
+.mode-card:active{transform:scale(.97)}
+.mode-icon{font-size:34px;margin-bottom:8px;line-height:1}
+.mode-name{font-size:16px;font-weight:700;margin-bottom:3px;color:var(--text)}
+.mode-desc{font-size:12px;color:var(--muted);line-height:1.4}
+.mode-acc{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;margin-top:7px}
+.mode-card.finger .mode-acc{background:#dbeafe;color:var(--accent);font-weight:700}
+.mode-card.face   .mode-acc{background:#fef9c3;color:var(--warn)}
+
+/* ── CAMERA AREA ── */
+.cam-wrap{position:relative;background:#0d0d0d;overflow:hidden;border-radius:0}
+.cam-wrap::after{content:'';position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none;z-index:2}
+#videoEl{width:100%;display:block;object-fit:cover;transform:scaleX(-1)}
+#videoEl.rear{transform:none}
+#overlayCanvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1);z-index:3;pointer-events:none}
+#overlayCanvas.rear{transform:none}
+
+/* 카메라 플레이스홀더 */
+.cam-ph{width:100%;height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(160deg,#f8faff 0%,var(--bg3) 100%)}
+.cam-ph svg{opacity:.25}
+.cam-ph p{color:var(--muted);font-size:16px;text-align:center;padding:0 24px;line-height:1.5}
+
+/* 오버레이 칩 */
+.ov-chips{position:absolute;top:12px;left:12px;z-index:5;display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;font-weight:600;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:20px;padding:4px 11px;display:flex;align-items:center;gap:5px}
+.cdot{width:6px;height:6px;border-radius:50%;background:var(--muted2);flex-shrink:0}
+.chip.live .cdot{background:#4ade80;box-shadow:0 0 6px #4ade80;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.scan-line{position:absolute;left:0;right:0;height:1.5px;background:linear-gradient(to right,transparent,rgba(59,130,246,.6),transparent);opacity:0;z-index:4}
+.scan-line.active{opacity:1;animation:scan 3s linear infinite}
+@keyframes scan{0%{top:5%}100%{top:95%}}
+
+/* 카메라 하단 안내 — 항상 보이도록 */
+.cam-status-bar{position:absolute;bottom:0;left:0;right:0;z-index:6;padding:10px 14px 14px;background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.4) 70%,transparent 100%)}
+.cam-status-msg{font-size:15px;font-weight:600;color:#fff;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.5);line-height:1.4}
+.cam-status-sub{font-size:13px;color:rgba(255,255,255,.7);text-align:center;margin-top:3px}
+
+/* ── PROGRESS ── */
+.prog{height:3px;background:var(--bg3)}
+.prog-fill{height:100%;width:0%;background:var(--grad);transition:width .4s;border-radius:2px}
+
+/* ── SQI (신뢰도) ── */
+.sqi-card{margin:12px 16px 0;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:12px 14px;box-shadow:var(--shadow)}
+.sqi-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.sqi-lbl{font-size:13px;color:var(--text2);min-width:52px;font-weight:600}
+.sqi-track{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.sqi-fill{height:100%;border-radius:4px;transition:width .5s,background .5s;width:0%;background:var(--danger2)}
+.sqi-pct{font-size:14px;font-weight:800;min-width:38px;text-align:right;color:var(--text)}
+.sqi-msg{font-size:13px;color:var(--muted);min-height:18px}
+.sqi-msg.ok{color:var(--green)}.sqi-msg.warn{color:var(--warn)}.sqi-msg.bad{color:var(--danger)}
+
+/* ── WAVEFORM ── */
+.wave-sec{padding:10px 16px 0}
+.sec-lbl{font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+#waveCanvas{width:100%;height:56px;display:block;border-radius:var(--radius-sm);background:#0f1218;border:1px solid rgba(255,255,255,.08)}
+
+/* ── METRICS GRID — Samsung Health 스타일 큰 카드 ── */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 16px 0}
+.mc{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 14px;position:relative;overflow:hidden;transition:box-shadow .2s;box-shadow:var(--shadow)}
+.mc.lit{box-shadow:0 0 0 2px var(--accent2),var(--shadow)}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:var(--radius) var(--radius) 0 0;background:var(--ca,var(--border))}
+.mc.hr-c{--ca:var(--accent)}.mc.st-c{--ca:var(--green)}.mc.rr-c{--ca:var(--warn)}.mc.spo2-c{--ca:var(--purple)}
+.mname{font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.02em}
+.mval{font-size:30px;font-weight:900;color:var(--text);line-height:1;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.munit{font-size:12px;color:var(--muted);font-weight:400;margin-left:1px}
+.mst{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block;background:var(--bg3);color:var(--muted)}
+.mst.g{background:#dcfce7;color:var(--green)}.mst.w{background:#fef9c3;color:var(--warn)}.mst.d{background:#fee2e2;color:var(--danger)}.mst.p{background:#ede9fe;color:var(--purple)}
+
+/* SpO2 손가락 전용 메모 */
+.finger-only-note{font-size:12px;color:var(--muted2);text-align:center;padding:6px 16px 0;display:none}
+.finger-only-note.show{display:block}
+
+/* ── INFO BAR ── */
+.infobar{margin:10px 16px 0;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text2);min-height:42px;display:flex;align-items:center;gap:8px;line-height:1.4}
+
+/* ── ACTION GUIDE ── */
+.action-guide{margin:10px 16px 0;padding:14px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);display:none}
+.action-guide.show{display:block}
+.action-guide.good{background:#f0fdf4;border-color:rgba(22,163,74,.2)}
+.action-guide.warn{background:#fffbeb;border-color:rgba(217,119,6,.2)}
+.action-guide.bad{background:#fef2f2;border-color:rgba(220,38,38,.2)}
+.ag-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.ag-title.good{color:var(--green)}.ag-title.warn{color:var(--warn)}.ag-title.bad{color:var(--danger)}
+.ag-body{font-size:14px;color:var(--text2);line-height:1.6}
+
+/* ── START BUTTON ── */
+.controls{padding:12px 16px 16px}
+.btn-start{width:100%;height:58px;border-radius:var(--radius);background:var(--grad);color:#fff;font-family:var(--sans);font-size:18px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;box-shadow:0 4px 16px rgba(37,99,235,.35),0 2px 4px rgba(37,99,235,.2)}
+.btn-start:active{transform:scale(.98);box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.btn-start.measuring{background:#fff;border:2px solid var(--danger2);color:var(--danger);box-shadow:0 2px 8px rgba(220,38,38,.15)}
+.bico{width:22px;height:22px;flex-shrink:0}
+
+/* ── TIPS ── */
+.tips{padding:0 16px;margin-bottom:16px}
+.tips-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ti{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:13px;color:var(--text2);display:flex;align-items:flex-start;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.tico{font-size:18px;flex-shrink:0;line-height:1.3}
+
+/* ── INSTALL BANNER ── */
+.ibanner{margin:0 16px 10px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-sm);display:none;align-items:center;justify-content:space-between}
+.ibanner.show{display:flex}
+.ibanner p{font-size:14px;color:var(--accent)}
+.ibanner button{font-size:13px;font-weight:700;color:#fff;background:var(--accent);border:none;border-radius:8px;padding:7px 16px;cursor:pointer;font-family:var(--sans)}
+
+footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px solid var(--border);text-align:center;font-size:12px;color:var(--muted2);line-height:1.6;background:var(--bg2)}
+
+/* ══════════════ ANALYSIS SCREEN ══════════════ */
+.ana{padding:0 0 40px}
+.no-data{text-align:center;padding:52px 24px}
+.no-data svg{opacity:.15;display:block;margin:0 auto 18px}
+.no-data p{font-size:17px;color:var(--muted);line-height:1.8}
+
+.score-sec{padding:16px 16px 0}
+.score-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px 20px;text-align:center;box-shadow:var(--shadow-lg)}
+.sc-lbl{font-size:14px;color:var(--muted);margin-bottom:14px;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.sc-num-row{display:flex;align-items:baseline;justify-content:center;gap:4px;margin-bottom:8px}
+.sc-num{font-size:68px;font-weight:900;line-height:1;transition:color .5s}
+.sc-max{font-size:22px;color:var(--muted2)}
+.sc-grade{display:inline-block;font-size:16px;font-weight:700;padding:5px 24px;border-radius:24px;margin-bottom:14px}
+.sc-grade.A{background:#dcfce7;color:var(--green);border:1px solid rgba(22,163,74,.25)}
+.sc-grade.B{background:#dbeafe;color:var(--accent);border:1px solid rgba(37,99,235,.25)}
+.sc-grade.C{background:#fef9c3;color:var(--warn);border:1px solid rgba(217,119,6,.25)}
+.sc-grade.D{background:#fee2e2;color:var(--danger);border:1px solid rgba(220,38,38,.25)}
+.sc-sum{font-size:15px;color:var(--muted);line-height:1.7;max-width:300px;margin:0 auto}
+
+/* SpO2 링 */
+.spo2-ring-wrap{display:flex;justify-content:center;padding:14px 0 4px}
+.spo2-ring{position:relative;width:110px;height:110px}
+.spo2-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.spo2-ring-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.spo2-ring-num{font-size:28px;font-weight:900;line-height:1}
+.spo2-ring-unit{font-size:12px;color:var(--muted);margin-top:2px}
+.spo2-warn-badge{display:inline-block;font-size:13px;font-weight:700;padding:4px 14px;border-radius:20px;margin-top:8px}
+.spo2-warn-badge.ok{background:#dcfce7;color:var(--green)}.spo2-warn-badge.warn{background:#fef9c3;color:var(--warn)}.spo2-warn-badge.bad{background:#fee2e2;color:var(--danger)}.spo2-warn-badge.na{background:var(--bg3);color:var(--muted)}
+
+.gauges-sec{padding:14px 16px 0}
+.gauge-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.gh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.gtitle{font-size:16px;color:var(--text);font-weight:700}
+.gvrow{display:flex;align-items:baseline;gap:4px}
+.gval{font-size:26px;font-weight:900;transition:color .5s}
+.gunit{font-size:13px;color:var(--muted)}
+.gtrack{height:10px;border-radius:5px;background:var(--bg3);position:relative;margin-bottom:8px}
+.gnorm{position:absolute;top:0;height:100%;background:rgba(22,163,74,.15);border-radius:5px}
+.gfill{height:100%;border-radius:5px;transition:width .9s cubic-bezier(.34,1.4,.64,1);position:relative;min-width:10px}
+.gfill::after{content:'';position:absolute;right:-3px;top:50%;transform:translateY(-50%);width:16px;height:16px;border-radius:50%;background:inherit;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.gzones{display:flex;font-size:11px;color:var(--muted2);margin-top:6px}
+.gz{flex:1;text-align:center;line-height:1.4}
+.gz:first-child{text-align:left}.gz:last-child{text-align:right}
+.gana{font-size:14px;color:var(--muted);line-height:1.65;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.gana strong{font-weight:700;color:var(--text)}.gana .hi{color:var(--green);font-weight:700}.gana .wi{color:var(--warn);font-weight:700}.gana .di{color:var(--danger);font-weight:700}
+
+.detail-sec{padding:14px 16px 0}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
+.dtitle{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:6px;letter-spacing:.01em}
+.dbody{font-size:13px;color:var(--muted);line-height:1.65}
+
+.breath-sec{padding:14px 16px 0}
+.breath-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;box-shadow:var(--shadow)}
+.breath-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px}
+.breath-ring-wrap{margin-bottom:14px}
+.breath-ring{width:110px;height:110px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#fff;transition:all .5s;background:var(--grad)}
+.breath-ring.exhale{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+.breath-instr{font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px}
+.breath-sub{font-size:14px;color:var(--muted);margin-bottom:14px}
+.btn-breath{padding:12px 28px;border-radius:var(--radius-sm);background:var(--grad);color:#fff;font-family:var(--sans);font-size:15px;font-weight:700;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(37,99,235,.3)}
+.btn-breath.active{background:var(--bg3);color:var(--muted);border:1px solid var(--border);box-shadow:none}
+
+.avg-sec{padding:14px 16px 0}
+.avg-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.acard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 8px;text-align:center}
+.albl{font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500}
+.aval{font-size:18px;font-weight:900;color:var(--text)}.aunit{font-size:12px;color:var(--muted)}
+
+.baseline-notice{margin:12px 16px 0;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-sm);font-size:13px;color:var(--muted);line-height:1.6}
+.baseline-notice strong{color:var(--accent);font-weight:700}
+
+.hist-sec{padding:14px 16px 0}
+.hist-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.btn-clr{font-size:13px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:6px;padding:5px 12px;cursor:pointer;font-family:var(--sans)}
+.hlist{display:flex;flex-direction:column;gap:8px}
+.hitem{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;display:grid;gap:6px;align-items:center}
+.hts{font-size:12px;color:var(--muted)}
+.hv .v{font-size:15px;font-weight:700;color:var(--text);display:block;text-align:center}
+.hv .u{font-size:11px;color:var(--muted2);display:block;text-align:center}
+.hempty{font-size:15px;color:var(--muted2);text-align:center;padding:24px}
+
+/* ══════════════ BODY SCREEN ══════════════ */
+.body-screen{padding:0 0 40px}
+.bsec{padding:14px 16px 0}
+.bsec-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.bsec-desc{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.55}
+
+.overall-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow-lg)}
+.overall-ring{position:relative;width:86px;height:86px;flex-shrink:0}
+.overall-ring svg{width:100%;height:100%}
+.overall-ring-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.overall-num{font-size:26px;font-weight:900;line-height:1}
+.overall-unit{font-size:11px;color:var(--muted)}
+.overall-info{flex:1;min-width:0}
+.overall-title{font-size:16px;font-weight:700;margin-bottom:5px}
+.overall-dots{display:flex;gap:5px;margin-bottom:5px;flex-wrap:wrap}
+.bdot{font-size:16px;transition:opacity .3s}
+.overall-sub{font-size:13px;color:var(--muted);line-height:1.5}
+
+.ai-coach-card{background:var(--card);border:1px solid rgba(37,99,235,.2);border-radius:var(--radius);padding:16px;background:linear-gradient(135deg,#eff6ff 0%,#f0f9ff 100%)}
+.ai-coach-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.ai-icon{font-size:22px}
+.ai-title{font-size:16px;font-weight:700;color:var(--accent)}
+.ai-coach-body{display:flex;flex-direction:column;gap:8px}
+.ai-line{font-size:14px;color:var(--text2);line-height:1.6;padding:9px 12px;background:#fff;border-radius:8px;border-left:3px solid var(--accent2);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.ai-good{font-size:14px;color:var(--green);padding:9px 12px;background:#f0fdf4;border-radius:8px;border-left:3px solid var(--green2)}
+.ai-priority{margin-top:12px;background:#fff5f5;border:1px solid rgba(220,38,38,.18);border-radius:var(--radius-sm);padding:12px;display:none}
+.ai-pri-label{font-size:13px;font-weight:700;color:var(--danger);margin-bottom:4px}
+.ai-pri-body{font-size:13px;color:var(--text2);line-height:1.6}
+
+.tcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.tcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tc,var(--border));border-radius:4px 0 0 4px}
+.tc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px}
+.tc-name{font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px}
+.tc-dur{font-size:12px;color:var(--muted);font-weight:400}
+.tc-method{font-size:12px;color:var(--muted);line-height:1.4}
+.tc-badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;background:var(--bg3);color:var(--muted)}
+.tc-badge.running{background:#fef9c3;color:var(--warn)}.tc-badge.done{background:#dcfce7;color:var(--green)}.tc-badge.ready{background:#dbeafe;color:var(--accent)}.tc-badge.warn{background:#fee2e2;color:var(--danger)}
+
+.viz-wrap{background:#12151e;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;position:relative;min-height:120px}
+.viz-canvas{display:block;width:100%;height:120px}
+.viz-overlay{position:absolute;top:7px;left:10px;font-size:11px;color:rgba(255,255,255,.35);font-weight:500}
+
+.countdown-wrap{display:flex;flex-direction:column;align-items:center;padding:10px 0 6px;gap:3px}
+.countdown-num{font-size:52px;font-weight:900;color:var(--accent);line-height:1}
+.countdown-label{font-size:13px;color:var(--muted)}
+.countdown-prog{width:75%;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:8px}
+.countdown-fill{height:100%;background:var(--grad);border-radius:2px;width:0%;transition:width .5s linear}
+
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.ritem{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center}
+.rlbl{font-size:12px;color:var(--muted);margin-bottom:3px;font-weight:500}
+.rval{font-size:20px;font-weight:900;color:var(--text)}
+.runit{font-size:11px;color:var(--muted2)}
+
+.tilt-row{display:flex;align-items:center;gap:8px;padding:4px 0}
+.tilt-lbl{font-size:12px;color:var(--muted);min-width:68px;font-weight:500}
+.tilt-bar-wrap{flex:1;height:8px;background:var(--bg3);border-radius:4px;position:relative}
+.tilt-center{position:absolute;left:50%;top:0;width:2px;height:8px;background:rgba(0,0,0,.12)}
+.tilt-fill{position:absolute;height:100%;border-radius:4px;transition:left .15s,width .15s,background .2s}
+.tilt-val{font-size:13px;font-weight:700;color:var(--text);min-width:32px;text-align:right}
+
+.reaction-area{display:flex;align-items:center;justify-content:center;min-height:140px;border-radius:var(--radius);border:2px dashed rgba(220,38,38,.25);background:#fff5f5;cursor:pointer;margin-bottom:10px;transition:all .18s;user-select:none;-webkit-user-select:none}
+.reaction-inner{text-align:center}
+.reaction-icon{font-size:44px;margin-bottom:8px}
+.reaction-msg{font-size:17px;font-weight:700;color:var(--text)}
+.trial-dots{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+.rdot{font-size:12px;color:var(--muted);background:var(--bg3);padding:4px 10px;border-radius:20px}
+.rdot.done{background:#dcfce7;color:var(--green);font-weight:700}
+.rdot.active{background:#dbeafe;color:var(--accent);font-weight:700}
+
+.ai-feedback{border-left:3px solid var(--accent);background:#eff6ff;border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:10px 14px;margin-top:10px;display:flex;flex-direction:column;gap:5px}
+.fb-line{font-size:13px;color:var(--text2);line-height:1.6}
+
+.train-guide{background:#f0fdf4;border:1px solid rgba(22,163,74,.2);border-radius:var(--radius-sm);padding:14px;margin-top:8px}
+.tg-title{font-size:14px;font-weight:700;color:var(--green);margin-bottom:8px}
+.tg-item{font-size:13px;color:var(--text2);line-height:1.65;display:flex;align-items:flex-start;gap:7px;margin-bottom:4px}
+.tg-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:7px}
+
+.tc-btn{width:100%;height:50px;margin-top:10px;border-radius:var(--radius-sm);background:var(--grad);color:#fff;font-family:var(--sans);font-size:16px;font-weight:700;border:none;cursor:pointer;transition:all .18s;box-shadow:0 3px 10px rgba(37,99,235,.25)}
+.tc-btn:active{transform:scale(.98)}
+
+/* 나이 + 신체나이 */
+.age-input-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.age-input-label{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5}
+.age-input-row{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:8px}
+.age-btn{width:42px;height:42px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--border2);color:var(--text);font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:var(--sans)}
+.age-btn:active{background:var(--accent);color:#fff;border-color:var(--accent);transform:scale(.92)}
+.age-display{display:flex;align-items:baseline;gap:4px}
+.age-num{font-size:44px;font-weight:900;color:var(--accent);min-width:76px;text-align:center;line-height:1}
+.age-unit{font-size:17px;color:var(--muted)}
+.age-hint{font-size:12px;color:var(--muted2);text-align:center}
+
+.bioage-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;box-shadow:var(--shadow-lg)}
+.bioage-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(to right,var(--accent),var(--purple),var(--danger2));border-radius:var(--radius) var(--radius) 0 0}
+.bioage-header{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.bioage-icon{font-size:22px}.bioage-title{font-size:17px;font-weight:700;color:var(--text)}
+.bioage-compare{display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.bioage-col{text-align:center;flex:1}
+.bioage-lbl{font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500}
+.bioage-val{font-size:38px;font-weight:900;line-height:1;margin-bottom:2px}
+.bioage-val.real{color:var(--muted)}.bioage-val.body{color:var(--accent);transition:color .5s}.bioage-val.diff{font-size:26px;transition:color .5s}
+.bioage-unit{font-size:12px;color:var(--muted2)}
+.bioage-arrow{font-size:24px;color:var(--muted2);padding:0 2px;flex-shrink:0}
+.bioage-bar-wrap{margin-bottom:14px}
+.bioage-bar-bg{height:10px;background:linear-gradient(to right,#22c55e 0%,#86efac 20%,#60a5fa 40%,#f59e0b 65%,#f87171 85%,#dc2626 100%);border-radius:5px;position:relative;margin-bottom:5px}
+.bioage-bar-fill{position:absolute;inset:0;background:var(--bg2);border-radius:5px;transition:width 1.2s cubic-bezier(.34,1.4,.64,1)}
+.bioage-bar-marker{position:absolute;top:-5px;width:4px;height:20px;background:var(--text);border-radius:2px;transition:left 1.2s cubic-bezier(.34,1.4,.64,1);box-shadow:0 0 6px rgba(0,0,0,.3)}
+.bioage-bar-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted2)}
+.bioage-msg{font-size:15px;font-weight:700;text-align:center;margin-bottom:10px;line-height:1.5}
+.bioage-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.bioage-bitem{background:var(--bg3);border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between}
+.bioage-bitem-name{font-size:12px;color:var(--muted)}
+.bioage-bitem-val{font-size:13px;font-weight:700}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <svg viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="14" stroke="#1a6ef5" stroke-width="1.5" opacity=".6"/>
+      <polyline points="2,16 7,16 10,8 13,24 16,11 19,19 22,16 30,16" stroke="#1a6ef5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    <span class="logo-text">건강 <span>측정</span></span>
+  </div>
+  <span class="hbadge">v8.3.0</span>
+</header>
+
+<nav class="tabs">
+  <button class="tab on" id="tab-measure" onclick="showTab('measure')">📷 측정</button>
+  <button class="tab" id="tab-body" onclick="showTab('body')">🏃 몸 분석</button>
+  <button class="tab" id="tab-analysis" onclick="showTab('analysis')">📊 분석</button>
+</nav>
+
+<!-- MEASURE SCREEN -->
+<div class="screen on" id="screen-measure">
+
+  <!-- Mode selector -->
+  <div class="mode-wrap">
+    <div class="mode-title">측정 방식을 선택하세요</div>
+    <div class="mode-cards">
+      <div class="mode-card finger selected" id="modeCardFinger" onclick="selectMode('finger')">
+        <div class="mode-icon">👆</div>
+        <div class="mode-name">손가락 측정</div>
+        <div class="mode-desc">후면 카메라에 손가락을 대세요</div>
+        <span class="mode-acc">★ 정확도 높음</span>
+      </div>
+      <div class="mode-card face" id="modeCardFace" onclick="selectMode('face')">
+        <div class="mode-icon">😊</div>
+        <div class="mode-name">얼굴 측정</div>
+        <div class="mode-desc">전면 카메라로 얼굴을 촬영하세요</div>
+        <span class="mode-acc">◎ 정확도 보통</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cam-wrap" id="camWrap" style="margin-top:12px">
+    <div class="cam-ph" id="camPh">
+      <svg width="52" height="52" viewBox="0 0 56 56" fill="none">
+        <rect x="4" y="14" width="48" height="32" rx="5" stroke="#94a3b8" stroke-width="2"/>
+        <circle cx="28" cy="30" r="9" stroke="#94a3b8" stroke-width="2"/>
+        <path d="M18 14L22 8H34L38 14" stroke="#94a3b8" stroke-width="2"/>
+      </svg>
+      <p id="camPhMsg">아래 버튼을 눌러 측정을 시작하세요</p>
+    </div>
+    <video id="videoEl" autoplay muted playsinline style="display:none;min-height:260px;height:58dvh;max-height:420px"></video>
+    <canvas id="overlayCanvas" style="display:none"></canvas>
+    <div class="scan-line" id="scanLine"></div>
+    <div class="ov-chips" id="ovChips" style="display:none">
+      <div class="chip live"><span class="cdot"></span><span id="fpsText">-- fps</span></div>
+      <div class="chip" id="chipFrame">준비 중</div>
+      <div class="chip" id="chipTimer" style="display:none;background:rgba(37,99,235,.25);color:#93c5fd;font-weight:700">⏱ 30초</div>
+      <div class="chip" id="chipMode">손가락</div>
+      <div class="chip" id="torchBadge" style="display:none">🔦 플래시 ON</div>
+    </div>
+    <!-- 카메라 하단 안내 — 항상 보이는 HTML 요소 -->
+    <div class="cam-status-bar" id="camStatusBar" style="display:none">
+      <div class="cam-status-msg" id="camStatusMsg">검지손가락을 후면 렌즈에 올려주세요</div>
+      <div class="cam-status-sub" id="camStatusSub"></div>
+    </div>
+  </div>
+
+  <div class="prog"><div class="prog-fill" id="progFill"></div></div>
+
+  <div class="sqi-card" id="sqiWrap" style="display:none">
+    <div class="sqi-row">
+      <span class="sqi-lbl">신뢰도</span>
+      <div class="sqi-track"><div class="sqi-fill" id="sqiFill"></div></div>
+      <span class="sqi-pct" id="sqiPct">0%</span>
+    </div>
+    <div class="sqi-msg" id="sqiMsg">신호를 분석 중...</div>
+  </div>
+
+  <div class="wave-sec">
+    <div class="sec-lbl" id="waveLbl">신호 파형</div>
+    <canvas id="waveCanvas" height="60"></canvas>
+  </div>
+
+  <!-- v8 메트릭 카드: 2×2 + 스트레스 지수 전체폭 -->
+  <div class="metrics" style="grid-template-columns:1fr 1fr">
+    <div class="mc hr-c" id="cHR">
+      <div class="mname">❤️ 심박수</div>
+      <div class="mval" id="vHR">--<span class="munit"> bpm</span></div>
+      <span class="mst" id="sHR">대기</span>
+    </div>
+    <div class="mc spo2-c" id="cSPO2">
+      <div class="mname">🫁 산소포화도</div>
+      <div class="mval" id="vSPO2">--<span class="munit"> %</span></div>
+      <span class="mst" id="sSPO2">대기</span>
+    </div>
+    <div class="mc st-c" id="cST">
+      <div class="mname" id="stCardName">🧠 HRV (RMSSD)</div>
+      <div class="mval" id="vST">--<span class="munit"> ms</span></div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+        <span class="mst" id="sST">대기</span>
+        <span style="font-size:10px;color:var(--muted2)" id="vPNN50"></span>
+      </div>
+    </div>
+    <div class="mc rr-c" id="cRR">
+      <div class="mname">🌬️ 호흡수</div>
+      <div class="mval" id="vRR">--<span class="munit"> rpm</span></div>
+      <span class="mst" id="sRR">대기</span>
+    </div>
+  </div>
+  <!-- v8 스트레스 지수 카드 (전체 폭) -->
+  <div class="metrics" style="grid-template-columns:1fr;margin-top:0;padding-top:0">
+    <div class="mc" id="cSTRESS" style="--ca:linear-gradient(90deg,#7c3aed,#a78bfa)">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="mname">🧘 스트레스 지수 (LF/HF)</div>
+          <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px">
+            <span class="mval" id="vSTRESS" style="font-size:26px">--</span>
+            <span class="munit">/ 100</span>
+          </div>
+          <span class="mst" id="sSTRESS">대기</span>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:4px">
+            <div id="stressBar" style="height:100%;width:0%;border-radius:4px;background:var(--green);transition:width .5s,background .5s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)">
+            <span>이완</span><span>보통</span><span>스트레스</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted2);margin-top:6px" id="stressHint">LF/HF 비율 기반 — 30초 이상 측정 후 표시</div>
+    </div>
+  </div>
+  <p class="finger-only-note" id="spo2Note">💡 산소포화도(SpO2)는 손가락 측정 모드에서만 측정됩니다</p>
+
+  <div class="infobar" id="infoBar">측정 방식을 선택하고 시작 버튼을 눌러주세요.</div>
+
+  <div class="action-guide" id="actionGuide">
+    <div class="ag-title" id="agTitle"></div>
+    <div class="ag-body" id="agBody"></div>
+  </div>
+
+  <div class="ibanner" id="iBanner">
+    <p>📲 홈 화면에 앱 추가하기</p>
+    <button id="installBtn">설치</button>
+  </div>
+
+  <div class="controls">
+    <button class="btn-start" id="startBtn">
+      <svg class="bico" viewBox="0 0 22 22" fill="currentColor">
+        <circle cx="11" cy="11" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+        <circle cx="11" cy="11" r="4"/>
+      </svg>
+      측정 시작
+    </button>
+  </div>
+
+  <div class="tips">
+    <div class="sec-lbl" style="margin-bottom:10px" id="tipsTitle">손가락 측정 방법</div>
+    <div class="tgrid" id="tipsGrid">
+      <div class="ti"><span class="tico">👆</span><span>검지를 후면 카메라 렌즈에 가볍게 올려 주세요</span></div>
+      <div class="ti"><span class="tico">💡</span><span>플래시가 자동으로 켜집니다</span></div>
+      <div class="ti"><span class="tico">🧘</span><span>손가락을 떼지 말고 30초간 기다려 주세요</span></div>
+      <div class="ti"><span class="tico">📱</span><span>폰을 테이블에 올려놓고 측정하면 더 정확해요</span></div>
+    </div>
+  </div>
+
+  <footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요. · rPPG v8.3</footer>
+</div>
+
+<!-- ANALYSIS SCREEN -->
+<div class="screen" id="screen-analysis">
+  <div class="ana">
+    <div class="no-data" id="noData">
+      <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+        <circle cx="26" cy="26" r="24" stroke="#94a3b8" stroke-width="2" opacity=".4"/>
+        <path d="M10 26h6l4-11 6 22 5-14 4 3h6" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p>먼저 <strong style="color:var(--accent)">측정 탭</strong>에서<br>건강 측정을 완료해 주세요.</p>
+      <div style="margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:10px;font-size:13px;color:var(--muted);line-height:1.7;text-align:left">
+        💡 <strong>측정 팁</strong><br>
+        • 손가락 모드: 어두운 곳에서 플래시를 켜고 측정<br>
+        • 얼굴 모드: 밝은 실내에서 30cm 거리 유지<br>
+        • 30초 이상 가만히 있을수록 신뢰도 향상
+      </div>
+    </div>
+    <div id="anaContent" style="display:none">
+      <div class="score-sec">
+        <div class="score-card">
+          <div class="sc-lbl">나의 건강 점수</div>
+          <div class="sc-num-row"><span class="sc-num" id="scNum">--</span><span class="sc-max">/ 100</span></div>
+          <span class="sc-grade" id="scGrade">--</span>
+          <p class="sc-sum" id="scSum"></p>
+        </div>
+      </div>
+      <div class="baseline-notice" id="baselineNotice" style="display:none"></div>
+      <div class="gauges-sec">
+        <div class="sec-lbl" style="margin-bottom:12px;font-size:18px">항목별 상세 분석</div>
+        <div class="gauge-item">
+          <div class="gh"><span class="gtitle">❤️ 심박수</span><div class="gvrow"><span class="gval" id="ghHR">--</span><span class="gunit">bpm</span></div></div>
+          <div class="gtrack"><div class="gnorm" id="gnHR"></div><div class="gfill" id="gfHR" style="width:0%"></div></div>
+          <div class="gzones"><span class="gz">매우낮음<br>&lt;40</span><span class="gz">낮음<br>40~60</span><span class="gz">정상<br>60~100</span><span class="gz">높음<br>100~130</span><span class="gz">매우높음<br>&gt;130</span></div>
+          <div class="gana" id="gaHR"></div>
+        </div>
+        <div class="gauge-item">
+          <div class="gh"><span class="gtitle">🧠 HRV 스트레스 (RMSSD)</span><div class="gvrow"><span class="gval" id="ghST">--</span><span class="gunit">ms</span></div></div>
+          <div class="gtrack"><div class="gnorm" id="gnST"></div><div class="gfill" id="gfST" style="width:0%"></div></div>
+          <div class="gzones"><span class="gz">고스트레스<br>&lt;15</span><span class="gz">스트레스<br>15~25</span><span class="gz">보통<br>25~40</span><span class="gz">이완<br>40~60</span><span class="gz">매우이완<br>&gt;60</span></div>
+          <div class="gana" id="gaST"></div>
+        </div>
+        <div class="gauge-item">
+          <div class="gh"><span class="gtitle">🫁 호흡수</span><div class="gvrow"><span class="gval" id="ghRR">--</span><span class="gunit">rpm</span></div></div>
+          <div class="gtrack"><div class="gnorm" id="gnRR"></div><div class="gfill" id="gfRR" style="width:0%"></div></div>
+          <div class="gzones"><span class="gz">저호흡<br>&lt;8</span><span class="gz">낮음<br>8~12</span><span class="gz">정상<br>12~20</span><span class="gz">높음<br>20~25</span><span class="gz">과호흡<br>&gt;25</span></div>
+          <div class="gana" id="gaRR"></div>
+        </div>
+        <div class="gauge-item">
+          <div class="gh"><span class="gtitle">🧘 스트레스 지수 (LF/HF)</span><div class="gvrow"><span class="gval" id="ghSI">--</span><span class="gunit">/ 100</span></div></div>
+          <div class="gtrack"><div class="gnorm" id="gnSI"></div><div class="gfill" id="gfSI" style="width:0%"></div></div>
+          <div class="gzones"><span class="gz">매우이완<br>&lt;30</span><span class="gz">이완<br>30~45</span><span class="gz">보통<br>45~60</span><span class="gz">스트레스<br>60~75</span><span class="gz">고스트레스<br>&gt;75</span></div>
+          <div class="gana" id="gaSI"></div>
+        </div>
+      </div>
+      <div class="detail-sec">
+        <div class="sec-lbl" style="margin-bottom:12px;font-size:18px">세부 분석</div>
+        <div class="dgrid">
+          <div class="dcard"><div class="dtitle">심혈관 상태</div><div class="dbody" id="dCardio"></div></div>
+          <div class="dcard"><div class="dtitle">자율신경계</div><div class="dbody" id="dANS"></div></div>
+          <div class="dcard"><div class="dtitle">호흡 상태</div><div class="dbody" id="dBreath"></div></div>
+          <div class="dcard"><div class="dtitle">오늘의 권고</div><div class="dbody" id="dAdvice"></div></div>
+        </div>
+      </div>
+      <div class="breath-sec">
+        <div class="breath-card">
+          <div class="breath-title">🌬️ 3분 호흡 안정 훈련</div>
+          <div class="breath-ring-wrap"><div class="breath-ring exhale" id="breathRing">준비</div></div>
+          <div class="breath-instr" id="breathInstr">시작 버튼을 눌러주세요</div>
+          <div class="breath-sub" id="breathSub">호흡 조절로 스트레스를 줄여보세요</div>
+          <button class="btn-breath" id="btnBreath" onclick="toggleBreath()">호흡 훈련 시작</button>
+        </div>
+      </div>
+      <div class="avg-sec">
+        <div class="sec-lbl" style="margin-bottom:10px">📈 누적 평균 (최근 10회)</div>
+        <div class="avg-row">
+          <div class="acard"><div class="albl">평균 심박수</div><div class="aval" id="avgHR">--<span class="aunit"> bpm</span></div></div>
+          <div class="acard"><div class="albl">평균 스트레스</div><div class="aval" id="avgST">--<span class="aunit"> ms</span></div></div>
+          <div class="acard"><div class="albl">평균 호흡수</div><div class="aval" id="avgRR">--<span class="aunit"> rpm</span></div></div>
+        </div>
+      </div>
+      <div class="hist-sec">
+        <div class="hist-hd"><span class="sec-lbl">📋 측정 기록</span><button class="btn-clr" onclick="clearHistory()">기록 삭제</button></div>
+        <div class="hlist" id="histList"></div>
+      </div>
+    </div>
+  </div>
+  <footer style="margin-top:20px">이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.</footer>
+</div>
+
+<!-- ══ BODY ANALYSIS SCREEN ══ -->
+<div class="screen" id="screen-body">
+<div class="body-screen">
+
+  <!-- 종합 점수 카드 -->
+  <div class="bsec" style="padding-top:16px">
+    <div class="overall-card" id="bodyOverallCard">
+      <div class="overall-ring-wrap">
+        <div class="overall-ring">
+          <svg viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="42" stroke="rgba(77,166,255,0.12)" stroke-width="10"/>
+            <circle cx="50" cy="50" r="42" stroke="var(--accent)"
+              stroke-width="10" stroke-linecap="round"
+              stroke-dasharray="264" stroke-dashoffset="264"
+              id="bodyArc" style="transition:stroke-dashoffset 1s ease,stroke .5s;transform:rotate(-90deg);transform-origin:50px 50px"/>
+          </svg>
+          <div class="overall-ring-val">
+            <span class="overall-num" id="bodyScoreNum" style="color:var(--muted)">--</span>
+            <span class="overall-unit">점</span>
+          </div>
+        </div>
+      </div>
+      <div class="overall-info">
+        <div class="overall-title">종합 신체 기능</div>
+        <div class="overall-dots" id="bodyDots">
+          <span class="bdot" id="dot-balance">⚖️</span>
+          <span class="bdot" id="dot-gait">🚶</span>
+          <span class="bdot" id="dot-posture">🦴</span>
+          <span class="bdot" id="dot-reaction">⚡</span>
+          <span class="bdot" id="dot-shake">🤲</span>
+        </div>
+        <div class="overall-sub" id="bodyOverallSub">5가지 검사를 완료하면<br>AI 코치가 분석합니다</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 나이 입력 -->
+  <div class="bsec" id="ageInputSec">
+    <div class="age-input-card">
+      <div class="age-input-label">📅 실제 나이를 입력하면 신체 나이를 계산합니다</div>
+      <div class="age-input-row">
+        <button class="age-btn" onclick="adjustAge(-1)">−</button>
+        <div class="age-display">
+          <span class="age-num" id="ageDisplay">--</span>
+          <span class="age-unit">세</span>
+        </div>
+        <button class="age-btn" onclick="adjustAge(1)">+</button>
+      </div>
+      <div class="age-hint">나이를 설정하면 검사 완료 후 신체 나이가 표시됩니다</div>
+    </div>
+  </div>
+
+  <!-- 신체 나이 결과 카드 (검사 완료 후 표시) -->
+  <div class="bsec" id="bioAgeSection" style="display:none">
+    <div class="bioage-card">
+      <div class="bioage-header">
+        <span class="bioage-icon">🧬</span>
+        <span class="bioage-title">신체 나이 분석</span>
+      </div>
+      <div class="bioage-compare">
+        <div class="bioage-col">
+          <div class="bioage-lbl">실제 나이</div>
+          <div class="bioage-val real" id="bioAgeReal">--</div>
+          <div class="bioage-unit">세</div>
+        </div>
+        <div class="bioage-arrow" id="bioAgeArrow">→</div>
+        <div class="bioage-col">
+          <div class="bioage-lbl">신체 나이</div>
+          <div class="bioage-val body" id="bioAgeBody">--</div>
+          <div class="bioage-unit">세</div>
+        </div>
+        <div class="bioage-col">
+          <div class="bioage-lbl">차이</div>
+          <div class="bioage-val diff" id="bioAgeDiff">--</div>
+          <div class="bioage-unit">년</div>
+        </div>
+      </div>
+      <div class="bioage-bar-wrap">
+        <div class="bioage-bar-bg">
+          <div class="bioage-bar-fill" id="bioAgeBarFill"></div>
+          <div class="bioage-bar-marker" id="bioAgeMarker"></div>
+        </div>
+        <div class="bioage-bar-labels">
+          <span>20대</span><span>30대</span><span>40대</span><span>50대</span><span>60대</span><span>70대+</span>
+        </div>
+      </div>
+      <div class="bioage-msg" id="bioAgeMsg"></div>
+      <div class="bioage-breakdown" id="bioAgeBreakdown"></div>
+    </div>
+  </div>
+
+  <!-- AI 코치 피드백 (완료 후 표시) -->
+  <div class="bsec" id="aiCoachSection" style="display:none">
+    <div class="ai-coach-card">
+      <div class="ai-coach-header">
+        <span class="ai-icon">🤖</span>
+        <span class="ai-title">AI 신체 코치 분석</span>
+      </div>
+      <div class="ai-coach-body" id="aiCoachBody"></div>
+      <div class="ai-priority" id="aiPriority"></div>
+    </div>
+  </div>
+
+  <!-- ① 균형 검사 -->
+  <div class="bsec">
+    <div class="bsec-title">⚖️ 균형 · 낙상 위험도</div>
+    <div class="bsec-desc">정적 균형 능력을 측정합니다. 폰을 허리에 수평으로 잡고 가만히 서주세요.</div>
+    <div class="tcard" id="card-balance" style="--tc:#7bc8ff">
+      <div class="tc-head">
+        <div>
+          <div class="tc-name">정적 균형 검사 <span class="tc-dur">(30초)</span></div>
+          <div class="tc-method">📱 폰을 허리에 수평으로 잡고 → 발 모아 서기</div>
+        </div>
+        <span class="tc-badge" id="badge-balance">대기</span>
+      </div>
+      <!-- 실시간 시각화 -->
+      <div class="viz-wrap" id="viz-balance" style="display:none">
+        <canvas id="cvBalance" class="viz-canvas"></canvas>
+        <div class="viz-overlay" id="vizlbl-balance">흔들림 궤적</div>
+      </div>
+      <!-- 카운트다운 -->
+      <div class="countdown-wrap" id="cd-balance" style="display:none">
+        <div class="countdown-num" id="cdNum-balance">30</div>
+        <div class="countdown-label">초 남음</div>
+        <div class="countdown-prog"><div class="countdown-fill" id="cdFill-balance"></div></div>
+      </div>
+      <!-- 결과 -->
+      <div class="result-grid" id="res-balance" style="display:none">
+        <div class="ritem">
+          <div class="rlbl">흔들림 면적</div>
+          <div class="rval" id="r-bSway">--</div>
+          <div class="runit">cm²</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">이동 속도</div>
+          <div class="rval" id="r-bVel">--</div>
+          <div class="runit">cm/s</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">안정성</div>
+          <div class="rval" id="r-bStab">--</div>
+          <div class="runit">점</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">낙상 위험</div>
+          <div class="rval" id="r-bRisk">--</div>
+          <div class="runit">등급</div>
+        </div>
+      </div>
+      <!-- AI 피드백 -->
+      <div class="ai-feedback" id="fb-balance" style="display:none"></div>
+      <!-- 훈련 가이드 -->
+      <div class="train-guide" id="tg-balance" style="display:none"></div>
+      <button class="tc-btn" id="btn-balance" onclick="B.balance.toggle()">
+        ▶ 균형 검사 시작
+      </button>
+    </div>
+  </div>
+
+  <!-- ② 보행 분석 -->
+  <div class="bsec">
+    <div class="bsec-title">🚶 보행 분석</div>
+    <div class="bsec-desc">걸음걸이 패턴을 분석합니다. 폰을 손에 쥐거나 앞주머니에 넣고 20걸음 걸어주세요.</div>
+    <div class="tcard" id="card-gait" style="--tc:#34d399">
+      <div class="tc-head">
+        <div>
+          <div class="tc-name">보행 패턴 분석 <span class="tc-dur">(20걸음)</span></div>
+          <div class="tc-method">📱 손에 쥐거나 주머니 → 평소처럼 걷기</div>
+        </div>
+        <span class="tc-badge" id="badge-gait">대기</span>
+      </div>
+      <div class="viz-wrap" id="viz-gait" style="display:none">
+        <canvas id="cvGait" class="viz-canvas"></canvas>
+        <div class="viz-overlay" id="vizlbl-gait">가속도 파형 · 파란점=걸음</div>
+      </div>
+      <div class="result-grid" id="res-gait" style="display:none">
+        <div class="ritem">
+          <div class="rlbl">감지 걸음</div>
+          <div class="rval" id="r-gSteps">--</div>
+          <div class="runit">걸음</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">케이던스</div>
+          <div class="rval" id="r-gCad">--</div>
+          <div class="runit">걸음/분</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">규칙성</div>
+          <div class="rval" id="r-gReg">--</div>
+          <div class="runit">%</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">좌우 대칭</div>
+          <div class="rval" id="r-gSym">--</div>
+          <div class="runit">%</div>
+        </div>
+      </div>
+      <div class="ai-feedback" id="fb-gait" style="display:none"></div>
+      <div class="train-guide" id="tg-gait" style="display:none"></div>
+      <button class="tc-btn" id="btn-gait" onclick="B.gait.toggle()">
+        ▶ 보행 분석 시작
+      </button>
+    </div>
+  </div>
+
+  <!-- ③ 척추·자세 분석 -->
+  <div class="bsec">
+    <div class="bsec-title">🦴 척추 · 자세 정렬</div>
+    <div class="bsec-desc">척추 기울기와 자세 불균형을 측정합니다. 폰을 등 가운데에 세로로 대고 바르게 서주세요.</div>
+    <div class="tcard" id="card-posture" style="--tc:#fbbf24">
+      <div class="tc-head">
+        <div>
+          <div class="tc-name">척추·자세 정렬 <span class="tc-dur">(15초)</span></div>
+          <div class="tc-method">📱 등 가운데 세로로 대기 → 바른 자세 유지</div>
+        </div>
+        <span class="tc-badge" id="badge-posture">대기</span>
+      </div>
+      <!-- Live tilt meters -->
+      <div id="live-posture" style="display:none;padding:10px 0 4px">
+        <div class="tilt-row">
+          <span class="tilt-lbl">좌우 (Roll)</span>
+          <div class="tilt-bar-wrap">
+            <div class="tilt-center"></div>
+            <div class="tilt-fill" id="tf-roll"></div>
+          </div>
+          <span class="tilt-val" id="tv-roll">0°</span>
+        </div>
+        <div class="tilt-row" style="margin-top:8px">
+          <span class="tilt-lbl">전후 (Pitch)</span>
+          <div class="tilt-bar-wrap">
+            <div class="tilt-center"></div>
+            <div class="tilt-fill" id="tf-pitch"></div>
+          </div>
+          <span class="tilt-val" id="tv-pitch">0°</span>
+        </div>
+      </div>
+      <div class="viz-wrap" id="viz-posture" style="display:none">
+        <canvas id="cvPosture" class="viz-canvas"></canvas>
+        <div class="viz-overlay">기울기 변화 이력</div>
+      </div>
+      <div class="result-grid" id="res-posture" style="display:none">
+        <div class="ritem">
+          <div class="rlbl">좌우 편차</div>
+          <div class="rval" id="r-pRoll">--</div>
+          <div class="runit">°</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">전후 편차</div>
+          <div class="rval" id="r-pPitch">--</div>
+          <div class="runit">°</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">안정성</div>
+          <div class="rval" id="r-pStab">--</div>
+          <div class="runit">%</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">자세 점수</div>
+          <div class="rval" id="r-pScore">--</div>
+          <div class="runit">점</div>
+        </div>
+      </div>
+      <div class="ai-feedback" id="fb-posture" style="display:none"></div>
+      <div class="train-guide" id="tg-posture" style="display:none"></div>
+      <button class="tc-btn" id="btn-posture" onclick="B.posture.toggle()">
+        ▶ 자세 분석 시작
+      </button>
+    </div>
+  </div>
+
+  <!-- ④ 반응 속도 검사 -->
+  <div class="bsec">
+    <div class="bsec-title">⚡ 반응 속도 · 신경 기능</div>
+    <div class="bsec-desc">시각 자극에 반응하는 속도를 측정합니다. 화면이 바뀌면 즉시 탭하세요. 5회 반복합니다.</div>
+    <div class="tcard" id="card-reaction" style="--tc:#a78bfa">
+      <div class="tc-head">
+        <div>
+          <div class="tc-name">시각 반응 속도 <span class="tc-dur">(5회)</span></div>
+          <div class="tc-method">📱 화면이 초록으로 바뀌는 순간 빠르게 탭!</div>
+        </div>
+        <span class="tc-badge" id="badge-reaction">대기</span>
+      </div>
+      <!-- Reaction tap area -->
+      <div class="reaction-area" id="reactionArea" style="display:none" ontouchstart="B.reaction.tap()" onclick="B.reaction.tap()">
+        <div class="reaction-inner" id="reactionInner">
+          <div class="reaction-icon" id="reactionIcon">👆</div>
+          <div class="reaction-msg" id="reactionMsg">준비하세요...</div>
+        </div>
+      </div>
+      <!-- Trial progress -->
+      <div class="trial-dots" id="trialDots" style="display:none"></div>
+      <div class="result-grid" id="res-reaction" style="display:none">
+        <div class="ritem">
+          <div class="rlbl">평균 반응시간</div>
+          <div class="rval" id="r-rtAvg">--</div>
+          <div class="runit">ms</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">최단 반응</div>
+          <div class="rval" id="r-rtMin">--</div>
+          <div class="runit">ms</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">일관성</div>
+          <div class="rval" id="r-rtCv">--</div>
+          <div class="runit">%</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">반응 등급</div>
+          <div class="rval" id="r-rtGrade">--</div>
+          <div class="runit"></div>
+        </div>
+      </div>
+      <div class="ai-feedback" id="fb-reaction" style="display:none"></div>
+      <div class="train-guide" id="tg-reaction" style="display:none"></div>
+      <button class="tc-btn" id="btn-reaction" onclick="B.reaction.toggle()">
+        ▶ 반응 속도 검사 시작
+      </button>
+    </div>
+  </div>
+
+  <!-- ⑤ 손 떨림 검사 -->
+  <div class="bsec">
+    <div class="bsec-title">🤲 손 떨림 · 안정성</div>
+    <div class="bsec-desc">미세 떨림을 측정합니다. 폰을 양손으로 가볍게 잡고 팔을 뻗어 10초간 유지하세요.</div>
+    <div class="tcard" id="card-shake" style="--tc:#f87171">
+      <div class="tc-head">
+        <div>
+          <div class="tc-name">손 떨림 안정성 <span class="tc-dur">(10초)</span></div>
+          <div class="tc-method">📱 팔을 앞으로 쭉 뻗고 → 10초 유지</div>
+        </div>
+        <span class="tc-badge" id="badge-shake">대기</span>
+      </div>
+      <div class="viz-wrap" id="viz-shake" style="display:none">
+        <canvas id="cvShake" class="viz-canvas"></canvas>
+        <div class="viz-overlay">미세 진동 파형</div>
+      </div>
+      <div class="result-grid" id="res-shake" style="display:none">
+        <div class="ritem">
+          <div class="rlbl">떨림 강도</div>
+          <div class="rval" id="r-shAmp">--</div>
+          <div class="runit">mg</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">주요 주파수</div>
+          <div class="rval" id="r-shFreq">--</div>
+          <div class="runit">Hz</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">안정성</div>
+          <div class="rval" id="r-shStab">--</div>
+          <div class="runit">점</div>
+        </div>
+        <div class="ritem">
+          <div class="rlbl">평가</div>
+          <div class="rval" id="r-shGrade">--</div>
+          <div class="runit"></div>
+        </div>
+      </div>
+      <div class="ai-feedback" id="fb-shake" style="display:none"></div>
+      <div class="train-guide" id="tg-shake" style="display:none"></div>
+      <button class="tc-btn" id="btn-shake" onclick="B.shake.toggle()">
+        ▶ 떨림 검사 시작
+      </button>
+    </div>
+  </div>
+
+  <footer style="margin-top:24px;padding-bottom:max(24px,env(safe-area-inset-bottom))">이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.</footer>
+</div>
+</div>
+<!-- END BODY SCREEN -->
+
+<canvas id="mpCanvas" style="display:none"></canvas>
+
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+//  PPG CORE v8.3 — MA-BPF(Elgendi2013)·수치안정·3단계파이프라인
+//  참고: Wang et al. 2017 (POS algorithm, IEEE TBME)
+//        de Haan & Jeanne 2013 (CHROM algorithm)
+//        Welch 1967 (Welch's power spectral density)
+//  손가락 PPG: Red 채널 직접 FFT (플래시 광원)
+//  얼굴 rPPG: POS 알고리즘 (Wang 2017)
+// ══════════════════════════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+const videoEl = $('videoEl');
+const overlayCanvas = $('overlayCanvas');
+const waveCanvas = $('waveCanvas');
+const mpCanvas = $('mpCanvas');
+const oc = overlayCanvas.getContext('2d');
+const wc = waveCanvas.getContext('2d');
+
+// ── 상수 ──
+const SR       = 30;          // 목표 샘플레이트 (Hz) — 리샘플링 목표
+// v8.3: 실제 카메라 FPS 추적 (60fps 대응)
+let _actualFPS = 30;   // 실제 측정된 FPS
+const BUF_SEC  = 30;          // 버퍼 길이 (초)
+const BUFSIZE  = SR * BUF_SEC;
+const WARMUP   = SR * 4;      // v8: 4초 후 첫 결과 (빠른 응답)
+const FFT_WIN  = SR * 6;      // v8: 6초 FFT 윈도우
+const HR_LO_HZ = 0.6;         // 36 bpm
+const HR_HI_HZ = 3.5;         // 210 bpm
+const BR_LO_HZ = 0.13;        // 8 rpm
+const BR_HI_HZ = 0.5;         // 30 rpm
+const SQI_MIN  = 5;           // v8: 5 이상 표시 (매우 관대)
+const SNR_MIN  = 1.3;         // v8: SNR 실수 임계값 (1.3배면 피크로 인정)
+const TOTAL_MEAS_SEC = 30;    // 측정 최대 시간(초)
+// v8: 다중센서 융합 상수
+const MOTION_THRESH_PPG  = 1.5;  // g단위 완화 (1.5g 이상만 무효화)
+const MOTION_WINDOW_MS   = 500;  // 움직임 감지 윈도우(ms)
+
+// ── 상태 변수 ──
+let currentMode  = 'finger';
+let running      = false;
+let stream       = null;
+let torchTrack   = null;
+let torchActive  = false;
+let rafId        = null;
+let _offscreenCanvas = null;
+
+// 신호 버퍼
+let rBuf=[], gBuf=[], bBuf=[], tsBuf=[];
+let bgGBuf=[];
+let rrYBuf=[];
+let goodFrames = 0;
+
+// 결과 스무딩
+let hrBuf=[], sdnnBuf=[], spo2Buf=[], stressBuf=[];
+const SMOOTH_N = 5;
+// v8: 다중센서 융합 — 가속도계 모션 버퍼
+let _accelBuf = [];          // {mag, ts} — 최근 500ms
+let _imuMotion = 0;          // 현재 모션 크기(g)
+let _imuHandler = null;      // devicemotion 핸들러 참조
+let _imuRunning = false;
+
+// 카메라/FPS
+let lastFpsTs=0, fpsCount=0;
+let currentSQI=0, lastResult=null;
+// v8: 측정 타이머
+let measureStartTs = 0;   // 측정 시작 시각
+let measureTimerRAF = null; // 타이머 업데이트용
+
+// MediaPipe 상태
+let faceMesh=null, mpReady=false, latestLm=null;
+let noFaceCount=0, mpTick=0, motionScore=0, prevLmPos=null;
+
+// LocalStorage
+let history = JSON.parse(localStorage.getItem('rppg_h4') || '[]');
+let baseline = JSON.parse(localStorage.getItem('rppg_base4') || 'null');
+
+// ── 수학 유틸 ──
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function mean(a) {
+  if (!a || !a.length) return 0;
+  return a.reduce((s,v) => s + (isFinite(v)?v:0), 0) / a.length;
+}
+function std(a) {
+  if (!a || a.length < 2) return 0;
+  const m = mean(a);
+  return Math.sqrt(mean(a.map(v => (v-m)**2)));
+}
+
+// ── 선형 보간 리샘플링 ──
+function resample(buf, ts) {
+  if (!buf || buf.length < 4 || !ts || ts.length < 4) return buf.slice();
+  const t0 = ts[0], t1 = ts[ts.length-1];
+  if (t1 - t0 < 200) return buf.slice(); // 너무 짧음
+  const dt = 1000.0 / SR;
+  const out = [];
+  let j = 0;
+  for (let t = t0; t <= t1 + dt*0.5; t += dt) {
+    // j를 t보다 작은 마지막 인덱스로 진행
+    while (j < ts.length - 2 && ts[j+1] < t) j++;
+    const j2 = Math.min(j+1, ts.length-1);
+    const span = ts[j2] - ts[j];
+    const frac = span > 0 ? (t - ts[j]) / span : 0;
+    const val = buf[j] + frac * (buf[j2] - buf[j]);
+    if (isFinite(val)) out.push(val);
+  }
+  return out.length >= 4 ? out : buf.slice();
+}
+
+// ── 선형 detrend ──
+function detrend(x) {
+  const n = x.length;
+  if (n < 2) return x.slice();
+  let sx=0, sy=0, sxy=0, sxx=0;
+  for (let i=0; i<n; i++) {
+    const v = isFinite(x[i]) ? x[i] : 0;
+    sx+=i; sy+=v; sxy+=i*v; sxx+=i*i;
+  }
+  const det = n*sxx - sx*sx;
+  const slope = det !== 0 ? (n*sxy - sx*sy) / det : 0;
+  const ic = (sy - slope*sx) / n;
+  return x.map((v,i) => (isFinite(v)?v:0) - (slope*i + ic));
+}
+
+// ── Hann 윈도우 ──
+function hann(n) {
+  return Float64Array.from({length:n}, (_,i) => 0.5*(1 - Math.cos(2*Math.PI*i/(n-1))));
+}
+
+// ── FFT (반복적 Cooley-Tukey, in-place) ──
+function fft_inplace(re, im) {
+  const n = re.length;
+  // Bit-reversal permutation
+  let j = 0;
+  for (let i=1; i<n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+  // Butterfly
+  for (let len=2; len<=n; len<<=1) {
+    const ang = -2*Math.PI/len;
+    const wRe = Math.cos(ang), wIm = Math.sin(ang);
+    for (let i=0; i<n; i+=len) {
+      let curRe=1, curIm=0;
+      for (let k=0; k<len/2; k++) {
+        const uRe=re[i+k],       uIm=im[i+k];
+        const vRe=re[i+k+len/2], vIm=im[i+k+len/2];
+        const tRe = curRe*vRe - curIm*vIm;
+        const tIm = curRe*vIm + curIm*vRe;
+        re[i+k]       = uRe+tRe; im[i+k]       = uIm+tIm;
+        re[i+k+len/2] = uRe-tRe; im[i+k+len/2] = uIm-tIm;
+        const nr = curRe*wRe - curIm*wIm;
+        curIm = curRe*wIm + curIm*wRe;
+        curRe = nr;
+      }
+    }
+  }
+}
+
+function nextPow2(n) { let p=1; while(p<n) p<<=1; return p; }
+
+// ── Welch 방법 PSD ──
+// 겹치는 윈도우의 평균 파워 스펙트럼 (노이즈 감소)
+function welchPSD(signal, sr, winLen, overlap) {
+  const step = Math.round(winLen * (1 - overlap));
+  const N = nextPow2(winLen);
+  const w = hann(winLen);
+  const psd = new Float64Array(N/2);
+  let count = 0;
+  for (let start=0; start+winLen <= signal.length; start+=step) {
+    const re = new Float64Array(N);
+    const im = new Float64Array(N);
+    for (let i=0; i<winLen; i++) {
+      re[i] = (isFinite(signal[start+i]) ? signal[start+i] : 0) * w[i];
+    }
+    fft_inplace(re, im);
+    for (let i=0; i<N/2; i++) psd[i] += re[i]*re[i] + im[i]*im[i];
+    count++;
+  }
+  if (count > 0) for (let i=0; i<psd.length; i++) psd[i] /= count;
+  const freqRes = sr / N;
+  return { psd, freqRes, N };
+}
+
+// ── 주파수 대역에서 피크 찾기 ──
+// 반환: {freq, snr} — snr = 피크 전력 / 대역 평균 전력
+function findPeak(psd, freqRes, loHz, hiHz) {
+  const loIdx = Math.max(1, Math.ceil(loHz / freqRes));
+  const hiIdx = Math.min(Math.floor(hiHz / freqRes), psd.length-2);
+  if (loIdx >= hiIdx) return null;
+
+  let maxP = -1, peakI = loIdx;
+  let totalP = 0, count = 0;
+  for (let i=loIdx; i<=hiIdx; i++) {
+    totalP += psd[i];
+    count++;
+    if (psd[i] > maxP) { maxP=psd[i]; peakI=i; }
+  }
+  if (maxP <= 0) return null;
+
+  const avgP = totalP / count;
+  // v8 핵심 수정: SNR을 실수로 유지 (Math.round 제거)
+  // Math.round()하면 1.7 < SNR < 2.0 구간이 모두 2로 반올림되어
+  // 임계값 판별이 무의미해짐 → 실수 그대로 사용
+  const snr = maxP / Math.max(avgP, 1e-10);
+
+  // 2차 보간으로 주파수 정밀도 향상
+  const p_prev = peakI > loIdx ? psd[peakI-1] : 0;
+  const p_next = peakI < hiIdx ? psd[peakI+1] : 0;
+  const denom = p_prev - 2*maxP + p_next;
+  const delta = (denom !== 0) ? 0.5*(p_prev - p_next)/denom : 0;
+  const freq = (peakI + clamp(delta, -0.5, 0.5)) * freqRes;
+
+  return { freq, snr };
+}
+
+// ════════════════════════════════════════════════════════════════
+// SIGNAL ENGINE v8
+// 참고: Butterworth 1930 / Selesnick & Burrus 1998 (digital filters)
+//       de Haan & Jeanne 2013 (CHROM, IEEE TBME)
+//       Wang et al. 2017 (POS, IEEE TBME)
+//       Mahony et al. 2008 (Complementary Filter)
+// ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════
+// 신호 처리 엔진 v8.3 — 수치 안정 BPF
+// 핵심 수정: biquadBP(4차 Butterworth)가 저주파(0.6Hz/30fps)에서
+//           tan(wc/2) 계수 정밀도 손상으로 수치 불안정 발생
+// 해결: Elgendi 2013 이동평균 차분 BPF (100% 수치 안정)
+//      + 경계 처리용 2차 IIR BPF (안전망)
+// 참고: Elgendi 2013 (MDPI Sensors) — On the Analysis of Fingertip PPG
+// ════════════════════════════════════════════════════════════════════
+
+// ── 이동평균(MA) BPF — Elgendi 2013 방식 ──
+// 두 이동평균의 차이 = 대역통과 필터
+// win1 < win2, 차이로 심박 주파수 대역 추출
+// 완전 수치 안정 (나눗셈/지수 없음)
+function maBPF(data, loHz, hiHz, sr) {
+  if (!data || data.length < 4) return data.slice();
+  // 윈도우 크기: sr/freq (반올림, 최소 2)
+  const w1 = Math.max(2, Math.round(sr / hiHz));  // 고주파 차단 (LP1)
+  const w2 = Math.max(w1+1, Math.round(sr / loHz)); // 저주파 차단 (LP2)
+  
+  // 누적합 방식 이동평균 (O(n))
+  function movAvg(x, win) {
+    const out = new Array(x.length).fill(0);
+    let sum = 0;
+    const buf = new Array(win).fill(0);
+    let idx = 0;
+    for (let i = 0; i < x.length; i++) {
+      const v = isFinite(x[i]) ? x[i] : 0;
+      sum += v - buf[idx];
+      buf[idx] = v;
+      idx = (idx + 1) % win;
+      out[i] = sum / win;
+    }
+    return out;
+  }
+  
+  const ma1 = movAvg(data, w1); // LP1: 고주파 제거
+  const ma2 = movAvg(data, w2); // LP2: 더 많은 고주파 + 일부 저주파 제거
+  // LP1 - LP2 = BPF (Elgendi 원리)
+  return ma1.map((v, i) => v - ma2[i]);
+}
+
+// ── 안전망 2차 IIR BPF (수치 안정 버전) ──
+// bilinear transform 대신 matched-z transform 사용
+function iirBP2(data, loHz, hiHz, sr) {
+  if (!data || data.length < 3) return data.slice();
+  // HP: y[n] = x[n] - x[n-1] + ahp*y[n-1]
+  // LP: y[n] = (1-alp)*x[n] + alp*y[n-1]
+  const ahp = Math.exp(-2 * Math.PI * loHz / sr);
+  const alp = Math.exp(-2 * Math.PI * hiHz / sr);
+  const out = new Array(data.length).fill(0);
+  let hp_prev_x = 0, hp_prev_y = 0, lp_prev = 0;
+  for (let i = 0; i < data.length; i++) {
+    const xi = isFinite(data[i]) ? data[i] : 0;
+    // HP: 저주파 제거
+    const hp = xi - hp_prev_x + ahp * hp_prev_y;
+    hp_prev_x = xi; hp_prev_y = hp;
+    // LP: 고주파 제거
+    const lp = (1 - alp) * hp + alp * lp_prev;
+    lp_prev = lp;
+    out[i] = lp;
+  }
+  return out;
+}
+
+// ── 통합 BPF: MA + IIR 앙상블 ──
+// MA만으로 충분하지만 IIR로 잔여 노이즈 추가 제거
+function biquadBP(data, loHz, hiHz, sr) {
+  if (!data || data.length < 4) return data.slice();
+  const ma  = maBPF(data, loHz, hiHz, sr);
+  // MA 결과에 IIR 한 번 더 적용 (잔여 노이즈 제거)
+  return iirBP2(ma, loHz * 0.8, hiHz * 1.2, sr);
+}
+
+// 하위 호환
+const iirBP = biquadBP;
+
+// ── POS 알고리즘 (Wang et al. 2017) ──
+function computePOS(R, G, B) {
+  const mR=mean(R), mG=mean(G), mB=mean(B);
+  if (mR<1||mG<1||mB<1) return new Array(R.length).fill(0);
+  const Rn=R.map(v=>v/mR), Gn=G.map(v=>v/mG), Bn=B.map(v=>v/mB);
+  const X=Rn.map((v,i)=>v-Gn[i]);
+  const Y=Rn.map((v,i)=>v+Gn[i]-2*Bn[i]);
+  const sX=std(X), sY=std(Y);
+  const alpha = sY>0 ? sX/sY : 1;
+  return X.map((v,i) => v + alpha*Y[i]);
+}
+
+// ── CHROM 알고리즘 (de Haan & Jeanne 2013) ──
+// 조명 변화에 더 강건 — POS와 앙상블로 정확도 향상
+function computeCHROM(R, G, B) {
+  const mR=mean(R), mG=mean(G), mB=mean(B);
+  if (mR<1||mG<1||mB<1) return new Array(R.length).fill(0);
+  const Rn=R.map(v=>v/mR), Gn=G.map(v=>v/mG), Bn=B.map(v=>v/mB);
+  // Xs = 3Rn - 2Gn,  Ys = 1.5Rn + Gn - 1.5Bn
+  const Xs = Rn.map((v,i) => 3*v - 2*Gn[i]);
+  const Ys = Rn.map((v,i) => 1.5*v + Gn[i] - 1.5*Bn[i]);
+  const sXs=std(Xs), sYs=std(Ys);
+  const alpha2 = sYs>0 ? sXs/sYs : 1;
+  return Xs.map((v,i) => v - alpha2*Ys[i]);
+}
+
+// ── POS + CHROM 앙상블 (SNR 가중 평균) ──
+function computeEnsemble(R, G, B) {
+  const pos   = detrend(computePOS(R, G, B));
+  const chrom = detrend(computeCHROM(R, G, B));
+  const snrPOS   = std(pos)   > 0 ? mean(pos.map(v=>v*v))   / (std(pos)**2   + 1e-9) : 0;
+  const snrCHROM = std(chrom) > 0 ? mean(chrom.map(v=>v*v)) / (std(chrom)**2 + 1e-9) : 0;
+  const wP = snrPOS / (snrPOS + snrCHROM + 1e-9);
+  const wC = 1 - wP;
+  return pos.map((v,i) => wP*v + wC*chrom[i]);
+}
+
+// ── 상보 필터(Complementary Filter) — 가속도+자이로 융합 ──
+// 참고: Mahony 2008 — 저주파는 가속도, 고주파는 자이로로 신뢰
+// alpha: 자이로 가중치(0.95 권장), dt: 샘플 간격(초)
+function complementaryFilter(accelAngle, prevAngle, gyroRate, dt, alpha=0.95) {
+  return alpha * (prevAngle + gyroRate * dt) + (1 - alpha) * accelAngle;
+}
+
+// ── IMU 모션 감지기 — 다중센서 융합용 ──
+// PPG 측정 중 가속도가 MOTION_THRESH_PPG(g)를 넘으면 해당 구간 무효화
+function startIMUMonitor() {
+  if (_imuRunning || typeof DeviceMotionEvent === 'undefined') return;
+  _imuRunning = true;
+  _imuHandler = (e) => {
+    const a = e.acceleration || e.accelerationIncludingGravity || {};
+    const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2) / 9.81; // → g단위
+    const now = performance.now();
+    _accelBuf.push({ mag, ts: now });
+    // 500ms 이전 데이터 제거
+    const cutoff = now - 500;
+    while (_accelBuf.length && _accelBuf[0].ts < cutoff) _accelBuf.shift();
+    // 최근 MOTION_WINDOW_MS 내 최대값
+    const winCut = now - MOTION_WINDOW_MS;
+    const recent = _accelBuf.filter(d => d.ts >= winCut);
+    _imuMotion = recent.length ? Math.max(...recent.map(d=>d.mag)) : 0;
+  };
+  window.addEventListener('devicemotion', _imuHandler, { passive: true });
+}
+function stopIMUMonitor() {
+  if (!_imuRunning) return;
+  _imuRunning = false;
+  if (_imuHandler) window.removeEventListener('devicemotion', _imuHandler);
+  _imuHandler = null; _accelBuf = []; _imuMotion = 0;
+}
+function isMotionExcessive() {
+  return _imuMotion > MOTION_THRESH_PPG;
+}
+
+// ══════════════════════════════════════════════════════
+// HRV ENGINE v7 — 신뢰성 있는 심박변이도 분석
+// 참고: Task Force ESC/NASPE 1996 (HRV Standards)
+//       Pan & Tompkins 1985 (QRS/peak detection)
+//       Malik 1996 (Clinical HRV interpretation)
+// ══════════════════════════════════════════════════════
+
+// ── 적응형 피크 검출 (adaptive threshold) ──
+function detectPeaks(sig, minDistSamples) {
+  if (!sig || sig.length < minDistSamples * 2) return [];
+  // 1) 신호 정규화
+  const mn = mean(sig), sd_ = std(sig);
+  if (sd_ < 1e-6) return [];
+  const norm = sig.map(v => (v - mn) / sd_);
+  // 2) 적응형 임계값: 슬라이딩 윈도우 상위 25%
+  const winHalf = Math.min(minDistSamples * 3, Math.floor(sig.length / 4));
+  const peaks = [];
+  let lastPeak = -minDistSamples;
+  for (let i = 1; i < norm.length - 1; i++) {
+    if (i - lastPeak < minDistSamples) continue;
+    if (norm[i] <= norm[i-1] || norm[i] <= norm[i+1]) continue;
+    // 로컬 최대값 확인
+    const lo = Math.max(0, i - winHalf);
+    const hi = Math.min(norm.length, i + winHalf);
+    const localMax = Math.max(...norm.slice(lo, hi));
+    if (norm[i] >= localMax * 0.72) { // 로컬 최대의 72% 이상
+      peaks.push(i);
+      lastPeak = i;
+    }
+  }
+  return peaks;
+}
+
+// ── RRI 추출 및 ectopic 제거 ──
+// 이소박동(ectopic) = 인접 RRI 중앙값 대비 20% 이상 벗어남
+function extractCleanRRI(peaks, sr) {
+  if (peaks.length < 4) return [];
+  const rri = [];
+  for (let i = 1; i < peaks.length; i++) {
+    rri.push((peaks[i] - peaks[i-1]) / sr * 1000); // ms
+  }
+  // 정상 범위 1차 필터: 300~1800ms (33~200bpm)
+  const valid = rri.filter(r => r >= 300 && r <= 1800);
+  if (valid.length < 3) return [];
+  // Ectopic 제거: 슬라이딩 윈도우 중앙값 ±20%
+  const winSize = Math.min(5, valid.length);
+  const clean = [];
+  for (let i = 0; i < valid.length; i++) {
+    const lo = Math.max(0, i - winSize);
+    const hi = Math.min(valid.length, i + winSize + 1);
+    const localRRI = valid.slice(lo, hi);
+    const sorted = [...localRRI].sort((a,b) => a-b);
+    const med = sorted[Math.floor(sorted.length/2)];
+    const dev = Math.abs(valid[i] - med) / med;
+    if (dev < 0.20) clean.push(valid[i]); // ±20% 이내만
+  }
+  return clean;
+}
+
+// ── HRV 지표 계산 (SDNN, RMSSD, pNN50) ──
+function computeHRV(filtSig, hrHz) {
+  if (!filtSig || filtSig.length < SR * 5) return { sdnn: 0, rmssd: 0, pnn50: 0 };
+  const minDist = Math.round(SR / (hrHz * 1.6));
+  const peaks = detectPeaks(filtSig, minDist);
+  if (peaks.length < 5) return { sdnn: 0, rmssd: 0, pnn50: 0 };
+  const rri = extractCleanRRI(peaks, SR);
+  if (rri.length < 4) return { sdnn: 0, rmssd: 0, pnn50: 0 };
+
+  // SDNN: 모든 RRI의 표준편차 (ms)
+  const sdnn = Math.round(std(rri));
+
+  // RMSSD: 연속 RRI 차이의 RMS (부교감신경 지표)
+  let sumSqDiff = 0;
+  for (let i = 1; i < rri.length; i++) sumSqDiff += (rri[i] - rri[i-1]) ** 2;
+  const rmssd = Math.round(Math.sqrt(sumSqDiff / (rri.length - 1)));
+
+  // pNN50: 연속 RRI 차이가 50ms 초과 비율
+  let nn50 = 0;
+  for (let i = 1; i < rri.length; i++) if (Math.abs(rri[i] - rri[i-1]) > 50) nn50++;
+  const pnn50 = Math.round(nn50 / (rri.length - 1) * 100);
+
+  // LF/HF 주파수 도메인 스트레스 지수
+  // LF(0.04-0.15Hz) = 교감+부교감, HF(0.15-0.40Hz) = 부교감 전용
+  // LF/HF > 2: 교감신경 우세(스트레스), < 1: 부교감 우세(이완)
+  let stressIdx = null;
+  if (rri.length >= 8) {
+    const rriSig = rri.map((v,i,a) => i===0 ? 0 : v - a[i-1]);
+    const rrSR = 1000 / (mean(rri) || 800); // RRI 샘플레이트(Hz)
+    const minSR = 0.5; // 최소 유효 SR
+    if (rrSR >= minSR && rriSig.length >= 8) {
+      const lfBand = welchPSD(rriSig, rrSR, Math.min(rriSig.length, 64), 0.5);
+      const lfPeak = findPeak(lfBand.psd, lfBand.freqRes, 0.04, 0.15);
+      const hfPeak = findPeak(lfBand.psd, lfBand.freqRes, 0.15, 0.40);
+      if (lfPeak && hfPeak && hfPeak.snr > 1) {
+        const ratio = clamp(lfPeak.snr / hfPeak.snr, 0.1, 10);
+        // 0-100 스트레스 지수로 정규화: ratio 1=50점, ratio 4=85점, ratio 0.5=25점
+        stressIdx = clamp(Math.round(50 + 15 * Math.log2(ratio)), 0, 100);
+      }
+    }
+  }
+
+  return {
+    sdnn:   clamp(sdnn, 0, 200),
+    rmssd:  clamp(rmssd, 0, 200),
+    pnn50:  clamp(pnn50, 0, 100),
+    stressIdx,   // 0~100: 높을수록 스트레스
+    rri
+  };
+}
+
+// ── HRV 기반 스트레스 해석 (RMSSD 기준, validated) ──
+// 참고: Shaffer & Ginsberg 2017 (RMSSD 임상 해석표)
+function interpretHRV(rmssd, sdnn) {
+  if (!rmssd || rmssd === 0) return { label: '측정중', color: 'var(--muted)', stress: null };
+  // RMSSD < 20ms: 매우 높은 스트레스 / 교감신경 우세
+  // RMSSD 20-40ms: 보통 수준
+  // RMSSD > 40ms: 이완 상태 / 부교감신경 우세
+  if (rmssd < 15)      return { label: '고스트레스', color: 'var(--danger)', stress: 'high' };
+  if (rmssd < 25)      return { label: '스트레스', color: 'var(--warn)', stress: 'elevated' };
+  if (rmssd < 40)      return { label: '보통', color: 'var(--accent2)', stress: 'normal' };
+  if (rmssd < 60)      return { label: '이완', color: 'var(--green)', stress: 'relaxed' };
+  return               { label: '매우이완', color: 'var(--green)', stress: 'very_relaxed' };
+}
+
+// ── SpO2 (Beer-Lambert 근사) ──
+function computeSpO2(R, G) {
+  if (!R||!G||R.length<60) return null;
+  const dcR=mean(R), dcG=mean(G);
+  if (dcR<20||dcG<5) return null; // v8: 완화 (플래시 없이도 동작)
+  const bpR=maBPF(detrend(R), HR_LO_HZ, HR_HI_HZ, SR);
+  const bpG=maBPF(detrend(G), HR_LO_HZ, HR_HI_HZ, SR);
+  const acR=std(bpR), acG=std(bpG);
+  if (acR<0.001||acG<0.001) return null; // v8: 0.005 → 0.001
+  const ratio=(acR/dcR)/(acG/dcG);
+  if (ratio<0.3||ratio>4.0) return null;
+  return clamp(Math.round(110-25*ratio), 85, 100);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 손가락 PPG 처리 v8.3 — 3단계 파이프라인
+// 참고: 문서 권고 3단계 프로세스
+//   1단계: 고정 샘플링 + DC 제거 + 정규화
+//   2단계: MA BPF (Elgendi 2013) — 수치 안정
+//   3단계: FFT(Hamming) + SQI + 피크 교차검증
+// ══════════════════════════════════════════════════════════════════
+function processFingerPPG(rRaw, gRaw, bRaw, tsRaw) {
+  if (rRaw.length < WARMUP) return null;
+
+  // ── 1단계: 고정 샘플링 (선형 보간 30fps) ──
+  const len = Math.min(rRaw.length, BUFSIZE);
+  const R = resample(rRaw.slice(-len), tsRaw.slice(-len));
+  const G = resample(gRaw.slice(-len), tsRaw.slice(-len));
+  if (R.length < WARMUP) return null;
+
+  // 접촉 품질 체크
+  const satN = R.filter(v => v > 252).length;
+  if (satN / R.length > 0.65) return {sqi:3, filt:null, saturated:true};
+  const dcR = mean(R);
+  if (dcR < 15) return {sqi:0, filt:null};
+
+  // ── 2단계: 전처리 파이프라인 ──
+  // DC 제거 (detrend) → Z-score 정규화 → MA BPF
+  const detR = detrend(R);
+  const sdR  = std(detR);
+  // Z-score 정규화: 신호 스케일 통일 (조명 밝기 영향 제거)
+  const normR = sdR > 1e-6 ? detR.map(v => v / sdR) : detR;
+  // MA BPF (Elgendi 2013): 수치적으로 완전 안정
+  const bpR = maBPF(normR, HR_LO_HZ, HR_HI_HZ, SR);
+
+  // ── 3단계: FFT 기반 심박수 산출 ──
+  // Hamming 윈도우 적용 후 Welch PSD
+  const winLen = Math.min(bpR.length, FFT_WIN);
+  const {psd, freqRes} = welchPSD(bpR, SR, winLen, 0.5);
+  const peak = findPeak(psd, freqRes, HR_LO_HZ, HR_HI_HZ);
+  if (!peak) return {sqi:0, filt:bpR};
+
+  // SQI = (피크/평균 - 1) × 50 (실수 SNR 기반)
+  const sqi = clamp(Math.round((peak.snr - 1.0) * 50), 0, 100);
+  if (peak.snr < SNR_MIN) return {sqi, filt:bpR};
+
+  let hrFFT = Math.round(peak.freq * 60);
+  if (hrFFT < 36 || hrFFT > 220) return {sqi: Math.max(2, sqi - 10), filt:bpR};
+
+  // 피크 카운트 교차검증 (Elgendi 2013)
+  const hrPeak = estimateHRbyPeaks(bpR, SR);
+  let hr = hrFFT;
+  if (hrPeak > 0 && Math.abs(hrFFT - hrPeak) < 20) {
+    hr = Math.round(hrFFT * 0.65 + hrPeak * 0.35);
+  }
+
+  // 시간 도메인 스무딩 (급격한 변화 방지)
+  hrBuf.push(hr);
+  if (hrBuf.length > SMOOTH_N) hrBuf.shift();
+  hr = Math.round(mean(hrBuf));
+
+  // HRV — 좁은 대역 BPF로 피크 검출 품질 향상
+  const narrowBP = maBPF(normR,
+    Math.max(0.5, peak.freq - 0.4),
+    Math.min(4.0, peak.freq + 0.4), SR);
+  const hrvResult = computeHRV(narrowBP, peak.freq);
+  let {sdnn, rmssd, pnn50} = hrvResult;
+  if (sdnn > 0) {
+    sdnnBuf.push(sdnn);
+    if (sdnnBuf.length > SMOOTH_N) sdnnBuf.shift();
+    sdnn = Math.round(mean(sdnnBuf));
+  }
+
+  // 호흡수 (20초 데이터 필요)
+  let rr = null;
+  if (detR.length >= SR * 20) {
+    const {psd:psdRR, freqRes:frRR} = welchPSD(
+      maBPF(normR, BR_LO_HZ, BR_HI_HZ, SR),
+      SR, Math.min(detR.length, SR * 20), 0.5);
+    const rrPeak = findPeak(psdRR, frRR, BR_LO_HZ, BR_HI_HZ);
+    if (rrPeak && rrPeak.snr >= 1.4) {
+      const rpm = Math.round(rrPeak.freq * 60);
+      if (rpm >= 8 && rpm <= 28) rr = rpm;
+    }
+  }
+
+  // SpO2 (R채널/G채널 비율법)
+  const rawSpo2 = computeSpO2(R, G);
+  if (rawSpo2 !== null) {
+    spo2Buf.push(rawSpo2);
+    if (spo2Buf.length > SMOOTH_N) spo2Buf.shift();
+  }
+  const sSorted = [...spo2Buf].sort((a, b) => a - b);
+  const spo2 = sSorted.length ? sSorted[Math.floor(sSorted.length / 2)] : null;
+
+  return {hr, sdnn, rmssd, pnn50, stressIdx: hrvResult.stressIdx, rr, spo2, sqi, filt:bpR};
+}
+
+// ── 피크 카운트 기반 HR 추정 (교차 검증용) ──
+// Elgendi 2013 방식: adaptive threshold
+function estimateHRbyPeaks(sig, sr) {
+  if (!sig || sig.length < sr * 3) return 0;
+  const mn = mean(sig), sd_ = std(sig);
+  if (sd_ < 1e-6) return 0;
+  // threshold = mean + 0.5 * std
+  const thr = mn + 0.5 * sd_;
+  const minDist = Math.round(sr * 0.35); // 최소 피크 간격 350ms
+  const peaks = [];
+  for (let i = 1; i < sig.length - 1; i++) {
+    if (sig[i] > thr && sig[i] > sig[i-1] && sig[i] > sig[i+1]) {
+      if (!peaks.length || i - peaks[peaks.length-1] >= minDist) {
+        peaks.push(i);
+      }
+    }
+  }
+  if (peaks.length < 3) return 0;
+  // 평균 RR 간격으로 HR 계산
+  let sumInterval = 0;
+  for (let i = 1; i < peaks.length; i++) sumInterval += peaks[i] - peaks[i-1];
+  const avgInterval = sumInterval / (peaks.length - 1);
+  const hr = Math.round(sr * 60 / avgInterval);
+  return (hr >= 36 && hr <= 220) ? hr : 0;
+}
+
+// ── 얼굴 rPPG 처리 ──
+function processFacePPG(rRaw, gRaw, bRaw, bgG, rrY, tsRaw) {
+  if (rRaw.length < WARMUP) return null;
+
+  const len = Math.min(rRaw.length, BUFSIZE);
+  const R = resample(rRaw.slice(-len), tsRaw.slice(-len));
+  const G = resample(gRaw.slice(-len), tsRaw.slice(-len));
+  const B = resample(bRaw.slice(-len), tsRaw.slice(-len));
+
+  if (R.length < WARMUP) return null;
+
+  // v8: POS+CHROM 앙상블 (단독 POS 대비 SNR 향상)
+  const sig = computeEnsemble(R, G, B);
+
+  // MA BPF로 한번 더 필터링 (수치 안정)
+  const sigF = maBPF(sig, HR_LO_HZ, HR_HI_HZ, SR);
+  // Welch PSD
+  const winLen = Math.min(sigF.length, FFT_WIN);
+  const {psd, freqRes} = welchPSD(sigF, SR, winLen, 0.5);
+  const peak = findPeak(psd, freqRes, HR_LO_HZ, HR_HI_HZ);
+
+  if (!peak) return {sqi:0, filt:sig};
+
+  // v8: SNR 실수 기준 SQI (SNR=1.3→33%, SNR=2.0→100%, SNR=1.0→0%)
+  const sqi = clamp(Math.round((peak.snr - 1.0) * 50), 0, 100);
+  if (peak.snr < SNR_MIN) return {sqi, filt:sigF||sig};
+
+  const hrHz = peak.freq;
+  let hr = Math.round(hrHz * 60);
+  if (hr<36||hr>200) return {sqi:Math.max(3,sqi-5), filt:sig};
+
+  hrBuf.push(hr);
+  if(hrBuf.length>SMOOTH_N) hrBuf.shift();
+  hr = Math.round(mean(hrBuf));
+
+  const bpSig = iirBP(sig, Math.max(HR_LO_HZ,hrHz-0.4), Math.min(HR_HI_HZ,hrHz+0.4), SR);
+  const hrvF = computeHRV(bpSig, hrHz);
+  let sdnn = hrvF.sdnn;
+  let rmssd = hrvF.rmssd;
+  let pnn50 = hrvF.pnn50;
+  if (sdnn>0) {
+    sdnnBuf.push(sdnn);
+    if(sdnnBuf.length>SMOOTH_N) sdnnBuf.shift();
+    sdnn=Math.round(mean(sdnnBuf));
+  }
+
+  // 호흡: 랜드마크 Y축
+  let rr=null;
+  if(rrY.length>=SR*15){
+    const rrSig=detrend(rrY.slice(-SR*30));
+    const {psd:pRR,freqRes:fRR}=welchPSD(rrSig,SR,Math.min(rrSig.length,SR*20),0.5);
+    const rrPk=findPeak(pRR,fRR,BR_LO_HZ,BR_HI_HZ);
+    if(rrPk&&rrPk.snr>=2.5){const rpm=Math.round(rrPk.freq*60);if(rpm>=8&&rpm<=25)rr=rpm;}
+  }
+
+  return {hr, sdnn, rmssd, pnn50, stressIdx: hrvF.stressIdx, rr, spo2:null, sqi, filt:sigF||sig};
+}
+
+// ── 손가락 접촉 판별 ──
+// ── 손가락 접촉 판별 v8 ──
+// 플래시 없어도 동작, 임계값 대폭 완화
+function checkFinger(avgR, avgG) {
+  // 완전 미접촉: R 채널이 거의 없음
+  if (avgR < 15) return {ok:false, saturated:false,
+    msg:'📱 검지손가락을 후면 카메라에 올려주세요',
+    sub:'렌즈 전체를 손가락으로 덮어주세요', col:'#94a3b8'};
+
+  // 과포화: 너무 세게 눌림
+  if (avgR > 253) return {ok:false, saturated:true,
+    msg:'⚠️ 너무 세게 누르고 있어요',
+    sub:'살짝 힘을 빼주세요 — 혈관이 눌립니다', col:'#f59e0b'};
+
+  const rg = avgG > 0 ? avgR / avgG : 1.0;
+
+  // v8: 플래시 판정 기준 완화
+  // 플래시 ON: R/G > 1.15 또는 avgR > 120
+  // 플래시 없음: avgR > 30 이면 그냥 시도 (어두운 방이어도 OK)
+  const hasFlash = rg >= 1.15 || avgR > 120;
+  const hasContact = avgR >= 30; // 기존 80 → 30
+
+  if (!hasContact) return {ok:false, saturated:false,
+    msg:'💡 손가락을 카메라에 더 가까이 대주세요',
+    sub:'플래시 없어도 측정 가능 — 조명 있는 곳에서 시도', col:'#f59e0b'};
+
+  const pressure = clamp(Math.round(avgR / 255 * 100), 0, 100);
+  // v8.3: 문서 권고 — 세분화된 압력 피드백
+  let msg, sub, col;
+  if (pressure > 93) {
+    msg = '⚠️ 너무 세게 누르고 있어요'; sub = '혈관이 눌리면 신호가 없어집니다'; col = '#f59e0b';
+  } else if (pressure > 75) {
+    msg = hasFlash ? '✅ 플래시 측정 중' : '✅ 측정 중';
+    sub = `압력 적정 (${pressure}%) · 계속 유지해주세요`; col = '#22c55e';
+  } else if (pressure > 40) {
+    msg = '🟢 측정 진행 중'; sub = `신호 수집 중 · 조금 더 눌러도 됩니다`; col = '#22c55e';
+  } else {
+    msg = '🔶 조금 더 밀착해 주세요'; sub = '렌즈를 손가락으로 완전히 덮어주세요'; col = '#f59e0b';
+  }
+  return {ok:true, saturated:false, msg, sub, pressure, col, hasFlash};
+}
+
+// ── ROI 추출 (손가락) ──
+function extractFingerROI(imgData, vw, vh) {
+  const mx=Math.round(vw*0.2), my=Math.round(vh*0.2);
+  const mw=Math.round(vw*0.6), mh=Math.round(vh*0.6);
+  let rS=0,gS=0,bS=0,cnt=0;
+  for(let y=my;y<my+mh;y+=4){
+    for(let x=mx;x<mx+mw;x+=4){
+      if(x<0||y<0||x>=vw||y>=vh)continue;
+      const i=(y*vw+x)*4;
+      rS+=imgData.data[i];gS+=imgData.data[i+1];bS+=imgData.data[i+2];cnt++;
+    }
+  }
+  return cnt>0?{r:rS/cnt,g:gS/cnt,b:bS/cnt}:null;
+}
+
+// ── ROI 추출 (얼굴) ──
+const FORE_IDX=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+const CHEEKL=[234,93,132,58,172,136,150,149,176,148,152];
+const CHEEKR=[454,323,361,288,397,365,379,378,400,377,152];
+const NOSE_TIP=1;
+
+function extractFaceROI(imgData, lm, vw, vh) {
+  if(!lm) return null;
+  let rS=0,gS=0,bS=0,cnt=0;
+  const regions=[FORE_IDX,CHEEKL,CHEEKR];
+  regions.forEach(arr=>arr.forEach(idx=>{
+    if(!lm[idx])return;
+    const px=Math.round(lm[idx].x*vw), py=Math.round(lm[idx].y*vh);
+    for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){
+      const nx=clamp(px+dx,0,vw-1), ny=clamp(py+dy,0,vh-1);
+      const i=(ny*vw+nx)*4;
+      rS+=imgData.data[i];gS+=imgData.data[i+1];bS+=imgData.data[i+2];cnt++;
+    }
+  }));
+  return cnt>0?{r:rS/cnt,g:gS/cnt,b:bS/cnt}:null;
+}
+
+function extractBgROI(imgData, vw, vh) {
+  let gS=0,cnt=0;
+  for(let y=0;y<30;y+=2)for(let x=0;x<30;x+=2){
+    gS+=imgData.data[(y*vw+x)*4+1];cnt++;
+  }
+  return cnt>0?gS/cnt:null;
+}
+
+// ── 파형 그리기 ──
+function drawWave(sig, color) {
+  if (!sig || !sig.length) return;
+  const W=waveCanvas.offsetWidth||300, H=waveCanvas.height||56;
+  waveCanvas.width=W;
+  wc.clearRect(0,0,W,H);
+  wc.fillStyle='#0f1218';wc.fillRect(0,0,W,H);
+  const data=sig.slice(-Math.min(sig.length,300));
+  if(data.length<2)return;
+  const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
+  wc.beginPath();
+  wc.strokeStyle=color; wc.lineWidth=1.5;
+  data.forEach((v,i)=>{
+    const x=i/(data.length-1)*W;
+    const y=H-((v-mn)/rng)*H*0.8-H*0.1;
+    i===0?wc.moveTo(x,y):wc.lineTo(x,y);
+  });
+  wc.stroke();
+}
+
+// ── 오버레이 그리기 (손가락) ──
+function drawFingerOverlay(vw, vh, avgR, avgG) {
+  overlayCanvas.width=vw; overlayCanvas.height=vh;
+  oc.clearRect(0,0,vw,vh);
+  if(!avgR) return;
+
+  const check=checkFinger(avgR,avgG);
+  const ready=goodFrames>=WARMUP;
+  const col=check.col||'#94a3b8';
+  const cx=vw/2, cy=vh*0.46, r=Math.min(vw,vh)*0.28;
+
+  // 원형 가이드
+  oc.beginPath();oc.arc(cx,cy,r,0,Math.PI*2);
+  oc.strokeStyle=col;oc.lineWidth=3;oc.stroke();
+  oc.fillStyle=col;oc.globalAlpha=.04;oc.fill();oc.globalAlpha=1;
+
+  // 맥박 애니메이션
+  if(check.ok&&ready){
+    const pulse=0.5+0.5*Math.sin(Date.now()/280);
+    oc.beginPath();oc.arc(cx,cy,r+7+6*pulse,0,Math.PI*2);
+    oc.strokeStyle=col;oc.lineWidth=1.5;
+    oc.globalAlpha=0.3*pulse;oc.stroke();oc.globalAlpha=1;
+  }
+
+  // 압력 게이지 (오른쪽)
+  if(check.ok&&avgR>40){
+    const pr=clamp(avgR/255,0,1);
+    const gx=vw-38,gy=cy,gr=22;
+    const sa=Math.PI*0.65,ea=Math.PI*2.35;
+    oc.beginPath();oc.arc(gx,gy,gr,sa,ea);
+    oc.strokeStyle='rgba(255,255,255,.12)';oc.lineWidth=5;oc.lineCap='round';oc.stroke();
+    const gc=pr>0.95?'#f59e0b':pr>0.88?'#fbbf24':pr>0.3?'#22c55e':'#60a5fa';
+    oc.beginPath();oc.arc(gx,gy,gr,sa,sa+(ea-sa)*pr);
+    oc.strokeStyle=gc;oc.lineWidth=5;oc.stroke();oc.lineCap='butt';
+    oc.fillStyle=gc;oc.font='bold 9px sans-serif';oc.textAlign='center';
+    oc.fillText('압력',gx,gy+gr+11);
+    oc.fillText(Math.round(pr*100)+'%',gx,gy+4);
+    oc.textAlign='left';
+  }
+
+  // 진행바
+  if(check.ok){
+    const pct=Math.min(goodFrames/WARMUP,1);
+    const pw=vw*0.5,px=(vw-pw)/2,py=cy+r+14;
+    oc.fillStyle='rgba(255,255,255,.1)';
+    oc.beginPath();oc.roundRect(px,py,pw,4,2);oc.fill();
+    oc.fillStyle=col;
+    oc.beginPath();oc.roundRect(px,py,pw*pct,4,2);oc.fill();
+  }
+
+  // HTML 상태바 업데이트
+  const msgEl=$('camStatusMsg'),subEl=$('camStatusSub');
+  if(msgEl){msgEl.textContent=check.msg;msgEl.style.color=check.col;}
+  if(subEl){
+    if(check.ok){
+      subEl.textContent=ready
+        ? `신뢰도 ${currentSQI}%${check.hasFlash?' · 플래시 ON':''} · ${Math.max(0, Math.ceil(TOTAL_MEAS_SEC - (performance.now()-measureStartTs)/1000))}초 남음`
+        : `수집 ${goodFrames}/${WARMUP} 프레임`;
+    }else{
+      subEl.textContent=check.sub||'';
+    }
+  }
+}
+
+// ── 얼굴 오버레이 ──
+function drawFaceOverlay(vw, vh, lm) {
+  overlayCanvas.width=vw; overlayCanvas.height=vh;
+  oc.clearRect(0,0,vw,vh);
+  const ready=goodFrames>=WARMUP;
+  const col=!lm?'#ef4444':ready?'#22c55e':'#60a5fa';
+  if(!lm){
+    oc.strokeStyle='rgba(239,68,68,.5)';oc.lineWidth=2;oc.setLineDash([8,6]);
+    oc.beginPath();oc.ellipse(vw/2,vh*0.42,vw*0.28,vh*0.36,0,0,Math.PI*2);oc.stroke();
+    oc.setLineDash([]);
+    const m=$('camStatusMsg'),s=$('camStatusSub');
+    if(m){m.textContent='😊 얼굴을 화면 가운데에 맞춰주세요';m.style.color='#ef4444';}
+    if(s)s.textContent='밝은 실내 조명에서 측정해 주세요';
+    return;
+  }
+  // 얼굴 윤곽 점
+  const faceContour=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,10];
+  oc.beginPath();
+  faceContour.forEach((idx,i)=>{
+    if(!lm[idx])return;
+    const x=lm[idx].x*vw,y=lm[idx].y*vh;
+    i===0?oc.moveTo(x,y):oc.lineTo(x,y);
+  });
+  oc.strokeStyle=col;oc.lineWidth=1.5;oc.globalAlpha=.6;oc.stroke();oc.globalAlpha=1;
+
+  const pct=Math.min(goodFrames/WARMUP,1);
+  const pw=vw*0.5,px=(vw-pw)/2,py=vh*0.85;
+  oc.fillStyle='rgba(255,255,255,.1)';
+  oc.beginPath();oc.roundRect(px,py,pw,4,2);oc.fill();
+  oc.fillStyle=col;oc.beginPath();oc.roundRect(px,py,pw*pct,4,2);oc.fill();
+
+  const m=$('camStatusMsg'),s=$('camStatusSub');
+  if(m){m.textContent=ready?`❤️ 분석 중 · 신뢰도 ${currentSQI}%`:`수집 ${goodFrames}/${WARMUP}`;m.style.color=col;}
+  if(s)s.textContent='움직이지 말고 유지해 주세요';
+}
+
+// ── MediaPipe ──
+function initFaceMesh(){
+  if(typeof FaceMesh==='undefined'){mpReady=false;return;}
+  faceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
+  faceMesh.setOptions({maxNumFaces:1,refineLandmarks:false,minDetectionConfidence:.55,minTrackingConfidence:.55});
+  faceMesh.onResults(res=>{
+    if(res.multiFaceLandmarks&&res.multiFaceLandmarks.length){
+      latestLm=res.multiFaceLandmarks[0];noFaceCount=0;
+    }else{
+      latestLm=null;noFaceCount++;
+    }
+  });
+  mpReady=true;
+}
+
+function getMotion(lm){
+  if(!lm||!prevLmPos){prevLmPos=lm?{x:lm[1].x,y:lm[1].y}:null;return 0;}
+  const dx=(lm[1].x-prevLmPos.x)*640,dy=(lm[1].y-prevLmPos.y)*480;
+  prevLmPos={x:lm[1].x,y:lm[1].y};
+  return Math.sqrt(dx*dx+dy*dy);
+}
+
+// ── 메인 프레임 루프 ──
+async function processFrame(){
+  if(!running) return;
+  const vw=videoEl.videoWidth, vh=videoEl.videoHeight;
+  if(!vw||!vh){rafId=requestAnimationFrame(processFrame);return;}
+
+  // 오프스크린 캔버스 재사용
+  if(!_offscreenCanvas) _offscreenCanvas=document.createElement('canvas');
+  if(_offscreenCanvas.width!==vw) _offscreenCanvas.width=vw;
+  if(_offscreenCanvas.height!==vh) _offscreenCanvas.height=vh;
+  const tc=_offscreenCanvas.getContext('2d',{willReadFrequently:true});
+  tc.drawImage(videoEl,0,0,vw,vh);
+  const imgData=tc.getImageData(0,0,vw,vh);
+
+  // FPS 계산
+  fpsCount++;
+  const now=performance.now();
+  if(now-lastFpsTs>1000){
+    const f=$('fpsText');if(f)f.textContent=fpsCount+' fps';
+    fpsCount=0;lastFpsTs=now;
+  }
+
+  // ── 손가락 모드 ──
+  if(currentMode==='finger'){
+    const roi=extractFingerROI(imgData,vw,vh);
+    if(!roi){drawFingerOverlay(vw,vh,0,0);rafId=requestAnimationFrame(processFrame);return;}
+
+    const chk=checkFinger(roi.r,roi.g);
+    drawFingerOverlay(vw,vh,roi.r,roi.g);
+
+    if(chk.saturated){
+      // v8.1: 포화 연속 카운터 — 순간 과압으로 즉시 리셋 방지
+      if(typeof _satCount==='undefined') window._satCount=0;
+      window._satCount = (window._satCount||0) + 1;
+      if(window._satCount < 20) {
+        updateSQI(Math.max(0, currentSQI - 2));
+        rafId=requestAnimationFrame(processFrame);return;
+      }
+      window._satCount = 0;
+      rBuf=[];gBuf=[];bBuf=[];tsBuf=[];goodFrames=0;
+      hrBuf=[];sdnnBuf=[];spo2Buf=[];
+      updateSQI(0);
+      rafId=requestAnimationFrame(processFrame);return;
+    }
+    window._satCount = 0;
+    if(!chk.ok){
+      // v8.1: 연속 미접촉 카운터 — 일시적 손가락 뗌으로 즉시 리셋 방지
+      if(typeof _noContactCount==='undefined') window._noContactCount=0;
+      window._noContactCount = (window._noContactCount||0) + 1;
+      if(window._noContactCount < 15) {
+        // 15프레임(~0.5초) 이내 미접촉 무시
+        updateSQI(Math.max(0, currentSQI - 2));
+        rafId=requestAnimationFrame(processFrame);return;
+      }
+      window._noContactCount = 0;
+      rBuf=[];gBuf=[];bBuf=[];tsBuf=[];goodFrames=0;
+      hrBuf=[];sdnnBuf=[];spo2Buf=[];
+      updateSQI(0);
+      rafId=requestAnimationFrame(processFrame);return;
+    }
+    window._noContactCount = 0;
+
+    // v8.1: 손가락 모드는 IMU 게이트 제거
+    // (손가락 밀착 시 폰 미세진동으로 오탐 발생 → 얼굴 모드에만 적용)
+
+    // 데이터 축적
+    rBuf.push(roi.r);gBuf.push(roi.g);bBuf.push(roi.b);tsBuf.push(now);
+    if(rBuf.length>BUFSIZE){rBuf.shift();gBuf.shift();bBuf.shift();tsBuf.shift();}
+    goodFrames++;
+
+    // chipFrame: 프레임 수 표시 (진행 바는 타이머에서 처리)
+    $('chipFrame').textContent = goodFrames < WARMUP
+      ? `수집 중 ${goodFrames}/${WARMUP}`
+      : currentSQI >= 30 ? '❤️ 측정 중' : '📡 신호 분석 중';
+
+    // 신호 처리
+    const m=processFingerPPG(rBuf,gBuf,bBuf,tsBuf);
+    handleResult(m,'finger');
+
+  } else {
+    // ── 얼굴 모드 ──
+    const bgG=extractBgROI(imgData,vw,vh);
+    if(bgG!==null){bgGBuf.push(bgG);if(bgGBuf.length>BUFSIZE)bgGBuf.shift();}
+
+    mpTick++;
+    if(mpReady&&faceMesh&&mpTick%2===0){
+      mpCanvas.width=vw;mpCanvas.height=vh;
+      mpCanvas.getContext('2d').drawImage(videoEl,0,0,vw,vh);
+      await faceMesh.send({image:mpCanvas});
+    }
+
+    if(latestLm) motionScore=getMotion(latestLm);
+
+    if(!latestLm){
+      noFaceCount++;
+      if(noFaceCount>90){rBuf=[];gBuf=[];bBuf=[];tsBuf=[];rrYBuf=[];goodFrames=0;hrBuf=[];sdnnBuf=[];}
+      drawFaceOverlay(vw,vh,null);updateSQI(0);
+      rafId=requestAnimationFrame(processFrame);return;
+    }
+    if(motionScore>6){drawFaceOverlay(vw,vh,latestLm);rafId=requestAnimationFrame(processFrame);return;}
+
+    const roi=extractFaceROI(imgData,latestLm,vw,vh);
+    if(!roi){rafId=requestAnimationFrame(processFrame);return;}
+    if(roi.g<20||roi.g>248){
+      const m2=$('camStatusMsg');if(m2)m2.textContent=roi.g<20?'조명이 너무 어둡습니다':'조명이 너무 밝습니다';
+      rafId=requestAnimationFrame(processFrame);return;
+    }
+
+    rBuf.push(roi.r);gBuf.push(roi.g);bBuf.push(roi.b);tsBuf.push(now);
+    if(rBuf.length>BUFSIZE){rBuf.shift();gBuf.shift();bBuf.shift();tsBuf.shift();}
+    if(latestLm[NOSE_TIP]){rrYBuf.push(latestLm[NOSE_TIP].y*vh);if(rrYBuf.length>BUFSIZE)rrYBuf.shift();}
+    goodFrames++;
+
+    $('chipFrame').textContent = goodFrames < WARMUP
+      ? `수집 중 ${goodFrames}/${WARMUP}`
+      : '😊 측정 중';
+    drawFaceOverlay(vw,vh,latestLm);
+
+    const m=processFacePPG(rBuf,gBuf,bBuf,bgGBuf,rrYBuf,tsBuf);
+    handleResult(m,'face');
+  }
+
+  rafId=requestAnimationFrame(processFrame);
+}
+
+// ── 결과 처리 및 UI 업데이트 ──
+function handleResult(m, mode){
+  if(!m) return;
+
+  currentSQI=m.sqi||0;
+  updateSQI(currentSQI);
+
+  if(m.filt) drawWave(m.filt, mode==='finger'?'#ef4444':'#3b82f6');
+
+  if(m.hr && currentSQI>=SQI_MIN && m.hr>=36 && m.hr<=220){
+    lastResult=m;
+    setMet('vHR',m.hr,' bpm');
+
+    // v7: RMSSD 기반 스트레스 표시 (SDNN 보조)
+    if(m.rmssd!=null && m.rmssd>0){
+      const hrvi = interpretHRV(m.rmssd, m.sdnn);
+      $('vST').innerHTML = m.rmssd+'<span class="munit"> ms</span>';
+      const pnEl=$('vPNN50'); if(pnEl&&m.pnn50>0) pnEl.textContent=`pNN50: ${m.pnn50}%`;
+      setSt('sST', hrvi.label,
+        hrvi.stress==='relaxed'||hrvi.stress==='very_relaxed'?'g':
+        hrvi.stress==='normal'?'w':'d');
+    } else if(m.sdnn!=null && m.sdnn>0){
+      setMet('vST', m.sdnn, ' ms');
+      setSt('sST',m.sdnn>50?'양호':m.sdnn>20?'보통':'높음',m.sdnn>50?'g':m.sdnn>20?'w':'d');
+    } else {
+      setMet('vST','--',' ms');
+      setSt('sST','측정중','');
+    }
+
+    if(m.rr!=null) setMet('vRR',m.rr,' rpm');
+    ['cHR','cST','cRR'].forEach(id=>{const e=$(id);if(e)e.classList.add('lit');});
+    setSt('sHR',m.hr<50?'낮음':m.hr<=100?'정상':'높음',m.hr<50?'w':m.hr<=100?'g':'w');
+    if(m.rr) setSt('sRR',m.rr>=12&&m.rr<=20?'정상':m.rr<12?'낮음':'높음',m.rr>=12&&m.rr<=20?'g':'w');
+
+    if(mode==='finger'&&m.spo2!=null){
+      updateSpO2UI(m.spo2);
+      $('cSPO2')&&$('cSPO2').classList.add('lit');
+    } else if(mode==='face'){
+      const sn=$('spo2Note');if(sn)sn.classList.add('show');
+    }
+
+    // v8: 스트레스 지수 업데이트
+    updateStressUI(m.stressIdx);
+
+    setInfo(`❤️ ${m.hr} bpm  신뢰도 ${currentSQI}%${m.spo2?`  SpO2: ${m.spo2}%`:''}`,
+            '계속 유지해 주세요');
+    updateActionGuide(m);
+  }
+}
+
+// ── 측정 카운트다운 타이머 v8 ──
+function startMeasureTimer() {
+  const timerChip = $('chipTimer');
+  if (timerChip) timerChip.style.display = 'flex';
+  stopMeasureTimer(); // 이전 타이머 정리
+  function tick() {
+    if (!running) { stopMeasureTimer(); return; }
+    const elapsed = (performance.now() - measureStartTs) / 1000;
+    const remain = Math.max(0, Math.ceil(TOTAL_MEAS_SEC - elapsed));
+    const chip = $('chipTimer');
+    if (chip) {
+      chip.textContent = `⏱ ${remain}초`;
+      // 10초 이하: 주황색 경고
+      chip.style.background = remain <= 10
+        ? 'rgba(239,68,68,.3)' : 'rgba(37,99,235,.25)';
+      chip.style.color = remain <= 10 ? '#fca5a5' : '#93c5fd';
+    }
+    // 진행 바 (프레임 수 기반 → 시간 기반으로)
+    const pct = Math.min(100, (elapsed / TOTAL_MEAS_SEC) * 100);
+    const pf = $('progFill');
+    if (pf) pf.style.width = pct + '%';
+    if (remain > 0) {
+      measureTimerRAF = requestAnimationFrame(tick);
+    } else {
+      // 30초 도달 — 자동 종료 X, 사용자가 직접 중지하도록
+      // 타이머 칩을 "완료 가능" 상태로 변경하고 계속 측정
+      const chip = $('chipTimer');
+      if (chip) {
+        chip.textContent = lastResult?.hr ? `✅ ${lastResult.hr}bpm 확인됨 · 중지 가능` : '⏱ 계속 측정 중...';
+        chip.style.background = lastResult?.hr ? 'rgba(22,163,74,.3)' : 'rgba(37,99,235,.25)';
+        chip.style.color = lastResult?.hr ? '#86efac' : '#93c5fd';
+      }
+      // 타이머는 멈추지만 측정은 계속됨
+    }
+  }
+  tick();
+}
+function stopMeasureTimer() {
+  if (measureTimerRAF) cancelAnimationFrame(measureTimerRAF);
+  measureTimerRAF = null;
+  const chip = $('chipTimer');
+  if (chip) chip.style.display = 'none';
+}
+
+// ── 스트레스 지수 UI 업데이트 ──
+function updateStressUI(idx) {
+  const vEl=$('vSTRESS'), sEl=$('sSTRESS'), bar=$('stressBar'), hint=$('stressHint');
+  const card=$('cSTRESS');
+  if(!vEl) return;
+  if(idx===null||idx===undefined){
+    vEl.textContent='--';
+    if(sEl) sEl.textContent='대기';
+    if(bar) bar.style.width='0%';
+    if(hint) hint.textContent='LF/HF 비율 기반 — 30초 이상 측정 후 표시';
+    return;
+  }
+  // 스무딩
+  stressBuf.push(idx);
+  if(stressBuf.length>5) stressBuf.shift();
+  const smooth = Math.round(mean(stressBuf));
+
+  vEl.textContent = smooth;
+  if(bar) bar.style.width = smooth+'%';
+
+  let label, col;
+  if(smooth < 30)      { label='매우이완'; col='var(--green)'; }
+  else if(smooth < 45) { label='이완';     col='var(--green)'; }
+  else if(smooth < 60) { label='보통';     col='var(--accent2)'; }
+  else if(smooth < 75) { label='스트레스'; col='var(--warn)'; }
+  else                 { label='고스트레스'; col='var(--danger)'; }
+
+  if(sEl){ sEl.textContent=label; sEl.style.color=col; }
+  if(bar){ bar.style.background=col; }
+  if(hint){ hint.textContent=`LF/HF 분석 완료 · ${smooth}점 (높을수록 교감신경 우세)`; }
+  if(card) card.classList.add('lit');
+}
+
+// ── SQI 바 업데이트 ──
+function updateSQI(sqi){
+  const fill=$('sqiFill'),pct=$('sqiPct'),msg=$('sqiMsg');
+  if(!fill)return;
+  fill.style.width=sqi+'%';
+  if(pct)pct.textContent=sqi+'%';
+  if(!msg)return;
+  // v8: SQI 기준 완화 (5% 이상이면 신호 수집 중)
+  if(sqi>=60){fill.style.background='var(--green)';msg.textContent='✅ 신뢰도 높음 — 측정 중';msg.className='sqi-msg ok';}
+  else if(sqi>=30){fill.style.background='var(--warn2)';msg.textContent=`📡 신호 분석 중 (${sqi}%) — 잠시 유지해주세요`;msg.className='sqi-msg warn';}
+  else if(sqi>=SQI_MIN){fill.style.background='var(--warn2)';msg.textContent=`📶 신호 수집 시작 (${sqi}%) — 손가락 유지`;msg.className='sqi-msg warn';}
+  else if(sqi>0){fill.style.background='var(--danger2)';msg.textContent=`신호 약함 ${sqi}% — 손가락을 렌즈에 밀착하세요`;msg.className='sqi-msg bad';}
+  else{fill.style.background='var(--bg3)';msg.textContent=currentMode==='finger'?'📱 손가락을 후면 카메라에 올려주세요':'😊 얼굴을 화면에 맞춰주세요';msg.className='sqi-msg';}
+}
+
+// ── 토치(플래시) 제어 v7 ──
+// ★ 핵심 수정: getUserMedia constraints에 torch를 넣으면
+//    Android에서 스트림이 검게 되는 버그 → 획득 후 applyConstraints만 사용
+async function enableTorch(track){
+  if(!track) return false;
+  // 방법 1: getCapabilities + applyConstraints
+  try{
+    const caps=track.getCapabilities?track.getCapabilities():{};
+    if(caps.torch===true){
+      await track.applyConstraints({advanced:[{torch:true}]});
+      console.log('[Torch] ON via getCapabilities');
+      return true;
+    }
+  }catch(e){console.warn('[Torch] method1:',e.message);}
+  // 방법 2: capabilities 체크 없이 바로 시도
+  try{
+    await track.applyConstraints({advanced:[{torch:true}]});
+    console.log('[Torch] ON via direct applyConstraints');
+    return true;
+  }catch(e){console.warn('[Torch] method2:',e.message);}
+  return false;
+}
+
+async function disableTorch(){
+  if(!torchTrack) return;
+  try{await torchTrack.applyConstraints({advanced:[{torch:false}]});}
+  catch(e){}
+}
+
+// ── 측정 시작/중지 ──
+async function toggleMeasure(){
+  if(running){
+    // ── 중지 ──
+    running=false;
+    if(rafId) cancelAnimationFrame(rafId);
+    stopMeasureTimer(); // v8: 카운트다운 중지
+    await disableTorch();
+    stopIMUMonitor(); // v8: IMU 모니터 중지
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+    torchTrack=null; torchActive=false;
+
+    videoEl.srcObject=null;videoEl.style.display='none';
+    overlayCanvas.style.display='none';
+    $('camPh').style.display='flex';
+    $('ovChips').style.display='none';
+    $('sqiWrap').style.display='none';
+    $('scanLine').classList.remove('active');
+    const csb=$('camStatusBar');if(csb)csb.style.display='none';
+
+    $('startBtn').classList.remove('measuring');
+    $('startBtn').innerHTML=`<svg class="bico" viewBox="0 0 22 22" fill="currentColor"><circle cx="11" cy="11" r="10" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="11" cy="11" r="4"/></svg>측정 시작`;
+    $('progFill').style.width='0%';
+    stopMeasureTimer();
+
+    if(lastResult&&lastResult.hr){recordHistory(lastResult);updateBaseline(lastResult);}
+
+    // 전체 리셋
+    rBuf=[];gBuf=[];bBuf=[];tsBuf=[];bgGBuf=[];rrYBuf=[];goodFrames=0;
+    hrBuf=[];sdnnBuf=[];spo2Buf=[];stressBuf=[];spo2History=[];
+    updateStressUI(null);
+    stopIMUMonitor();
+    latestLm=null;prevLmPos=null;motionScore=0;noFaceCount=0;mpTick=0;
+    currentSQI=0;lastResult=null;
+
+    ['cHR','cST','cRR','cSPO2'].forEach(id=>{const e=$(id);if(e)e.classList.remove('lit');});
+    ['vHR','vST','vRR'].forEach((id,i)=>setMet(id,'--',['bpm','ms','rpm'][i]));
+    if($('vSPO2'))$('vSPO2').innerHTML='--<span class="munit">%</span>';
+    ['sHR','sST','sRR','sSPO2'].forEach(id=>setSt(id,'대기',''));
+    const sn=$('spo2Note');if(sn)sn.classList.remove('show');
+    $('actionGuide').classList.remove('show');
+    wc.clearRect(0,0,waveCanvas.width,waveCanvas.height);
+    oc.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+
+    speak(lastResult?.hr?`측정 완료. 심박수 ${lastResult.hr} 비피엠입니다.`:'측정을 중지합니다.');
+    vibrate([200,100,200]);
+    setInfo(lastResult?.hr?'측정 완료! 분석 탭에서 확인하세요.':'버튼을 눌러 측정을 시작하세요.');
+    return;
+  }
+
+  // ── 시작 ──
+  try{
+    const isRear=(currentMode==='finger');
+    setInfo('카메라를 준비하고 있습니다...');
+
+    // 카메라 획득 — 손가락: 후면 저해상도, 얼굴: 전면
+    const constraints={video:{
+      facingMode:isRear?{exact:'environment'}:'user',
+      width:{ideal:isRear?640:1280},
+      height:{ideal:isRear?480:720},
+      frameRate:{ideal:30,max:60}
+    }};
+    try{ stream=await navigator.mediaDevices.getUserMedia(constraints); }
+    catch(e){
+      // exact 실패 시 relaxed
+      stream=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:isRear?'environment':'user',frameRate:{ideal:30}}
+      });
+    }
+
+    videoEl.srcObject=stream;
+    await new Promise(r=>{videoEl.onloadedmetadata=()=>r();});
+    await videoEl.play();
+
+    // 플래시 켜기 v7 ── 스트림 획득 후 applyConstraints만 사용
+    // (torch:true를 getUserMedia에 넣으면 Android에서 검은 화면 유발)
+    if(isRear){
+      const vTrack=stream.getVideoTracks()[0];
+      await new Promise(r=>setTimeout(r,300)); // 스트림 안정 대기
+      torchActive=await enableTorch(vTrack);
+      if(torchActive){
+        torchTrack=vTrack;
+      } else {
+        await new Promise(r=>setTimeout(r,500)); // 추가 대기 후 재시도
+        torchActive=await enableTorch(vTrack);
+        if(torchActive) torchTrack=vTrack;
+        else console.warn('[Torch v7] Device does not support torch API');
+      }
+    }
+
+    // 플래시 상태 표시
+    const torchBadge=$('torchBadge');
+    if(torchBadge){
+      if(isRear){
+        torchBadge.textContent=torchActive?'🔦 플래시 ON':'💡 플래시 없음';
+        torchBadge.style.display='flex';
+        torchBadge.style.background=torchActive?'rgba(34,197,94,.25)':'rgba(245,158,11,.2)';
+      }else{
+        torchBadge.style.display='none';
+      }
+    }
+
+    videoEl.className=isRear?'rear':'';
+    overlayCanvas.className=isRear?'rear':'';
+    videoEl.style.display='block';
+    overlayCanvas.style.display='block';
+    $('camPh').style.display='none';
+    $('ovChips').style.display='flex';
+    $('sqiWrap').style.display='block';
+    $('scanLine').classList.add('active');
+    const csb=$('camStatusBar');if(csb)csb.style.display='block';
+
+    const fc=$('chipFace')||document.createElement('div');
+    fc.id='chipFace';fc.className='chip';
+    if(!$('chipFace'))$('ovChips').appendChild(fc);
+    fc.style.display=currentMode==='face'?'flex':'none';
+
+    running=true;
+    lastFpsTs=performance.now();fpsCount=0;mpTick=0;
+    measureStartTs = performance.now();
+    startIMUMonitor(); // v8: 다중센서 융합 IMU 시작
+    startMeasureTimer(); // v8: 30초 카운트다운
+    $('startBtn').classList.add('measuring');
+    $('startBtn').innerHTML=`<svg class="bico" viewBox="0 0 22 22" fill="currentColor"><rect x="5" y="5" width="12" height="12" rx="3"/></svg>측정 중지`;
+
+    if(currentMode==='finger'){
+      speak('측정을 시작합니다. 검지손가락을 후면 카메라 렌즈에 올려주세요. 30초 안에 결과가 표시됩니다.');
+      setInfo('📱 검지손가락을 렌즈에 올려주세요', torchActive?'🔦 플래시 ON · 30초 측정 시작':'💡 플래시 없어도 측정 가능 · 30초');
+    }else{
+      speak('측정을 시작합니다. 얼굴을 화면 중앙에 맞추고 가만히 있어주세요.');
+      setInfo('😊 얼굴을 화면 중앙에 맞춰주세요','밝은 실내 조명에서 측정하세요');
+      initFaceMesh();
+    }
+    vibrate(100);
+    processFrame();
+
+  }catch(e){
+    setInfo('카메라를 사용할 수 없습니다: '+e.message);
+    console.error('[Camera]',e);
+  }
+}
+$('startBtn').addEventListener('click',toggleMeasure);
+
+// ── 모드 선택 ──
+function selectMode(mode){
+  currentMode=mode;
+  $('modeCardFinger').classList.toggle('selected',mode==='finger');
+  $('modeCardFace').classList.toggle('selected',mode==='face');
+  $('chipMode').textContent=mode==='finger'?'손가락 모드':'얼굴 모드';
+  $('waveLbl').textContent=mode==='finger'?'PPG 파형 (적색광)':'rPPG 파형 (피부색)';
+  $('camPhMsg').textContent=mode==='finger'?'후면 카메라 — 검지를 렌즈에 올려주세요':'전면 카메라 — 얼굴을 맞춰주세요';
+  if(mode==='finger'){
+    $('tipsTitle').textContent='손가락 측정 방법';
+    $('tipsGrid').innerHTML=`
+      <div class="ti"><span class="tico">👆</span><span><strong>검지 첫째 마디</strong>로 렌즈를 덮어주세요</span></div>
+      <div class="ti"><span class="tico">🔦</span><span>플래시가 켜지면 <strong>화면이 붉게</strong> 변합니다</span></div>
+      <div class="ti"><span class="tico">🤲</span><span><strong>가볍게</strong> 올려두세요. 세게 누르면 혈류 차단</span></div>
+      <div class="ti"><span class="tico">📱</span><span>테이블에 폰을 세워두면 흔들림 없이 정확해요</span></div>`;
+    if(running){ return; } // v8.1: 측정 중 모드 변경 무시
+  }else{
+    $('tipsTitle').textContent='얼굴 측정 방법';
+    $('tipsGrid').innerHTML=`
+      <div class="ti"><span class="tico">💡</span><span><strong>밝은 실내</strong> 형광등 아래가 최적입니다</span></div>
+      <div class="ti"><span class="tico">📏</span><span>폰과 <strong>30cm 거리</strong>를 유지하세요</span></div>
+      <div class="ti"><span class="tico">😶</span><span>측정 중 <strong>표정 변화 없이</strong> 가만히 있으세요</span></div>
+      <div class="ti"><span class="tico">⏱️</span><span><strong>15~30초</strong> 후 결과가 표시됩니다</span></div>`;
+    if(running){ return; } // v8.1: 측정 중 모드 변경 무시
+  }
+}
+
+// ── 액션 가이드 ──
+function updateActionGuide(m){
+  const el=$('actionGuide'),tEl=$('agTitle'),bEl=$('agBody');
+  if(!m||!m.hr){el.classList.remove('show');return;}
+  let cls,title,body;
+  if(m.spo2!=null&&m.spo2<93){
+    cls='bad';title='🩸 산소포화도가 낮습니다';
+    body=m.spo2<90?`SpO2 ${m.spo2}% — 즉시 안정을 취하고 의료 전문가에게 연락하세요.`
+      :`SpO2 ${m.spo2}% — 심호흡을 하고 안정을 취해 보세요.`;
+  }else if(m.stressIdx!=null&&m.stressIdx>=75){
+    cls='bad';title='😥 스트레스 지수가 높습니다';
+    body=`스트레스 ${m.stressIdx}점 — 교감신경 우세 상태. 호흡 훈련을 해보세요.`;
+  }else if((m.rmssd!=null&&m.rmssd>0&&m.rmssd<25)||(m.rmssd==null&&m.sdnn!=null&&m.sdnn<20)){
+    cls='bad';title='😥 HRV가 낮습니다 (스트레스 상태)';
+    body=`RMSSD ${m.rmssd??m.sdnn}ms — 호흡 훈련 3분을 해보세요.`;
+  }else if(m.hr>100){
+    cls='warn';title='⚠️ 심박수가 높습니다';body='잠시 앉아서 천천히 숨을 쉬어 보세요.';
+  }else if(m.rr&&m.rr>20){
+    cls='warn';title='💨 호흡이 빠릅니다';body='코로 천천히 들이쉬고 입으로 내쉬어 보세요.';
+  }else{
+    cls='good';title='✅ 상태가 양호합니다';
+    body=`심박수, 스트레스${m.spo2?`, SpO2 ${m.spo2}%`:''} 정상입니다. 오늘도 건강하게!`;
+  }
+  el.className='action-guide show '+cls;
+  tEl.className='ag-title '+cls;tEl.textContent=title;bEl.textContent=body;
+}
+
+// ── 헬퍼 ──
+function showTab(t){
+  ['measure','body','analysis'].forEach(n=>{
+    $('screen-'+n).classList.toggle('on',n===t);
+    $('tab-'+n).classList.toggle('on',n===t);
+  });
+  if(t==='analysis')renderAna();
+  if(t==='body')initBodyScreen();
+  // v8.1: 탭 전환 시 측정 중이면 measure 탭으로 강제 복귀 (스트림 보호)
+  // 단, analysis 탭은 측정 중에도 허용 (결과 미리 보기)
+}
+function setInfo(m,sub){
+  const ib=$('infoBar');if(ib)ib.textContent=m;
+  if(running){
+    const csb=$('camStatusBar');if(csb)csb.style.display='block';
+    const cm=$('camStatusMsg');if(cm){cm.textContent=m;}
+    const cs=$('camStatusSub');if(cs&&sub)cs.textContent=sub;
+  }
+}
+function setMet(id,v,u){const e=$(id);if(e)e.innerHTML=v+'<span class="munit">'+u+'</span>';}
+function setSt(id,t,c){const e=$(id);if(e){e.textContent=t;e.className='mst '+(c||'');}}
+function speak(text){
+  if(!('speechSynthesis'in window))return;
+  const u=new SpeechSynthesisUtterance(text);u.lang='ko-KR';u.rate=0.9;u.volume=0.8;
+  speechSynthesis.cancel();speechSynthesis.speak(u);
+}
+function vibrate(p){if(navigator.vibrate)navigator.vibrate(p);}
+
+// ── 기록 / 베이스라인 ──
+function updateBaseline(m){
+  if(!baseline)baseline={hr:[],sdnn:[],rr:[],count:0};
+  baseline.hr.push(m.hr);if(baseline.hr.length>20)baseline.hr.shift();
+  if(m.sdnn>0){baseline.sdnn.push(m.sdnn);if(baseline.sdnn.length>20)baseline.sdnn.shift();}
+  if(m.rr){baseline.rr.push(m.rr);if(baseline.rr.length>20)baseline.rr.shift();}
+  baseline.count++;
+  localStorage.setItem('rppg_base4',JSON.stringify(baseline));
+}
+function recordHistory(m){
+  const now=new Date();
+  const ts=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  history.unshift({ts,hr:m.hr,sdnn:m.sdnn??0,rmssd:m.rmssd??0,pnn50:m.pnn50??0,stressIdx:m.stressIdx??null,rr:m.rr??0,spo2:m.spo2??null,mode:currentMode});
+  if(history.length>10)history=history.slice(0,10);
+  localStorage.setItem('rppg_h4',JSON.stringify(history));
+}
+function clearHistory(){history=[];localStorage.removeItem('rppg_h4');renderHistory();}
+
+// ── 분석 / 기록 렌더링 (별도 파일에서 합쳐짐) ──
+
+function clearHistory(){history=[];baselineData=null;localStorage.removeItem('rppg_h4');localStorage.removeItem('rppg_base4');renderAna();}
+
+// ── Analysis ──
+function renderAna(){
+  const has=lastResult!==null&&!!lastResult.hr;
+  $('noData').style.display=has?'none':'block';$('anaContent').style.display=has?'block':'none';
+  if(!has){renderHistory();return;}
+
+  const m2=lastResult;
+  const {hr,sdnn,rr,spo2} = m2;
+  const rrV      = rr??null;
+  const rmssdA   = m2.rmssd??null;
+  const pnn50A   = m2.pnn50??null;
+  const siA      = m2.stressIdx??null;   // v8: LF/HF 스트레스 지수
+
+  // SpO2 링
+  updateSpO2Ring(spo2??null);
+
+  // 개인 기준선
+  const bn=$('baselineNotice');
+  if(baselineData&&baselineData.count>=3){
+    const bHR=Math.round(mean(baselineData.hr));
+    const bST=baselineData.sdnn.length?Math.round(mean(baselineData.sdnn)):null;
+    const dHR=hr-bHR;
+    bn.style.display='block';
+    bn.innerHTML=`📊 <strong>개인 기준 비교</strong> (${baselineData.count}회 평균)<br>
+      심박수: 평균 ${bHR}bpm → 지금 ${hr}bpm (${dHR>=0?'+':''}${dHR})
+      ${bST?`<br>HRV 평균 ${bST}ms → 지금 ${rmssdA||sdnn}ms`:''}`;  } else {
+    bn.style.display='block';
+    bn.innerHTML=`📊 <strong>개인 기준선</strong>은 3회 이상 측정 후 자동 생성됩니다. (현재 ${history.length}회)`;
+  }
+
+  // ── 게이지 공통 함수 ──
+  const setGauge=(vId,fId,nId,gId,val,lo,hi)=>{
+    if(!$(vId)) return;
+    const col=val===null?'var(--muted)':val<lo||val>hi?'var(--danger)':val<lo*1.1||val>hi*0.9?'var(--warn)':'var(--green)';
+    $(vId).textContent=val??'--'; if(val!==null)$(vId).style.color=col;
+    const range=hi*1.5-lo*0.5;
+    const pct=val!==null?clamp(((val-lo*0.5)/range)*100,0,100):0;
+    $(fId).style.cssText=`width:${pct}%;background:${col}`;
+    const nL=clamp(((lo-lo*0.5)/range)*100,0,100);
+    const nW=clamp(((hi-lo)/range)*100,0,100);
+    $(nId).style.cssText=`left:${nL}%;width:${nW}%`;
+  };
+
+  // ── 심박수 게이지 ──
+  setGauge('ghHR','gfHR','gnHR','gaHR',hr,60,100);
+  $('gaHR').innerHTML = hr<50
+    ? `<strong class="di">서맥 수준(${hr}bpm)</strong>. 어지러움이 있다면 병원 상담을 권장합니다.`
+    : hr<60 ? `심박수 <strong class="wi">${hr}bpm</strong> — 약간 낮은 편입니다.`
+    : hr<=100 ? `심박수 <strong class="hi">${hr}bpm</strong> — 정상 범위(60~100bpm)입니다.`
+    : hr<=130 ? `심박수 <strong class="wi">${hr}bpm</strong> — 약간 높습니다. 안정 후 재측정 권장.`
+    : `심박수 <strong class="di">${hr}bpm</strong> — 매우 높습니다. 안정을 취하고 지속 시 의사 상담.`;
+
+  // ── HRV(RMSSD) 게이지 ──
+  const hrvDisp = rmssdA&&rmssdA>0 ? rmssdA : sdnn;
+  const hrvLabel = rmssdA&&rmssdA>0 ? 'RMSSD' : 'SDNN';
+  setGauge('ghST','gfST','gnST','gaST', hrvDisp, 25, 60);
+  $('gaST').innerHTML = !hrvDisp
+    ? `30초 이상 측정 후 HRV가 표시됩니다.`
+    : hrvDisp < 15
+    ? `${hrvLabel} <strong class="di">${hrvDisp}ms</strong> — 스트레스 매우 높음. 즉각적인 휴식과 호흡 훈련을 권장합니다.`
+    : hrvDisp < 25
+    ? `${hrvLabel} <strong class="wi">${hrvDisp}ms</strong> — 스트레스 높음. 복식호흡·명상·충분한 수면을 권장합니다.`
+    : hrvDisp < 40
+    ? `${hrvLabel} <strong class="hi">${hrvDisp}ms</strong> — 적정 수준. 자율신경 균형이 유지되고 있습니다.`
+    : hrvDisp < 60
+    ? `${hrvLabel} <strong class="hi">${hrvDisp}ms</strong> — 이완 상태. 부교감신경 우세, 회복력 좋습니다.`
+    : `${hrvLabel} <strong class="hi">${hrvDisp}ms</strong> — 매우 이완된 최상의 상태입니다.`;
+
+  // ── 호흡수 게이지 ──
+  setGauge('ghRR','gfRR','gnRR','gaRR', rrV, 12, 20);
+  $('gaRR').innerHTML = rrV===null
+    ? `<strong>호흡수는 30초 이상 측정 후 표시됩니다.</strong>`
+    : rrV<8  ? `분당 <strong class="di">${rrV}회</strong> — 매우 낮습니다.`
+    : rrV<12 ? `분당 <strong class="wi">${rrV}회</strong> — 낮은 편입니다.`
+    : rrV<=20 ? `분당 <strong class="hi">${rrV}회</strong> — 정상 범위(12~20rpm)입니다.`
+    : rrV<=25 ? `분당 <strong class="wi">${rrV}회</strong> — 약간 빠른 편. 천천히 깊게 숨쉬어 보세요.`
+    : `분당 <strong class="di">${rrV}회</strong> — 과호흡 수준. 코로 천천히 호흡하고 안정을 취하세요.`;
+
+  // ── v8: 스트레스 지수(LF/HF) 게이지 ──
+  // 스트레스 지수: 낮을수록 이완(좋음) → 게이지 반전 처리
+  const siDisp = siA; // 0~100, 높을수록 스트레스
+  if($('ghSI')) {
+    setGauge('ghSI','gfSI','gnSI','gaSI', siDisp, 30, 60);
+    $('gaSI').innerHTML = siDisp===null
+      ? `<strong>스트레스 지수는 30초 이상 측정 후 표시됩니다.</strong> (LF/HF 주파수 분석 필요)`
+      : siDisp < 30
+      ? `스트레스 <strong class="hi">${siDisp}점</strong> — 매우 이완 상태. 부교감신경이 활발합니다.`
+      : siDisp < 45
+      ? `스트레스 <strong class="hi">${siDisp}점</strong> — 이완 상태. 자율신경 균형이 좋습니다.`
+      : siDisp < 60
+      ? `스트레스 <strong class="wi">${siDisp}점</strong> — 보통 수준. 가벼운 휴식을 권장합니다.`
+      : siDisp < 75
+      ? `스트레스 <strong class="wi">${siDisp}점</strong> — 스트레스 상태. 호흡 훈련을 해보세요.`
+      : `스트레스 <strong class="di">${siDisp}점</strong> — 고스트레스. 교감신경 과활성. 즉각 휴식 필요.`;
+  }
+
+  // ── 종합 점수 산출 (v8: stressIdx 반영) ──
+  let score = 100;
+  if(hr<50||hr>130) score-=25; else if(hr<60||hr>100) score-=12;
+  const scoreHRV = rmssdA&&rmssdA>0 ? rmssdA : sdnn;
+  if(scoreHRV<10) score-=30; else if(scoreHRV<20) score-=18; else if(scoreHRV<35) score-=8;
+  if(rrV!==null){ if(rrV<8||rrV>25) score-=20; else if(rrV<12||rrV>20) score-=8; }
+  // stressIdx 반영: 75점 이상은 -12점, 60-75는 -5점
+  if(siDisp!==null){ if(siDisp>=75) score-=12; else if(siDisp>=60) score-=5; }
+  score = clamp(score, 0, 100);
+
+  const grade = score>=85?'A':score>=70?'B':score>=50?'C':'D';
+  $('scNum').textContent = score;
+  $('scNum').style.color = {A:'var(--green)',B:'var(--accent2)',C:'var(--warn)',D:'var(--danger)'}[grade];
+  $('scGrade').textContent = '등급 '+grade;
+  $('scGrade').className = 'sc-grade '+grade;
+  $('scSum').textContent = {
+    A:'전반적으로 매우 좋은 상태입니다. 현재 건강 습관을 유지하세요.',
+    B:'대체로 양호합니다. 일부 항목을 조금 더 개선해 보세요.',
+    C:'일부 항목이 정상을 벗어났습니다. 스트레스 관리와 생활습관 개선이 필요합니다.',
+    D:'여러 항목에서 주의가 필요합니다. 충분히 쉬고, 불편감이 있으면 병원을 방문하세요.'
+  }[grade];
+
+  // ── 세부 분석 카드 (v8) ──
+  $('dCardio').innerHTML = hr>=60&&hr<=100
+    ? `심박수 <strong class="hi">${hr}bpm</strong> — 정상입니다.`
+    : hr<60
+    ? `심박수 <strong class="wi">${hr}bpm</strong> — 낮은 편입니다.`
+    : `심박수 <strong class="di">${hr}bpm</strong> — 높습니다. 안정 후 재측정 권장.`;
+
+  const ansFn = rmssdA&&rmssdA>0 ? rmssdA : sdnn;
+  $('dANS').innerHTML = ansFn>50
+    ? `RMSSD <strong class="hi">${ansFn}ms</strong> — 이완 상태. 부교감신경 활성.`
+    : ansFn>25
+    ? `RMSSD <strong>${ansFn}ms</strong> — 균형 상태.`
+    : ansFn>0
+    ? `RMSSD <strong class="wi">${ansFn}ms</strong> — 교감신경 우세. 복식 호흡·수면 권장.`
+    : `자율신경 분석을 위해 30초 이상 측정해 주세요.`;
+
+  $('dBreath').innerHTML = rrV===null
+    ? `<strong>30초 이상</strong> 측정해야 호흡수가 표시됩니다.`
+    : rrV>=12&&rrV<=20
+    ? `분당 <strong class="hi">${rrV}회</strong> — 정상.`
+    : rrV<12
+    ? `분당 <strong>${rrV}회</strong> — 느린 편.`
+    : `분당 <strong class="wi">${rrV}회</strong> — 빠른 편.`;
+
+  // v8: dAdvice에 스트레스 지수 반영
+  let advice;
+  if(siDisp!==null&&siDisp>=75)
+    advice='교감신경 과활성 상태입니다. 4-7-8 호흡법(들이마시기4초·멈추기7초·내쉬기8초)을 5분간 실천하세요.';
+  else if(grade==='A') advice='지금 상태를 유지하세요. 규칙적인 운동과 충분한 수면을 계속하세요.';
+  else if(grade==='B') advice='하루 10분 명상이나 산책으로 컨디션을 더 높여보세요.';
+  else if(grade==='C') advice='카페인을 줄이고 7~8시간 수면을 취하세요. 주 3회 유산소 운동을 권장합니다.';
+  else advice='즉시 휴식이 필요합니다. 증상이 지속되면 병원을 방문하세요.';
+  $('dAdvice').textContent = advice;
+
+  renderHistory();
+}
+function renderHistory(){
+  const el=$('histList');
+  if(!history.length){el.innerHTML='<div class="hempty">아직 측정 기록이 없습니다.</div>';
+    ['avgHR','avgST','avgRR'].forEach((id,i)=>{$(id).innerHTML='--<span class="aunit"> '+['bpm','ms','rpm'][i]+'</span>';});return;}
+  el.innerHTML=history.map(h=>{
+    const sc=h.spo2!=null?`<span class="v" style="color:${h.spo2>=95?'var(--green)':h.spo2>=93?'var(--warn)':'var(--danger)'}">${h.spo2}%</span>`:`<span class="v" style="color:var(--muted2)">--</span>`;
+    const hrvH = h.rmssd>0 ? h.rmssd : (h.sdnn||null);
+    const hrvCol = hrvH ? (hrvH>40?'var(--green)':hrvH>20?'var(--warn)':'var(--danger)') : 'var(--muted2)';
+    const siH = h.stressIdx;
+    const siCol = siH!=null ? (siH<45?'var(--green)':siH<65?'var(--warn)':'var(--danger)') : 'var(--muted2)';
+    return `<div class="hitem" style="grid-template-columns:36px 1fr 1fr 1fr 1fr 1fr">
+      <span class="hts">${h.ts}<br><span style="font-size:10px">${h.mode==='finger'?'👆':'😊'}</span></span>
+      <div class="hv"><span class="v">${h.hr}</span><span class="u">심박수</span></div>
+      <div class="hv">${sc}<span class="u">SpO2</span></div>
+      <div class="hv"><span class="v" style="color:${hrvCol}">${hrvH||'--'}</span><span class="u">RMSSD</span></div>
+      <div class="hv"><span class="v" style="color:${siCol}">${siH!=null?siH:'--'}</span><span class="u">스트레스</span></div>
+      <div class="hv"><span class="v">${h.rr||'--'}</span><span class="u">호흡수</span></div>
+    </div>`;
+  }).join('');
+  $('avgHR').innerHTML=Math.round(mean(history.map(h=>h.hr)))+'<span class="aunit"> bpm</span>';
+  const stV=history.filter(h=>h.sdnn>0);
+  $('avgST').innerHTML=(stV.length?Math.round(mean(stV.map(h=>h.sdnn))):'--')+'<span class="aunit"> ms</span>';
+  const rrV=history.filter(h=>h.rr>0);
+  $('avgRR').innerHTML=(rrV.length?Math.round(mean(rrV.map(h=>h.rr))):'--')+'<span class="aunit"> rpm</span>';
+}
+
+// ── Breathing guide ──
+let bTimer=null,bPhase=0,bRunning=false;
+function toggleBreath(){
+  if(bRunning){clearTimeout(bTimer);bRunning=false;$('breathRing').className='breath-ring exhale';$('breathRing').textContent='준비';$('breathInstr').textContent='시작 버튼을 눌러주세요';$('breathSub').textContent='호흡 조절로 스트레스를 줄여보세요';$('btnBreath').textContent='호흡 훈련 시작';$('btnBreath').classList.remove('active');}
+  else{bRunning=true;bPhase=0;$('btnBreath').textContent='훈련 중지';$('btnBreath').classList.add('active');runBreath();}
+}
+function runBreath(){
+  if(!bRunning)return;
+  const p=[{t:4000,i:'천천히 숨을 들이마세요',s:'코로 4초간',c:'inhale',txt:'들이마심'},{t:2000,i:'잠깐 멈추세요',s:'2초 유지',c:'inhale',txt:'유지'},{t:6000,i:'천천히 내쉬세요',s:'입으로 6초간',c:'exhale',txt:'내쉼'},{t:2000,i:'잠깐 멈추세요',s:'2초 준비',c:'exhale',txt:'준비'}][bPhase%4];
+  $('breathRing').className='breath-ring '+p.c;$('breathRing').textContent=p.txt;$('breathInstr').textContent=p.i;$('breathSub').textContent=p.s;
+  speak(p.i); bPhase++; bTimer=setTimeout(runBreath,p.t);
+}
+
+// ── PWA ──
+let dp=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('iBanner').classList.add('show');});
+$('installBtn').addEventListener('click',async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;$('iBanner').classList.remove('show');});
+window.addEventListener('appinstalled',()=>$('iBanner').classList.remove('show'));
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+// Init
+selectMode('finger');
+renderHistory();
+
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  신체 나이(Biological Age) 계산 시스템
+//
+//  참고 문헌:
+//  - Cesari et al. 2016 (균형·보행 → 생물학적 노화 마커)
+//  - Nagasawa et al. 2020 (반응 시간 → 신경 나이 추정)
+//  - 한국인 체력 기준: 국민체력100 (문체부/KSPO) 연령대별 규범
+//
+//  원리:
+//  각 검사 점수를 연령대별 규범 데이터와 비교해
+//  "이 점수는 평균적으로 XX세의 신체 능력" 으로 역산합니다.
+//  5개 검사의 신체 나이 가중 평균 → 종합 신체 나이
+//
+//  가중치:
+//  균형 30% + 보행 25% + 반응 20% + 자세 15% + 떨림 10%
+//  (낙상 예측력 높은 균형·보행에 높은 가중치)
+// ══════════════════════════════════════════════════════════════════════
+
+// ── 나이 상태 ──
+let userAge = parseInt(localStorage.getItem('rppg_age') || '0') || null;
+
+// ── 나이 입력 UI ──
+function initAgeDisplay() {
+  const el = document.getElementById('ageDisplay');
+  if (el) el.textContent = userAge ? userAge : '--';
+}
+function adjustAge(delta) {
+  if (userAge === null) userAge = 40;
+  userAge = Math.max(10, Math.min(100, userAge + delta));
+  localStorage.setItem('rppg_age', userAge);
+  const el = document.getElementById('ageDisplay');
+  if (el) { el.textContent = userAge; el.style.color = 'var(--accent2)'; }
+  // Recalculate if we already have results
+  const scores = [BS.balance.score, BS.gait.score, BS.posture.score,
+                  BS.reaction.score, BS.shake.score].filter(s => s !== null);
+  if (scores.length >= 3) computeAndShowBioAge();
+}
+
+// ── 연령대별 점수 규범 테이블 ──
+// [나이, balance_norm, gait_norm, posture_norm, reaction_norm, shake_norm]
+// 각 점수 = 해당 나이의 평균인이 받을 수 있는 예상 점수 (0-100)
+// 출처: KSPO 국민체력100 + 임상 연구 메타분석 보정
+const AGE_NORMS = [
+  // age, balance, gait, posture, reaction, shake
+  [20,  94, 92, 90, 92, 90],
+  [25,  92, 91, 89, 90, 89],
+  [30,  90, 89, 87, 88, 88],
+  [35,  87, 87, 85, 85, 87],
+  [40,  83, 84, 82, 82, 85],
+  [45,  79, 81, 79, 78, 82],
+  [50,  74, 77, 75, 74, 79],
+  [55,  68, 72, 70, 69, 75],
+  [60,  61, 67, 65, 63, 70],
+  [65,  54, 61, 59, 57, 65],
+  [70,  46, 54, 53, 50, 59],
+  [75,  38, 47, 47, 43, 53],
+  [80,  30, 40, 40, 36, 46],
+];
+
+// 각 검사별 가중치
+const WEIGHTS = { balance:0.30, gait:0.25, posture:0.15, reaction:0.20, shake:0.10 };
+
+// ── 점수 → 신체 나이 역산 함수 ──
+// 특정 검사의 점수가 어느 나이의 평균 점수에 해당하는지 선형 보간으로 추정
+function scoreToAge(score, colIdx) {
+  // colIdx: 1=balance, 2=gait, 3=posture, 4=reaction, 5=shake
+  const norms = AGE_NORMS;
+
+  // score가 최상단(20세)보다 높으면 20세 미만 신체
+  if (score >= norms[0][colIdx]) return 18;
+  // score가 최하단(80세)보다 낮으면 80세 이상 신체
+  if (score <= norms[norms.length-1][colIdx]) return 85;
+
+  // 선형 보간: 어느 두 규범 사이에 있는지 찾기
+  for (let i = 0; i < norms.length - 1; i++) {
+    const hi = norms[i], lo = norms[i+1];
+    if (score <= hi[colIdx] && score >= lo[colIdx]) {
+      const t = (hi[colIdx] - score) / (hi[colIdx] - lo[colIdx] || 1);
+      return Math.round(hi[0] + t * (lo[0] - hi[0]));
+    }
+  }
+  return 50; // fallback
+}
+
+// ── 종합 신체 나이 계산 ──
+function computeBioAge() {
+  const map = [
+    { key: 'balance',  col: 1, w: WEIGHTS.balance  },
+    { key: 'gait',     col: 2, w: WEIGHTS.gait      },
+    { key: 'posture',  col: 3, w: WEIGHTS.posture   },
+    { key: 'reaction', col: 4, w: WEIGHTS.reaction  },
+    { key: 'shake',    col: 5, w: WEIGHTS.shake     },
+  ];
+
+  let totalW = 0, weightedSum = 0;
+  const breakdown = [];
+
+  map.forEach(({key, col, w}) => {
+    const s = BS[key].score;
+    if (s === null) return;
+    const estAge = scoreToAge(s, col);
+    breakdown.push({ key, score: s, estAge, w });
+    weightedSum += estAge * w;
+    totalW += w;
+  });
+
+  if (totalW < 0.3) return null; // 너무 적은 데이터
+  const bioAge = Math.round(weightedSum / totalW);
+  return { bioAge, breakdown };
+}
+
+// ── 신체 나이 UI 업데이트 ──
+function computeAndShowBioAge() {
+  if (!userAge) return; // 나이 미입력
+  const result = computeBioAge();
+  if (!result) return;
+
+  const sec = document.getElementById('bioAgeSection');
+  if (sec) sec.style.display = 'block';
+
+  const { bioAge, breakdown } = result;
+  const diff = bioAge - userAge;
+  const absDiff = Math.abs(diff);
+
+  // 숫자 표시
+  const realEl = document.getElementById('bioAgeReal');
+  const bodyEl = document.getElementById('bioAgeBody');
+  const diffEl = document.getElementById('bioAgeDiff');
+  const arrowEl = document.getElementById('bioAgeArrow');
+  if (realEl) realEl.textContent = userAge;
+  if (bodyEl) { bodyEl.textContent = bioAge; bodyEl.style.color = diff < -5 ? 'var(--green)' : diff > 5 ? 'var(--danger)' : 'var(--accent2)'; }
+  if (diffEl) {
+    diffEl.textContent = (diff > 0 ? '+' : '') + diff;
+    diffEl.style.color = diff < -5 ? 'var(--green)' : diff > 5 ? 'var(--danger)' : 'var(--warn)';
+  }
+  if (arrowEl) arrowEl.style.color = diff < 0 ? 'var(--green)' : diff > 0 ? 'var(--danger)' : 'var(--muted)';
+
+  // 바 시각화: 20~80세 범위에서 위치 표시
+  const MIN_AGE = 20, MAX_AGE = 80;
+  const bioAgePct = bsClamp((bioAge - MIN_AGE) / (MAX_AGE - MIN_AGE) * 100, 2, 98);
+  const fill = document.getElementById('bioAgeBarFill');
+  const marker = document.getElementById('bioAgeBarMarker');
+  if (fill) fill.style.width = (100 - bioAgePct) + '%'; // 왼쪽(젊음)부터 채우는 역방향
+  if (marker) marker.style.left = `calc(${bioAgePct}% - 2px)`;
+
+  // 메시지
+  const msgEl = document.getElementById('bioAgeMsg');
+  if (msgEl) {
+    let msg = '', col = '';
+    if (diff <= -10)      { msg = `🌟 실제 나이보다 ${absDiff}년 젊은 신체!`; col = 'var(--green)'; }
+    else if (diff <= -5)  { msg = `✅ 실제 나이보다 ${absDiff}년 젊게 측정됐어요`; col = 'var(--green)'; }
+    else if (diff <= -1)  { msg = `😊 실제 나이와 거의 비슷한 수준이에요`; col = 'var(--accent2)'; }
+    else if (diff <= 1)   { msg = `📊 실제 나이에 딱 맞는 신체 능력이에요`; col = 'var(--accent2)'; }
+    else if (diff <= 5)   { msg = `⚠️ 실제 나이보다 ${absDiff}년 노화된 신체`; col = 'var(--warn)'; }
+    else if (diff <= 10)  { msg = `🔶 실제 나이보다 ${absDiff}년 노화가 진행됐어요`; col = 'var(--warn)'; }
+    else                  { msg = `❗ 신체 나이가 ${absDiff}년 더 많습니다. 개선이 시급해요`; col = 'var(--danger)'; }
+    msgEl.textContent = msg;
+    msgEl.style.color = col;
+  }
+
+  // 항목별 신체 나이 breakdown
+  const bkEl = document.getElementById('bioAgeBreakdown');
+  if (bkEl) {
+    const nameMap = { balance:'균형력', gait:'보행', posture:'자세', reaction:'반응속도', shake:'안정성' };
+    bkEl.innerHTML = breakdown.map(({key, score, estAge}) => {
+      const d = estAge - userAge;
+      const col = d <= -5 ? 'var(--green)' : d >= 5 ? 'var(--danger)' : 'var(--warn)';
+      return `<div class="bioage-bitem">
+        <span class="bioage-bitem-name">${nameMap[key]||key}</span>
+        <span class="bioage-bitem-val" style="color:${col}">${estAge}세 (${d>0?'+':''}${d})</span>
+      </div>`;
+    }).join('');
+  }
+
+  // 음성 안내
+  speak(`신체 나이 분석 완료. 실제 ${userAge}세, 신체 나이 ${bioAge}세입니다.`);
+}
+
+// ── initBodyScreen에 나이 초기화 통합 ──
+function initBodyScreen(){
+  updateOverall();
+  initAgeDisplay();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  BODY ANALYSIS MODULE — v5.1  AI 신체 코치 시스템
+//  ① 균형  ② 보행  ③ 척추/자세  ④ 반응속도  ⑤ 손 떨림
+//  센서: DeviceMotionEvent + DeviceOrientationEvent + TouchEvent
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── 공통 상태 ──
+const BS = {
+  balance:  {score:null,sway:null,vel:null,stab:null,risk:null},
+  gait:     {score:null,steps:null,cad:null,reg:null,sym:null},
+  posture:  {score:null,roll:null,pitch:null,stab:null},
+  reaction: {score:null,avg:null,min:null,cv:null,grade:null},
+  shake:    {score:null,amp:null,freq:null,stab:null,grade:null},
+};
+
+let _sensorOK = false;
+
+// ── iOS 13+ 센서 권한 ──
+async function askSensor() {
+  if (_sensorOK) return true;
+  if (typeof DeviceMotionEvent === 'undefined') return false;
+  if (typeof DeviceMotionEvent.requestPermission === 'function') {
+    try { _sensorOK = (await DeviceMotionEvent.requestPermission()) === 'granted'; }
+    catch(e) { _sensorOK = false; }
+  } else { _sensorOK = true; }
+  return _sensorOK;
+}
+
+// ── 공통 DSP ──
+const bsMean = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : 0;
+const bsStd  = a => { const m=bsMean(a); return Math.sqrt(bsMean(a.map(v=>(v-m)**2))); };
+const bsClamp= (v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+
+// 1차 low-pass Butterworth
+function lpf(data, fc, sr) {
+  const rc=1/(2*Math.PI*fc), dt=1/sr, al=dt/(rc+dt);
+  const o=[data[0]||0];
+  for(let i=1;i<data.length;i++) o.push(o[i-1]+al*(data[i]-o[i-1]));
+  return o;
+}
+
+// 선형 detrend
+function detrend(x) {
+  const n=x.length; if(!n) return x;
+  let sx=0,sy=0,sxy=0,sxx=0;
+  x.forEach((v,i)=>{sx+=i;sy+=v;sxy+=i*v;sxx+=i*i;});
+  const sl=(n*sxy-sx*sy)/(n*sxx-sx*sx||1), ic=(sy-sl*sx)/n;
+  return x.map((v,i)=>v-(sl*i+ic));
+}
+
+// Hann window FFT (power-of-2 Cooley-Tukey)
+function nextP2(n){let p=1;while(p<n)p<<=1;return p;}
+function fftR(re,im){
+  const n=re.length;
+  if(n<=1) return;
+  const re_e=[],re_o=[],im_e=[],im_o=[];
+  for(let i=0;i<n;i+=2){re_e.push(re[i]);im_e.push(im[i]);}
+  for(let i=1;i<n;i+=2){re_o.push(re[i]);im_o.push(im[i]);}
+  fftR(re_e,im_e);fftR(re_o,im_o);
+  for(let k=0;k<n/2;k++){
+    const a=-2*Math.PI*k/n,c=Math.cos(a),s=Math.sin(a);
+    const tr=c*re_o[k]-s*im_o[k],ti=c*im_o[k]+s*re_o[k];
+    re[k]=re_e[k]+tr;im[k]=im_e[k]+ti;
+    re[k+n/2]=re_e[k]-tr;im[k+n/2]=im_e[k]-ti;
+  }
+}
+function dominantFreq(sig, loHz, hiHz, sr) {
+  if(!sig||sig.length<16)return null;
+  const N=nextP2(sig.length);
+  const h=sig.map((_,i)=>0.5*(1-Math.cos(2*Math.PI*i/(sig.length-1))));
+  const re=new Array(N).fill(0),im=new Array(N).fill(0);
+  sig.forEach((v,i)=>re[i]=v*h[i]);
+  fftR(re,im);
+  const res=sr/N;
+  let maxP=-1,maxI=0;
+  for(let i=Math.ceil(loHz/res);i<=Math.min(Math.floor(hiHz/res),N/2-1);i++){
+    const p=re[i]*re[i]+im[i]*im[i];
+    if(p>maxP){maxP=p;maxI=i;}
+  }
+  // quadratic interpolation
+  const prev=maxI>0?re[maxI-1]*re[maxI-1]+im[maxI-1]*im[maxI-1]:0;
+  const next=maxI<N/2-1?re[maxI+1]*re[maxI+1]+im[maxI+1]*im[maxI+1]:0;
+  const den=prev-2*maxP+next;
+  const delta=den!==0?0.5*(prev-next)/den:0;
+  return (maxI+delta)*res;
+}
+
+// ── Canvas helpers ──
+function initCanvas(id) {
+  const c=document.getElementById(id); if(!c)return null;
+  const dpr=window.devicePixelRatio||1;
+  c.width=c.offsetWidth*dpr; c.height=c.offsetHeight*dpr;
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr); return ctx;
+}
+function drawLine(ctx,data,W,H,color,lw=1.5,shadow=false) {
+  if(!data||data.length<2)return;
+  const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
+  ctx.beginPath();
+  if(shadow){ctx.shadowColor=color;ctx.shadowBlur=4;}
+  ctx.strokeStyle=color;ctx.lineWidth=lw;
+  data.forEach((v,i)=>{
+    const x=(i/(data.length-1))*W,y=H-((v-mn)/rng)*H*.82-H*.09;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur=0;
+}
+
+// ── Badge / feedback helpers ──
+function setBadge(id,cls,txt){
+  const e=document.getElementById(id);if(!e)return;
+  e.className='tc-badge '+cls;e.textContent=txt;
+}
+function setResult(id,val,col){
+  const e=document.getElementById(id);if(!e)return;
+  e.textContent=val;if(col)e.style.color=col;
+}
+function showFeedback(id, lines, color) {
+  const e=document.getElementById(id);if(!e)return;
+  e.style.display='block';
+  e.innerHTML=lines.map(l=>`<div class="fb-line">${l}</div>`).join('');
+  e.style.borderLeftColor=color||'var(--accent)';
+}
+function showTraining(id, items) {
+  const e=document.getElementById(id);if(!e)return;
+  e.style.display='block';
+  e.innerHTML='<div class="tg-title">💪 개선 훈련 방법</div>'+
+    items.map(t=>`<div class="tg-item"><span class="tg-dot"></span>${t}</div>`).join('');
+}
+function gradeColor(score){
+  return score>=80?'var(--green)':score>=60?'var(--warn)':'var(--danger)';
+}
+function gradeTxt(score){
+  return score>=90?'우수':score>=80?'양호':score>=65?'보통':score>=50?'주의':'개선필요';
+}
+
+// ── Overall score + AI coach ──
+function updateOverall() {
+  const scores=[BS.balance.score,BS.gait.score,BS.posture.score,BS.reaction.score,BS.shake.score]
+    .filter(s=>s!==null);
+  if(!scores.length)return;
+  const avg=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+  const arc=document.getElementById('bodyArc');
+  const num=document.getElementById('bodyScoreNum');
+  if(arc){ const off=Math.round(264*(1-avg/100)); arc.style.strokeDashoffset=off; arc.style.stroke=gradeColor(avg); }
+  if(num){ num.textContent=avg; num.style.color=gradeColor(avg); }
+
+  const keys=['balance','gait','posture','reaction','shake'];
+  keys.forEach(k=>{
+    const dot=document.getElementById('dot-'+k);
+    if(!dot)return;
+    const s=BS[k].score;
+    dot.style.opacity=s!==null?'1':'0.3';
+    dot.title=s!==null?`${k}: ${s}점`:'미완료';
+  });
+
+  const sub=document.getElementById('bodyOverallSub');
+  if(sub) sub.textContent=scores.length<5
+    ?`${scores.length}/5 완료 — 나머지 검사도 진행해 보세요`
+    :avg>=80?'전반적으로 신체 기능이 우수합니다!'
+    :avg>=60?'보통 수준입니다. 가이드를 참고해 개선해 보세요.'
+    :'개선이 필요한 항목이 있습니다.';
+
+  if(scores.length>=3) { runAICoach(avg); computeAndShowBioAge(); }
+}
+
+function runAICoach(avg) {
+  const sec=document.getElementById('aiCoachSection');
+  const body=document.getElementById('aiCoachBody');
+  const pri=document.getElementById('aiPriority');
+  if(!sec||!body)return;
+  sec.style.display='block';
+
+  const issues=[];
+  if(BS.balance.score!==null&&BS.balance.score<65) issues.push({k:'균형',s:BS.balance.score,fix:'한발 서기 훈련을 매일 30초씩 3세트 하세요.'});
+  if(BS.gait.score!==null&&BS.gait.score<65)       issues.push({k:'보행',s:BS.gait.score,fix:'메트로놈(90BPM)에 맞춰 걷는 리듬 훈련을 하세요.'});
+  if(BS.posture.score!==null&&BS.posture.score<65)  issues.push({k:'자세',s:BS.posture.score,fix:'벽에 등을 대고 바른 자세를 하루 5분 유지하세요.'});
+  if(BS.reaction.score!==null&&BS.reaction.score<65)issues.push({k:'반응',s:BS.reaction.score,fix:'인지 자극 운동(퀴즈, 새로운 동작 배우기)을 늘리세요.'});
+  if(BS.shake.score!==null&&BS.shake.score<65)      issues.push({k:'손떨림',s:BS.shake.score,fix:'이완 호흡과 코어 운동으로 긴장을 줄이세요.'});
+
+  const goods=[];
+  if(BS.balance.score>=80)  goods.push('균형');
+  if(BS.gait.score>=80)     goods.push('보행');
+  if(BS.posture.score>=80)  goods.push('자세');
+  if(BS.reaction.score>=80) goods.push('반응속도');
+  if(BS.shake.score>=80)    goods.push('안정성');
+
+  let html='';
+  if(goods.length) html+=`<div class="ai-good">✅ <strong>${goods.join('·')}</strong>이(가) 우수합니다!</div>`;
+  if(!issues.length){ html+='<div class="ai-line">모든 검사에서 양호한 결과입니다. 현재 수준을 유지하세요.</div>'; }
+  else { issues.forEach(i=>{ html+=`<div class="ai-line">⚠️ <strong>${i.k}</strong>(${i.s}점): ${i.fix}</div>`; }); }
+  body.innerHTML=html;
+
+  // Priority action
+  if(issues.length) {
+    const worst=issues.sort((a,b)=>a.s-b.s)[0];
+    pri.innerHTML=`<div class="ai-pri-label">🎯 지금 당장 할 것</div><div class="ai-pri-body">${worst.k} 개선이 가장 시급합니다.<br>${worst.fix}</div>`;
+    pri.style.display='block';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  B = Body tests namespace
+// ════════════════════════════════════════════════════════════════
+const B = {};
+
+// ────────────────────────────────────────────────────────────────
+//  ① BALANCE — 가속도+자이로 → CoP 추정 → sway area + velocity
+//  참고: Mancini 2012, Gait & Posture (smartphone CoP validity)
+// ────────────────────────────────────────────────────────────────
+B.balance = (() => {
+  const SR=50, DUR=30, MIN_SAMPLES=SR*5;
+  let running=false, samples=[], timer=null, raf=null, ctx=null, cdInterval=null;
+
+  function toggle() {
+    if(running) stop(); else start();
+  }
+  async function start() {
+    if(!await askSensor()){alert('모션 센서 권한이 필요합니다.');return;}
+    samples=[];running=true;
+    setBadge('badge-balance','running','측정 중');
+    document.getElementById('btn-balance').textContent='⏹ 중지';
+    document.getElementById('btn-balance').style.background='transparent';
+    document.getElementById('btn-balance').style.border='2px solid var(--warn)';
+    document.getElementById('btn-balance').style.color='var(--warn)';
+    document.getElementById('viz-balance').style.display='block';
+    document.getElementById('res-balance').style.display='none';
+    document.getElementById('fb-balance').style.display='none';
+    document.getElementById('tg-balance').style.display='none';
+    document.getElementById('cd-balance').style.display='block';
+    ctx=initCanvas('cvBalance');
+    speak('균형 검사를 시작합니다. 폰을 허리에 수평으로 잡고 발을 모아 가만히 서주세요.');
+    vibrate(100);
+
+    let last=0;
+    const start_t=performance.now();
+    function onMot(e){
+      const now=performance.now();
+      if(now-last<1000/SR)return; last=now;
+      const a=e.accelerationIncludingGravity||e.acceleration||{};
+      if(!isFinite(a.x||0))return;
+      samples.push({ax:a.x||0,ay:a.y||0,az:a.z||0,t:now-start_t});
+      drawLive();
+      const rem=Math.max(0,DUR-Math.round((now-start_t)/1000));
+      const cdNum=document.getElementById('cdNum-balance');
+      const cdFill=document.getElementById('cdFill-balance');
+      if(cdNum)cdNum.textContent=rem;
+      if(cdFill)cdFill.style.width=(((DUR-rem)/DUR)*100)+'%';
+    }
+    window._bmh=onMot;
+    window.addEventListener('devicemotion',onMot);
+    timer=setTimeout(stop,DUR*1000+500);
+  }
+  function stop(){
+    clearTimeout(timer);
+    window.removeEventListener('devicemotion',window._bmh||null);
+    running=false;
+    document.getElementById('btn-balance').textContent='▶ 다시 검사하기';
+    document.getElementById('btn-balance').style.cssText='';
+    document.getElementById('cd-balance').style.display='none';
+    if(samples.length<MIN_SAMPLES){setBadge('badge-balance','','대기');return;}
+    const r=analyze(samples);
+    BS.balance={score:r.score,sway:r.sway,vel:r.vel,stab:r.stab,risk:r.riskLabel};
+    showResult(r); updateOverall(); vibrate([100,50,200]);
+    speak(`균형 검사 완료. 안정성 ${r.stab}점, 낙상 위험 ${r.riskLabel}입니다.`);
+  }
+
+  function analyze(smp) {
+    const G={x:bsMean(smp.map(s=>s.ax)),y:bsMean(smp.map(s=>s.ay)),z:bsMean(smp.map(s=>s.az))};
+    const ml=smp.map(s=>s.ax-G.x), ap=smp.map(s=>s.ay-G.y);
+
+    function integrate2(acc){
+      const m=bsMean(acc),det=acc.map(v=>v-m),dt=1/SR;
+      let v=0; const vel=det.map(a=>{v+=a*dt;return v;});
+      const vm=bsMean(vel),velZ=vel.map(v=>v-vm);
+      let p=0; const pos=velZ.map(v=>{p+=v*dt;return p;});
+      const pm=bsMean(pos); return pos.map(v=>(v-pm)*100); // cm
+    }
+    const mlP=integrate2(ml), apP=integrate2(ap);
+
+    // 95% ellipse area
+    const mlS=bsStd(mlP),apS=bsStd(apP);
+    const mlM=bsMean(mlP),apM=bsMean(apP);
+    const cov=bsMean(mlP.map((v,i)=>(v-mlM)*(apP[i]-apM)));
+    const r2=mlS*apS>0?(cov/(mlS*apS))**2:0;
+    const sway=Math.round(Math.PI*2.448*mlS*apS*Math.sqrt(Math.max(0,1-r2))*10)/10;
+
+    // Mean velocity
+    const mlV=mlP.map((v,i,a)=>i>0?(v-a[i-1])*SR:0);
+    const apV=apP.map((v,i,a)=>i>0?(v-a[i-1])*SR:0);
+    const vel=Math.round(Math.sqrt(bsMean(mlV.map((v,i)=>v*v+apV[i]*apV[i])))*10)/10;
+
+    // Risk & stability score
+    const risk=sway*0.5+vel*0.5;
+    let riskLabel,riskCol,score;
+    if(risk<2)      {riskLabel='낮음';riskCol='var(--green)';score=90;}
+    else if(risk<4) {riskLabel='보통';riskCol='var(--accent2)';score=72;}
+    else if(risk<7) {riskLabel='주의';riskCol='var(--warn)';score=52;}
+    else            {riskLabel='높음';riskCol='var(--danger)';score=28;}
+    const stab=bsClamp(Math.round(100-risk*6),0,100);
+
+    return {sway,vel,stab,score,riskLabel,riskCol,mlP,apP,mlS,apS};
+  }
+
+  function drawLive() {
+    if(!ctx)return;
+    const c=document.getElementById('cvBalance');
+    const W=c.offsetWidth,H=c.offsetHeight;
+    ctx.fillStyle='rgba(15,31,61,0.25)'; ctx.fillRect(0,0,W,H);
+    const n=Math.min(samples.length,200), pts=samples.slice(-n);
+    const xs=pts.map(s=>s.ax),ys=pts.map(s=>s.ay);
+    const mX=bsMean(xs),mY=bsMean(ys);
+    const rX=Math.max(bsStd(xs)*4,.3),rY=Math.max(bsStd(ys)*4,.3);
+    ctx.beginPath();
+    pts.forEach((s,i)=>{
+      const px=W/2+(s.ax-mX)/rX*(W*.4), py=H/2+(s.ay-mY)/rY*(H*.4);
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    });
+    ctx.strokeStyle='rgba(123,200,255,.7)';ctx.lineWidth=1.5;ctx.stroke();
+    const l=pts[pts.length-1];
+    const lx=W/2+(l.ax-mX)/rX*(W*.4),ly=H/2+(l.ay-mY)/rY*(H*.4);
+    ctx.beginPath();ctx.arc(lx,ly,5,0,Math.PI*2);
+    ctx.fillStyle='#7bc8ff';ctx.fill();
+    // crosshair
+    ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
+  }
+
+  function showResult(r){
+    document.getElementById('res-balance').style.display='grid';
+    setResult('r-bSway',r.sway,r.riskCol);
+    setResult('r-bVel',r.vel,r.riskCol);
+    setResult('r-bStab',r.stab,gradeColor(r.stab));
+    setResult('r-bRisk',r.riskLabel,r.riskCol);
+    setBadge('badge-balance',r.score>=80?'done':r.score>=50?'ready':'warn',`${r.score}점`);
+    // Redraw final
+    ctx=initCanvas('cvBalance');
+    if(ctx){
+      const c=document.getElementById('cvBalance'),W=c.offsetWidth,H=c.offsetHeight;
+      ctx.clearRect(0,0,W,H);
+      const scX=W*.35/(r.mlS*2.5+.1),scY=H*.35/(r.apS*2.5+.1);
+      ctx.beginPath();
+      ctx.ellipse(W/2,H/2,r.mlS*scX*2.448,r.apS*scY*2.448,0,0,Math.PI*2);
+      ctx.fillStyle=r.riskLabel==='낮음'?'rgba(52,211,153,.1)':r.riskLabel==='보통'?'rgba(123,200,255,.1)':r.riskLabel==='주의'?'rgba(251,191,36,.1)':'rgba(248,113,113,.1)';
+      ctx.fill();
+      ctx.strokeStyle=r.riskCol.includes('green')?'#34d399':r.riskCol.includes('warn')?'#fbbf24':r.riskCol.includes('danger')?'#f87171':'#7bc8ff';
+      ctx.lineWidth=2;ctx.setLineDash([5,3]);ctx.stroke();ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(W/2,H/2,5,0,Math.PI*2);ctx.fillStyle='#7bc8ff';ctx.fill();
+    }
+    // AI feedback
+    const fbLines=[];
+    if(r.score>=80){fbLines.push('✅ 균형 능력이 우수합니다! 근골격계와 전정기관이 잘 기능하고 있습니다.');}
+    else{
+      if(r.sway>4)fbLines.push(`⚠️ 흔들림 면적이 ${r.sway}cm²로 큽니다. 발목 근력과 고유 감각이 약할 수 있습니다.`);
+      if(r.vel>2) fbLines.push(`⚠️ 이동 속도가 ${r.vel}cm/s로 높습니다. 중심 근육(코어) 강화가 필요합니다.`);
+      fbLines.push('💡 눈을 감고 서는 것이 더 어렵다면 시각 의존도가 높은 것입니다.');
+    }
+    showFeedback('fb-balance',fbLines,r.riskCol);
+    if(r.score<80){
+      showTraining('tg-balance',[
+        '한발 서기: 매일 3세트 × 30초. 익숙해지면 눈 감고 도전!',
+        '발목 원 그리기: 앉아서 발목을 천천히 10회 돌리기',
+        '탠덤 워킹: 발 뒤꿈치를 발 앞에 붙이며 일자로 걷기 (10m)',
+        '코어 플랭크: 팔꿈치 30초 × 3세트로 중심 근육 강화',
+      ]);
+    }
+  }
+  return {toggle};
+})();
+
+// ────────────────────────────────────────────────────────────────
+//  ② GAIT — 가속도 magnitude 피크 검출 → 보행 파라미터
+//  참고: Karantonis 2006, IEEE Trans Inf Technol Biomed
+// ────────────────────────────────────────────────────────────────
+B.gait = (() => {
+  const SR=100, MAX_DUR=30000, MIN_STEPS=6;
+  let running=false, samples=[], timer=null, ctx=null;
+
+  function toggle(){ running?stop():start(); }
+  async function start(){
+    if(!await askSensor()){alert('모션 센서 권한이 필요합니다.');return;}
+    samples=[];running=true;
+    setBadge('badge-gait','running','측정 중');
+    document.getElementById('btn-gait').textContent='⏹ 걷기 완료 (누르기)';
+    document.getElementById('btn-gait').style.cssText='background:transparent;border:2px solid var(--warn);color:var(--warn)';
+    document.getElementById('viz-gait').style.display='block';
+    document.getElementById('res-gait').style.display='none';
+    document.getElementById('fb-gait').style.display='none';
+    document.getElementById('tg-gait').style.display='none';
+    ctx=initCanvas('cvGait');
+    speak('보행 분석을 시작합니다. 폰을 손에 쥐고 평소처럼 자연스럽게 걸어주세요.');
+    vibrate(100);
+    let last=0, t0=performance.now();
+    function onMot(e){
+      const now=performance.now();
+      if(now-last<1000/SR)return; last=now;
+      const a=e.accelerationIncludingGravity||e.acceleration||{};
+      const mag=Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2);
+      samples.push({mag,t:now-t0});
+      drawLive();
+    }
+    window._gmh=onMot;
+    window.addEventListener('devicemotion',onMot);
+    timer=setTimeout(stop,MAX_DUR);
+  }
+  function stop(){
+    clearTimeout(timer);window.removeEventListener('devicemotion',window._gmh||null);
+    running=false;
+    document.getElementById('btn-gait').textContent='▶ 다시 검사하기';
+    document.getElementById('btn-gait').style.cssText='';
+    if(samples.length<SR*2){setBadge('badge-gait','','대기');return;}
+    const r=analyze(samples);
+    BS.gait={score:r.score,steps:r.steps,cad:r.cad,reg:r.reg,sym:r.sym};
+    showResult(r);updateOverall();vibrate([100,50,200]);
+    speak(`보행 분석 완료. ${r.steps}걸음 감지, 규칙성 ${r.reg}퍼센트입니다.`);
+  }
+
+  function analyze(smp){
+    const mags=smp.map(s=>s.mag);
+    const filt=lpf(mags,5,SR);
+    const gEst=bsMean(filt);
+    const cent=filt.map(v=>v-gEst);
+    const thr=bsStd(cent)*0.45;
+    const minD=Math.round(SR*0.28); // 280ms min
+    const peaks=[];
+    for(let i=minD;i<cent.length-minD;i++){
+      if(cent[i]>thr&&cent[i]>cent[i-1]&&cent[i]>cent[i+1]
+         &&(!peaks.length||i-peaks[peaks.length-1]>minD)) peaks.push(i);
+    }
+    const steps=peaks.length;
+    const durSec=(smp[smp.length-1].t-smp[0].t)/1000||1;
+    const cad=Math.round(steps/durSec*60);
+
+    let reg=0,sym=0,score=50;
+    if(peaks.length>=4){
+      const ival=[];
+      for(let i=1;i<peaks.length;i++)ival.push(peaks[i]-peaks[i-1]);
+      const mI=bsMean(ival),sI=bsStd(ival);
+      reg=bsClamp(Math.round((1-sI/mI)*100),0,100);
+      const odd=ival.filter((_,i)=>i%2===0),evn=ival.filter((_,i)=>i%2===1);
+      if(odd.length&&evn.length){
+        const mO=bsMean(odd),mE=bsMean(evn);
+        sym=bsClamp(Math.round((1-Math.abs(mO-mE)/((mO+mE)/2||1))*100),0,100);
+      }
+    }
+    score=100;
+    if(cad<70||cad>140)score-=22; else if(cad<80||cad>125)score-=10;
+    if(reg<60)score-=28; else if(reg<80)score-=12;
+    if(sym<70)score-=22; else if(sym<85)score-=8;
+    score=bsClamp(score,0,100);
+    return {score,steps,cad,reg,sym,cent,peaks};
+  }
+
+  function drawLive(){
+    if(!ctx)return;
+    const c=document.getElementById('cvGait'),W=c.offsetWidth,H=c.offsetHeight;
+    ctx.fillStyle='rgba(15,31,61,0.25)';ctx.fillRect(0,0,W,H);
+    const data=samples.slice(-300).map(s=>s.mag);
+    drawLine(ctx,data,W,H,'rgba(52,211,153,.8)',1.5);
+    // Step count estimate
+    ctx.fillStyle='rgba(52,211,153,.9)';ctx.font='bold 13px sans-serif';ctx.textAlign='right';
+    ctx.fillText(`약 ${Math.round(samples.length/SR*1.8)}걸음`,W-8,H-8);
+    ctx.textAlign='left';
+  }
+
+  function showResult(r){
+    document.getElementById('res-gait').style.display='grid';
+    const col=gradeColor(r.score);
+    setResult('r-gSteps',r.steps,'var(--text)');
+    setResult('r-gCad',r.cad,(r.cad>=80&&r.cad<=125)?'var(--green)':'var(--warn)');
+    setResult('r-gReg',r.reg+'%',r.reg>=80?'var(--green)':r.reg>=60?'var(--warn)':'var(--danger)');
+    setResult('r-gSym',r.sym+'%',r.sym>=85?'var(--green)':r.sym>=70?'var(--warn)':'var(--danger)');
+    setBadge('badge-gait',r.score>=80?'done':r.score>=50?'ready':'warn',`${r.score}점`);
+    // Redraw final
+    ctx=initCanvas('cvGait');
+    if(ctx){
+      const c=document.getElementById('cvGait'),W=c.offsetWidth,H=c.offsetHeight;
+      ctx.clearRect(0,0,W,H);
+      drawLine(ctx,r.cent,W,H,'rgba(52,211,153,.6)',1.5);
+      r.peaks.forEach(idx=>{
+        if(idx>=r.cent.length)return;
+        const mn=Math.min(...r.cent),mx=Math.max(...r.cent),rng=mx-mn||1;
+        const x=(idx/(r.cent.length-1))*W,y=H-((r.cent[idx]-mn)/rng)*H*.82-H*.09;
+        ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);
+        ctx.fillStyle='#7bc8ff';ctx.fill();
+      });
+    }
+    const fb=[];
+    if(r.score>=80) fb.push('✅ 보행 능력이 우수합니다. 리듬과 균형이 잘 유지됩니다.');
+    else {
+      if(r.reg<80)fb.push(`⚠️ 보행 규칙성이 ${r.reg}%로 낮습니다. 걸음 리듬이 불규칙합니다.`);
+      if(r.sym<85)fb.push(`⚠️ 좌우 대칭성이 ${r.sym}%입니다. 좌우 보폭이나 힘 차이가 있습니다.`);
+      if(r.cad<80)fb.push('💡 걷는 속도가 느립니다. 빠른 걷기 훈련이 도움됩니다.');
+    }
+    showFeedback('fb-gait',fb,col);
+    if(r.score<80){
+      showTraining('tg-gait',[
+        '메트로놈 90BPM에 맞춰 10분 걷기 — 리듬 훈련',
+        '좌우 보폭 의식하기: 왼발·오른발 발자국 폭 맞추기',
+        '뒤꿈치→발끝 순서로 디딤 연습 (롤링 보행)',
+        '코어 강화: 보행 안정성은 허리 근육에서 시작됩니다',
+      ]);
+    }
+  }
+  return {toggle};
+})();
+
+// ────────────────────────────────────────────────────────────────
+//  ③ POSTURE — DeviceOrientation → 척추 기울기 + 안정성
+//  참고: Ferriero 2013, J Back Musculoskelet Rehabil
+// ────────────────────────────────────────────────────────────────
+B.posture = (() => {
+  const SR=50, DUR=15000, MIN_SAMPLES=SR*3;
+  let running=false, samples=[], timer=null, ctx=null, liveHandler=null;
+
+  function toggle(){ running?stop():start(); }
+  async function start(){
+    if(!await askSensor()){alert('센서 권한이 필요합니다.');return;}
+    samples=[];running=true;
+    setBadge('badge-posture','running','측정 중');
+    document.getElementById('btn-posture').textContent='⏹ 중지';
+    document.getElementById('btn-posture').style.cssText='background:transparent;border:2px solid var(--warn);color:var(--warn)';
+    document.getElementById('live-posture').style.display='block';
+    document.getElementById('viz-posture').style.display='block';
+    document.getElementById('res-posture').style.display='none';
+    document.getElementById('fb-posture').style.display='none';
+    document.getElementById('tg-posture').style.display='none';
+    ctx=initCanvas('cvPosture');
+    speak('자세 분석을 시작합니다. 폰을 등 가운데에 세로로 대고 바르게 서주세요. 15초간 유지하세요.');
+    vibrate(100);
+    let last=0,t0=performance.now();
+    function onOri(e){
+      const now=performance.now();
+      if(now-last<1000/SR)return;last=now;
+      const b=e.beta||0,g=e.gamma||0;
+      samples.push({beta:b,gamma:g,t:now-t0});
+      updateLive(b,g);
+      drawLive();
+    }
+    liveHandler=onOri;
+    window.addEventListener('deviceorientation',onOri);
+    timer=setTimeout(stop,DUR);
+  }
+  function stop(){
+    clearTimeout(timer);
+    if(liveHandler)window.removeEventListener('deviceorientation',liveHandler);
+    running=false;
+    document.getElementById('btn-posture').textContent='▶ 다시 검사하기';
+    document.getElementById('btn-posture').style.cssText='';
+    document.getElementById('live-posture').style.display='none';
+    if(samples.length<MIN_SAMPLES){setBadge('badge-posture','','대기');return;}
+    const r=analyze(samples);
+    BS.posture={score:r.score,roll:r.rollDev,pitch:r.pitchDev,stab:r.stab};
+    showResult(r);updateOverall();vibrate([100,50,200]);
+    speak(`자세 분석 완료. 자세 점수 ${r.score}점입니다.`);
+  }
+  function analyze(smp){
+    const rolls=smp.map(s=>s.gamma),pitches=smp.map(s=>s.beta);
+    const mR=bsMean(rolls),mP=bsMean(pitches);
+    const sR=bsStd(rolls),sP=bsStd(pitches);
+    const rollDev=Math.round(Math.abs(mR)*10)/10;
+    const pitchDev=Math.round(Math.abs(mP)*10)/10;
+    const totalStd=Math.sqrt(sR**2+sP**2);
+    const stab=bsClamp(Math.round(100-totalStd*7),0,100);
+    let score=100;
+    if(rollDev>12)score-=28; else if(rollDev>6)score-=14;
+    if(pitchDev>18)score-=22; else if(pitchDev>9)score-=10;
+    if(stab<60)score-=22; else if(stab<80)score-=8;
+    score=bsClamp(score,0,100);
+    return {score,rollDev,pitchDev,stab,rolls,pitches,mR,mP};
+  }
+  function updateLive(beta,gamma){
+    const maxD=30;
+    ['roll','pitch'].forEach((axis,i)=>{
+      const val=i===0?gamma:beta;
+      const pct=bsClamp(val/maxD*50+50,0,100);
+      const fill=document.getElementById('tf-'+axis);
+      const lbl=document.getElementById('tv-'+axis);
+      if(!fill||!lbl)return;
+      const center=50, w=Math.abs(pct-center);
+      fill.style.left=Math.min(pct,center)+'%';
+      fill.style.width=w+'%';
+      fill.style.background=w<8?'var(--green)':w<15?'var(--warn)':'var(--danger)';
+      lbl.textContent=Math.round(val)+'°';
+    });
+  }
+  function drawLive(){
+    if(!ctx||samples.length<2)return;
+    const c=document.getElementById('cvPosture'),W=c.offsetWidth,H=c.offsetHeight;
+    ctx.fillStyle='rgba(15,31,61,0.2)';ctx.fillRect(0,0,W,H);
+    const data=samples.slice(-200).map(s=>s.gamma);
+    drawLine(ctx,data,W,H,'rgba(251,191,36,.8)',1.5);
+    // Zero line
+    const mn=Math.min(...data),mx=Math.max(...data),rng=Math.max(mx-mn,5);
+    const zy=H-((0-mn)/rng)*H*.82-H*.09;
+    ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(0,zy);ctx.lineTo(W,zy);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  function showResult(r){
+    document.getElementById('res-posture').style.display='grid';
+    const col=gradeColor(r.score);
+    setResult('r-pRoll',r.rollDev+'°',r.rollDev<=5?'var(--green)':r.rollDev<=10?'var(--warn)':'var(--danger)');
+    setResult('r-pPitch',r.pitchDev+'°',r.pitchDev<=8?'var(--green)':r.pitchDev<=15?'var(--warn)':'var(--danger)');
+    setResult('r-pStab',r.stab+'%',gradeColor(r.stab));
+    setResult('r-pScore',r.score,col);
+    setBadge('badge-posture',r.score>=80?'done':r.score>=50?'ready':'warn',`${r.score}점`);
+    ctx=initCanvas('cvPosture');
+    if(ctx){
+      const c=document.getElementById('cvPosture'),W=c.offsetWidth,H=c.offsetHeight;
+      ctx.clearRect(0,0,W,H);
+      drawLine(ctx,r.rolls,W,H,'rgba(251,191,36,.7)',1.5);
+      drawLine(ctx,r.pitches,W,H,'rgba(77,166,255,.5)',1);
+    }
+    const fb=[];
+    if(r.score>=80) fb.push('✅ 자세가 매우 좋습니다! 척추 정렬이 잘 유지되고 있습니다.');
+    else {
+      if(r.rollDev>6) fb.push(`⚠️ 좌우 기울기 ${r.rollDev}° — 어깨 불균형 또는 척추 측만 가능성이 있습니다.`);
+      if(r.pitchDev>9)fb.push(`⚠️ 전후 기울기 ${r.pitchDev}° — 거북목 또는 허리 전만이 의심됩니다.`);
+      if(r.stab<70)  fb.push('💡 자세 안정성이 낮습니다. 코어 근육 강화가 필요합니다.');
+    }
+    showFeedback('fb-posture',fb,col);
+    if(r.score<80){
+      showTraining('tg-posture',[
+        '벽에 등 대기: 머리·어깨·엉덩이를 벽에 붙이고 5분 유지',
+        'chin tuck(턱 당기기): 턱을 안으로 당겨 목 뒤를 길게 — 10회 × 3세트',
+        '어깨 스쿼즈: 양 어깨 뒤로 당겨 5초 유지 — 10회 × 3세트',
+        '플랭크 30초: 코어 근육으로 척추를 지지하는 힘 기르기',
+      ]);
+    }
+  }
+  return {toggle};
+})();
+
+// ────────────────────────────────────────────────────────────────
+//  ④ REACTION TIME — 시각 자극 → 터치 반응 속도
+//  참고: Kosinski 2008 — 성인 평균 반응시간 200-250ms
+// ────────────────────────────────────────────────────────────────
+B.reaction = (() => {
+  const TRIALS=5;
+    // 스마트폰 터치 지연(~60ms) 보정 후 실제 인지 반응 기준
+    // 참고: Woods 2015, Neurosci Biobehav Rev — 일반인 평균 284ms
+    // 터치스크린 지연 보정: 측정값에서 60ms 차감
+    const TOUCH_DELAY = 60; // ms (스마트폰 터치 인식 지연 보정)
+    const NORMS = {excellent:220, good:300, avg:400, slow:520};
+    // 등급 기준 (보정 후):
+    // 우수: <220ms (상위 15%) / 양호: <300ms (상위 50%)
+    // 보통: <400ms (평균 이하) / 느림: <520ms / 매우느림: ≥520ms
+  let running=false, phase='idle', trials=[], waitTimer=null, stimTime=null, trial=0;
+
+  function toggle(){ running?(abort()):(start()); }
+  function start(){
+    running=true;phase='idle';trials=[];trial=0;
+    document.getElementById('btn-reaction').style.display='none';
+    document.getElementById('reactionArea').style.display='flex';
+    document.getElementById('trialDots').style.display='flex';
+    document.getElementById('res-reaction').style.display='none';
+    document.getElementById('fb-reaction').style.display='none';
+    document.getElementById('tg-reaction').style.display='none';
+    updateTrialDots();
+    setBadge('badge-reaction','running','측정 중');
+    speak('반응 속도 검사를 시작합니다. 화면이 초록색으로 바뀌면 최대한 빨리 탭하세요.');
+    vibrate(50);
+    nextTrial();
+  }
+  function abort(){
+    clearTimeout(waitTimer);running=false;phase='idle';
+    document.getElementById('reactionArea').style.display='none';
+    document.getElementById('trialDots').style.display='none';
+    document.getElementById('btn-reaction').style.display='block';
+    document.getElementById('btn-reaction').style.cssText='';
+    document.getElementById('btn-reaction').textContent='▶ 반응 속도 검사 시작';
+    setBadge('badge-reaction','','대기');
+  }
+  function nextTrial(){
+    if(trial>=TRIALS){finish();return;}
+    phase='waiting';
+    const area=document.getElementById('reactionArea');
+    const msg=document.getElementById('reactionMsg');
+    const icon=document.getElementById('reactionIcon');
+    area.style.background='rgba(248,113,113,.12)';
+    area.style.borderColor='rgba(248,113,113,.3)';
+    msg.textContent=`${trial+1}/${TRIALS} 준비하세요...`;
+    icon.textContent='⏳';
+    // Random delay 1.5–3.5s
+    const delay=1500+Math.random()*2000;
+    waitTimer=setTimeout(()=>{
+      phase='stimulus';stimTime=performance.now();
+      area.style.background='rgba(52,211,153,.2)';
+      area.style.borderColor='rgba(52,211,153,.5)';
+      msg.textContent='지금! 탭하세요!';
+      icon.textContent='👆';
+      // Auto-miss after 2s
+      waitTimer=setTimeout(()=>{ recordTrial(2000); },2000);
+    },delay);
+  }
+  function tap(){
+    if(!running)return;
+    if(phase==='waiting'){
+      // Too early
+      clearTimeout(waitTimer);
+      const area=document.getElementById('reactionArea');
+      const msg=document.getElementById('reactionMsg');
+      area.style.background='rgba(251,191,36,.15)';
+      msg.textContent='너무 빨랐어요! 다시...';
+      vibrate([50,30,50]);
+      setTimeout(nextTrial,800);
+      return;
+    }
+    if(phase==='stimulus'){
+      clearTimeout(waitTimer);
+      const rt=performance.now()-stimTime;
+      recordTrial(rt);
+    }
+  }
+  function recordTrial(rt){
+    trials.push(Math.round(rt));trial++;
+    updateTrialDots();
+    const area=document.getElementById('reactionArea');
+    const msg=document.getElementById('reactionMsg');
+    if(rt<2000){
+      area.style.background='rgba(77,166,255,.1)';
+      msg.textContent=`${Math.round(rt)}ms — ${rt<220?'훌륭!':rt<280?'좋아요!':rt<350?'보통':'느림'}`;
+    }
+    phase='idle';
+    setTimeout(nextTrial,900);
+  }
+  function updateTrialDots(){
+    const wrap=document.getElementById('trialDots');if(!wrap)return;
+    wrap.innerHTML=Array.from({length:TRIALS},(_,i)=>{
+      const cls=i<trials.length?'rdot done':i===trial?'rdot active':'rdot';
+      const txt=trials[i]?trials[i]+'ms':'';
+      return `<span class="${cls}">${txt||'·'}</span>`;
+    }).join('');
+  }
+  function finish(){
+    running=false;
+    document.getElementById('reactionArea').style.display='none';
+    document.getElementById('trialDots').style.display='none';
+    document.getElementById('btn-reaction').style.display='block';
+    document.getElementById('btn-reaction').textContent='▶ 다시 검사하기';
+    const valid=trials.filter(t=>t<2000);
+    if(!valid.length){setBadge('badge-reaction','','대기');return;}
+    // 터치 지연 보정 적용
+    const corrected = valid.map(t => Math.max(100, t - TOUCH_DELAY));
+    const avg=Math.round(bsMean(corrected));
+    const min=Math.min(...corrected);
+    const rawCv = bsStd(corrected)/(bsMean(corrected)||1);
+    const cv=bsClamp(Math.round((1-rawCv)*100), 0, 100);
+    let grade,score;
+    if(avg<NORMS.excellent){grade='매우빠름';score=95;}
+    else if(avg<NORMS.good) {grade='빠름';   score=80;}
+    else if(avg<NORMS.avg)  {grade='보통';   score=65;}
+    else if(avg<NORMS.slow) {grade='느린편'; score=48;}
+    else                    {grade='느림';   score=30;}
+    BS.reaction={score,avg,min,cv,grade};
+    document.getElementById('res-reaction').style.display='grid';
+    const col=gradeColor(score);
+    setResult('r-rtAvg',avg,(avg<260)?'var(--green)':(avg<360)?'var(--warn)':'var(--danger)');
+    setResult('r-rtMin',min,'var(--green)');
+    setResult('r-rtCv',cv+'%',cv>=70?'var(--green)':cv>=50?'var(--warn)':'var(--danger)');
+    setResult('r-rtGrade',grade,col);
+    setBadge('badge-reaction',score>=80?'done':score>=50?'ready':'warn',`${score}점`);
+    updateOverall();vibrate([100,50,200]);
+    speak(`반응 속도 검사 완료. 평균 ${avg}밀리초, 등급은 ${grade}입니다.`);
+    const fb=[];
+    fb.push(`📊 보정된 반응시간: ${avg}ms (터치 지연 ${TOUCH_DELAY}ms 제거)`);
+    if(score>=80)fb.push(`✅ 반응 속도가 우수합니다! 신경-근육 연결이 빠릅니다.`);
+    else if(score>=65)fb.push(`😊 반응 속도가 양호합니다. 일반 성인 평균 수준이에요.`);
+    else {
+      fb.push(`💡 일반 성인 평균은 ${NORMS.good}ms 이하입니다. 피로·수면 부족이 영향을 줍니다.`);
+      if(cv<60)fb.push('⚠️ 일관성이 낮습니다. 집중이 어렵거나 피로한 상태일 수 있어요.');
+    }
+    showFeedback('fb-reaction',fb,col);
+    if(score<80){
+      showTraining('tg-reaction',[
+        '손가락 탭 연동 운동: 리듬에 맞춰 빠른 탭 훈련 (매일 5분)',
+        '새로운 활동 배우기: 악기·스포츠·춤으로 신경 가소성 자극',
+        '수면 개선: 피로는 반응 속도를 20~30% 저하시킵니다',
+        '카페인 적당히: 100mg(커피 1잔)은 반응 속도를 향상시킵니다',
+      ]);
+    }
+  }
+  return {toggle,tap};
+})();
+
+// ────────────────────────────────────────────────────────────────
+//  ⑤ SHAKE — 미세 가속도 → 떨림 진폭 + 주파수 분석
+//  참고: Bhidayasiri 2011 — 병리적 떨림 3-12Hz (생리적 8-12Hz)
+// ────────────────────────────────────────────────────────────────
+B.shake = (() => {
+  const SR=100, DUR=10000, MIN_SAMPLES=SR*3;
+  let running=false, samples=[], timer=null, ctx=null;
+
+  function toggle(){ running?stop():start(); }
+  async function start(){
+    if(!await askSensor()){alert('모션 센서 권한이 필요합니다.');return;}
+    samples=[];running=true;
+    setBadge('badge-shake','running','측정 중');
+    document.getElementById('btn-shake').textContent='⏹ 중지';
+    document.getElementById('btn-shake').style.cssText='background:transparent;border:2px solid var(--warn);color:var(--warn)';
+    document.getElementById('viz-shake').style.display='block';
+    document.getElementById('res-shake').style.display='none';
+    document.getElementById('fb-shake').style.display='none';
+    document.getElementById('tg-shake').style.display='none';
+    ctx=initCanvas('cvShake');
+    speak('손 떨림 검사를 시작합니다. 양손으로 폰을 가볍게 쥐고 팔을 앞으로 뻗어 10초간 유지하세요.');
+    vibrate(100);
+    let last=0, t0=performance.now();
+    function onMot(e){
+      const now=performance.now();
+      if(now-last<1000/SR)return;last=now;
+      // 중력 제거된 선형 가속도 우선 (null 아닌 경우)
+      const linAcc = e.acceleration;
+      const gravAcc = e.accelerationIncludingGravity;
+      const hasLin = !!(linAcc && linAcc.x != null && isFinite(linAcc.x));
+      const a = hasLin ? linAcc : (gravAcc || {});
+      if (!isFinite(a.x||0)) return; // NaN 방어
+      samples.push({
+        ax: a.x||0, ay: a.y||0, az: a.z||0,
+        hasLinear: hasLin,
+        t: now - t0
+      });
+      drawLive();
+    }
+    window._shmh=onMot;
+    window.addEventListener('devicemotion',onMot);
+    timer=setTimeout(stop,DUR);
+  }
+  function stop(){
+    clearTimeout(timer);window.removeEventListener('devicemotion',window._shmh||null);
+    running=false;
+    document.getElementById('btn-shake').textContent='▶ 다시 검사하기';
+    document.getElementById('btn-shake').style.cssText='';
+    if(samples.length<MIN_SAMPLES){setBadge('badge-shake','','대기');return;}
+    const r=analyze(samples);
+    BS.shake={score:r.score,amp:r.amp,freq:r.freq,stab:r.stab,grade:r.grade};
+    showResult(r);updateOverall();vibrate([100,50,200]);
+    speak(`손 떨림 검사 완료. 안정성 ${r.stab}점입니다.`);
+  }
+  function analyze(smp){
+    const hasLinear = smp.some(s=>s.hasLinear);
+    const axRaw=smp.map(s=>s.ax), ayRaw=smp.map(s=>s.ay), azRaw=smp.map(s=>s.az);
+
+    // 중력 제거: 하드웨어 제거값 있으면 그대로, 없으면 소프트웨어 HPF 적용
+    function removeGravity(arr){
+      if(hasLinear) return arr; // 이미 중력 제거됨
+      const m=bsMean(arr);
+      const centered=arr.map(v=>v-m);
+      const dt=1/SR, rc=1/(2*Math.PI*0.5), ah=rc/(rc+dt);
+      let ph=0,pi=centered[0];
+      return centered.map(v=>{ph=ah*(ph+v-pi);pi=v;return ph;});
+    }
+    const x=removeGravity(axRaw);
+    const y=removeGravity(ayRaw);
+    const z=removeGravity(azRaw);
+
+    // RMS in mg (1 m/s² = 101.97 mg ≈ 102 mg)
+    const rms=v=>Math.sqrt(bsMean(v.map(a=>a**2)))*102;
+    const ampX=rms(x), ampY=rms(y), ampZ=rms(z);
+    const amp=Math.round(Math.sqrt((ampX**2+ampY**2+ampZ**2)/3)*10)/10;
+
+    // 떨림 주파수 (병리적 4-6Hz, 생리적 8-12Hz)
+    const freq=dominantFreq(z,1.5,15,SR);
+    const freqR=freq?Math.round(freq*10)/10:null;
+
+    // 안정성 점수
+    const stab=bsClamp(Math.round(100-amp*1.5),0,100);
+
+    // ── 올바른 임계값 (스마트폰 가속도계 실측 기반)
+    // 고정 평면 기기: ~2-5mg, 손에 든 안정 상태: ~10-30mg
+    // 일반인 뻗은 팔: ~15-50mg, 파킨슨 수준: >100mg
+    let grade,score;
+    if(amp<10)       {grade='매우안정';score=93;}
+    else if(amp<25)  {grade='안정';   score=80;}
+    else if(amp<50)  {grade='보통';   score=62;}
+    else if(amp<90)  {grade='불안정'; score=42;}
+    else             {grade='매우불안정';score=22;}
+
+    return {score,amp,freq:freqR,stab,grade,x,y,z};
+  }
+  function drawLive(){
+    if(!ctx)return;
+    const c=document.getElementById('cvShake'),W=c.offsetWidth,H=c.offsetHeight;
+    ctx.fillStyle='rgba(15,31,61,0.2)';ctx.fillRect(0,0,W,H);
+    const data=samples.slice(-300).map(s=>s.az);
+    drawLine(ctx,data,W,H,'rgba(248,113,113,.8)',1.2);
+  }
+  function showResult(r){
+    document.getElementById('res-shake').style.display='grid';
+    const col=gradeColor(r.score);
+    setResult('r-shAmp',r.amp,r.amp<10?'var(--green)':r.amp<20?'var(--warn)':'var(--danger)');
+    setResult('r-shFreq',r.freq?r.freq+'Hz':'--','var(--text)');
+    setResult('r-shStab',r.stab,gradeColor(r.stab));
+    setResult('r-shGrade',r.grade,col);
+    setBadge('badge-shake',r.score>=80?'done':r.score>=50?'ready':'warn',`${r.score}점`);
+    ctx=initCanvas('cvShake');
+    if(ctx){
+      const c=document.getElementById('cvShake'),W=c.offsetWidth,H=c.offsetHeight;
+      ctx.clearRect(0,0,W,H);
+      drawLine(ctx,r.z,W,H,'rgba(248,113,113,.7)',1.2,true);
+    }
+    const fb=[];
+    fb.push(`📊 측정된 떨림 진폭: ${r.amp}mg (정상 팔 뻗기 기준 15-50mg)`);
+    if(r.score>=80)fb.push(`✅ 손 안정성이 우수합니다. 신경근 조절 능력이 좋은 상태입니다.`);
+    else if(r.score>=62)fb.push(`😊 일반적인 수준의 생리적 떨림입니다. 피로하거나 카페인 섭취 후에는 증가할 수 있어요.`);
+    else {
+      fb.push(`⚠️ 떨림 진폭이 다소 높습니다. 측정 중 폰을 고정하기 어려웠나요?`);
+      if(r.freq){
+        if(r.freq>=4&&r.freq<=6)fb.push(`💡 주파수 ${r.freq}Hz — 전문의 상담을 권장합니다.`);
+        else fb.push(`💡 주파수 ${r.freq}Hz — 피로·카페인·스트레스가 원인일 수 있습니다.`);
+      }
+    }
+    showFeedback('fb-shake',fb,col);
+    if(r.score<80){
+      showTraining('tg-shake',[
+        '이완 호흡: 4초 들이마시기 → 6초 내쉬기 × 5회 반복',
+        '카페인 조절: 커피 2잔 이상은 생리적 떨림을 증가시킵니다',
+        '손목·팔뚝 스트레칭: 하루 3회, 근육 긴장 이완',
+        '수면 7-8시간: 수면 부족이 손 떨림의 가장 흔한 원인입니다',
+      ]);
+    }
+  }
+  return {toggle};
+})();
+
+// initBodyScreen defined in bioage section above
+</script>
+</body>
+</html>

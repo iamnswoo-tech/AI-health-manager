@@ -1,0 +1,30 @@
+{
+  "name": "건강 측정 (rPPG v8.3)",
+  "short_name": "건강측정 v8.3",
+  "description": "30초 손가락·얼굴 측정: 심박수·HRV·스트레스·호흡수 v8.1",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "health",
+    "medical",
+    "utilities"
+  ],
+  "lang": "ko"
+}
