@@ -369,7 +369,7 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
     </svg>
     <span class="logo-text">건강 <span>측정</span></span>
   </div>
-  <span class="hbadge">v8.3.0</span>
+  <span class="hbadge">v8.4.0</span>
 </header>
 
 <nav class="tabs">
@@ -526,7 +526,7 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
     </div>
   </div>
 
-  <footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요. · rPPG v8.3</footer>
+  <footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요. · rPPG v8.4</footer>
 </div>
 
 <!-- ANALYSIS SCREEN -->
@@ -994,7 +994,7 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
 
 <script>
 // ══════════════════════════════════════════════════════════════════════
-//  PPG CORE v8.3 — MA-BPF(Elgendi2013)·수치안정·3단계파이프라인
+//  PPG CORE v8.4 — Galaxy TTS·Torch·카메라폴백·HRV/RR빠른계산
 //  참고: Wang et al. 2017 (POS algorithm, IEEE TBME)
 //        de Haan & Jeanne 2013 (CHROM algorithm)
 //        Welch 1967 (Welch's power spectral density)
@@ -1431,12 +1431,12 @@ function extractCleanRRI(peaks, sr) {
 
 // ── HRV 지표 계산 (SDNN, RMSSD, pNN50) ──
 function computeHRV(filtSig, hrHz) {
-  if (!filtSig || filtSig.length < SR * 5) return { sdnn: 0, rmssd: 0, pnn50: 0 };
+  if (!filtSig || filtSig.length < SR * 3) return { sdnn: 0, rmssd: 0, pnn50: 0 }; // v8.3: 3초
   const minDist = Math.round(SR / (hrHz * 1.6));
   const peaks = detectPeaks(filtSig, minDist);
-  if (peaks.length < 5) return { sdnn: 0, rmssd: 0, pnn50: 0 };
+  if (peaks.length < 3) return { sdnn: 0, rmssd: 0, pnn50: 0 }; // v8.3: 3피크
   const rri = extractCleanRRI(peaks, SR);
-  if (rri.length < 4) return { sdnn: 0, rmssd: 0, pnn50: 0 };
+  if (rri.length < 2) return { sdnn: 0, rmssd: 0, pnn50: 0 }; // v8.3: 2RRI
 
   // SDNN: 모든 RRI의 표준편차 (ms)
   const sdnn = Math.round(std(rri));
@@ -1496,7 +1496,7 @@ function interpretHRV(rmssd, sdnn) {
 
 // ── SpO2 (Beer-Lambert 근사) ──
 function computeSpO2(R, G) {
-  if (!R||!G||R.length<60) return null;
+  if (!R||!G||R.length<30) return null; // v8.3
   const dcR=mean(R), dcG=mean(G);
   if (dcR<20||dcG<5) return null; // v8: 완화 (플래시 없이도 동작)
   const bpR=maBPF(detrend(R), HR_LO_HZ, HR_HI_HZ, SR);
@@ -1579,12 +1579,12 @@ function processFingerPPG(rRaw, gRaw, bRaw, tsRaw) {
 
   // 호흡수 (20초 데이터 필요)
   let rr = null;
-  if (detR.length >= SR * 20) {
+  if (detR.length >= SR * 12) { // v8.3: 12초
     const {psd:psdRR, freqRes:frRR} = welchPSD(
       maBPF(normR, BR_LO_HZ, BR_HI_HZ, SR),
       SR, Math.min(detR.length, SR * 20), 0.5);
     const rrPeak = findPeak(psdRR, frRR, BR_LO_HZ, BR_HI_HZ);
-    if (rrPeak && rrPeak.snr >= 1.4) {
+    if (rrPeak && rrPeak.snr >= 1.2) { // v8.3
       const rpm = Math.round(rrPeak.freq * 60);
       if (rpm >= 8 && rpm <= 28) rr = rpm;
     }
@@ -1929,12 +1929,13 @@ async function processFrame(){
   tc.drawImage(videoEl,0,0,vw,vh);
   const imgData=tc.getImageData(0,0,vw,vh);
 
-  // FPS 계산
+  // v8.3: FPS 계산 + 실제 SR 업데이트
   fpsCount++;
-  const now=performance.now();
-  if(now-lastFpsTs>1000){
-    const f=$('fpsText');if(f)f.textContent=fpsCount+' fps';
-    fpsCount=0;lastFpsTs=now;
+  const now = performance.now();
+  if (now - lastFpsTs > 1000) {
+    _actualFPS = Math.max(15, Math.min(120, fpsCount)); // 15~120fps 클램프
+    const f = $('fpsText'); if (f) f.textContent = _actualFPS + ' fps';
+    fpsCount = 0; lastFpsTs = now;
   }
 
   // ── 손가락 모드 ──
@@ -2065,11 +2066,26 @@ function handleResult(m, mode){
       setMet('vST', m.sdnn, ' ms');
       setSt('sST',m.sdnn>50?'양호':m.sdnn>20?'보통':'높음',m.sdnn>50?'g':m.sdnn>20?'w':'d');
     } else {
-      setMet('vST','--',' ms');
-      setSt('sST','측정중','');
+      // v8.4: HRV 아직 없을 때 진행 중 표시
+      const elapsed = (performance.now() - measureStartTs) / 1000;
+      const hrv_eta = Math.max(0, Math.ceil(5 - elapsed));
+      if (hrv_eta > 0) {
+        $('vST').innerHTML = `<span style="font-size:14px;color:var(--muted2)">분석 중...</span>`;
+        setSt('sST', `${hrv_eta}초 후`, '');
+      } else {
+        setMet('vST','--',' ms');
+        setSt('sST','데이터 부족','');
+      }
     }
 
-    if(m.rr!=null) setMet('vRR',m.rr,' rpm');
+    if(m.rr!=null) {
+      setMet('vRR',m.rr,' rpm');
+    } else if(running) {
+      const elapsed2 = (performance.now() - measureStartTs) / 1000;
+      if (elapsed2 < 12) {
+        $('vRR').innerHTML = `<span style="font-size:14px;color:var(--muted2)">${Math.ceil(12-elapsed2)}초 후</span>`;
+      }
+    }
     ['cHR','cST','cRR'].forEach(id=>{const e=$(id);if(e)e.classList.add('lit');});
     setSt('sHR',m.hr<50?'낮음':m.hr<=100?'정상':'높음',m.hr<50?'w':m.hr<=100?'g':'w');
     if(m.rr) setSt('sRR',m.rr>=12&&m.rr<=20?'정상':m.rr<12?'낮음':'높음',m.rr>=12&&m.rr<=20?'g':'w');
@@ -2182,26 +2198,44 @@ function updateSQI(sqi){
   else{fill.style.background='var(--bg3)';msg.textContent=currentMode==='finger'?'📱 손가락을 후면 카메라에 올려주세요':'😊 얼굴을 화면에 맞춰주세요';msg.className='sqi-msg';}
 }
 
-// ── 토치(플래시) 제어 v7 ──
-// ★ 핵심 수정: getUserMedia constraints에 torch를 넣으면
-//    Android에서 스트림이 검게 되는 버그 → 획득 후 applyConstraints만 사용
-async function enableTorch(track){
-  if(!track) return false;
-  // 방법 1: getCapabilities + applyConstraints
-  try{
-    const caps=track.getCapabilities?track.getCapabilities():{};
-    if(caps.torch===true){
-      await track.applyConstraints({advanced:[{torch:true}]});
-      console.log('[Torch] ON via getCapabilities');
+// ── 토치(플래시) 제어 v8.3 — 갤럭시 완전 대응 ──
+async function enableTorch(track) {
+  if (!track || track.readyState !== 'live') return false;
+
+  // 방법 1: getCapabilities 지원 확인 후 적용
+  try {
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.torch === true) {
+      await track.applyConstraints({ advanced: [{ torch: true }] });
+      // 실제 적용 확인 (갤럭시에서 에러 없이 실패하는 경우 대응)
+      await new Promise(r => setTimeout(r, 200));
+      const settings = track.getSettings ? track.getSettings() : {};
+      if (settings.torch === true) {
+        console.log('[Torch] ON confirmed via getSettings');
+        return true;
+      }
+      // 설정은 됐지만 getSettings에 반영 안 된 경우 (일부 기기)
+      console.log('[Torch] ON applied (getSettings unconfirmed)');
       return true;
     }
-  }catch(e){console.warn('[Torch] method1:',e.message);}
-  // 방법 2: capabilities 체크 없이 바로 시도
-  try{
-    await track.applyConstraints({advanced:[{torch:true}]});
-    console.log('[Torch] ON via direct applyConstraints');
+  } catch(e) { console.warn('[Torch] method1:', e.message); }
+
+  // 방법 2: capabilities 체크 없이 직접 시도
+  try {
+    await track.applyConstraints({ advanced: [{ torch: true }] });
+    console.log('[Torch] ON via direct apply');
     return true;
-  }catch(e){console.warn('[Torch] method2:',e.message);}
+  } catch(e) { console.warn('[Torch] method2:', e.message); }
+
+  // 방법 3: 새 스트림 constraint에 torch 포함 (일부 Android 전용)
+  // ※ 검은 화면 방지 → 현재 스트림 유지, 새 constraint만 적용
+  try {
+    await track.applyConstraints({ torch: true });
+    console.log('[Torch] ON via flat constraint');
+    return true;
+  } catch(e) { console.warn('[Torch] method3:', e.message); }
+
+  console.warn('[Torch] All methods failed');
   return false;
 }
 
@@ -2266,38 +2300,59 @@ async function toggleMeasure(){
     const isRear=(currentMode==='finger');
     setInfo('카메라를 준비하고 있습니다...');
 
-    // 카메라 획득 — 손가락: 후면 저해상도, 얼굴: 전면
-    const constraints={video:{
-      facingMode:isRear?{exact:'environment'}:'user',
-      width:{ideal:isRear?640:1280},
-      height:{ideal:isRear?480:720},
-      frameRate:{ideal:30,max:60}
-    }};
-    try{ stream=await navigator.mediaDevices.getUserMedia(constraints); }
-    catch(e){
-      // exact 실패 시 relaxed
-      stream=await navigator.mediaDevices.getUserMedia({
-        video:{facingMode:isRear?'environment':'user',frameRate:{ideal:30}}
-      });
-    }
+    // v8.3 갤럭시 카메라 획득 — 3단계 폴백
+    const camAttempts = isRear ? [
+      // 1순위: 후면 60fps (갤럭시 S 시리즈 최적)
+      { video: { facingMode: { exact: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60, min: 30 } } },
+      // 2순위: 후면 30fps
+      { video: { facingMode: { exact: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } } },
+      // 3순위: 후면 최소 조건 (모든 Android 대응)
+      { video: { facingMode: 'environment' } },
+    ] : [
+      { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } },
+      { video: { facingMode: 'user' } },
+    ];
 
-    videoEl.srcObject=stream;
-    await new Promise(r=>{videoEl.onloadedmetadata=()=>r();});
+    let camError = null;
+    for (const c of camAttempts) {
+      try { stream = await navigator.mediaDevices.getUserMedia(c); camError = null; break; }
+      catch(e) { camError = e; console.warn('[Camera] attempt failed:', e.message); }
+    }
+    if (camError || !stream) throw camError || new Error('카메라를 사용할 수 없습니다');
+
+    videoEl.srcObject = stream;
+    // 메타데이터 로드 대기
+    await new Promise(r => { videoEl.onloadedmetadata = () => r(); });
     await videoEl.play();
 
-    // 플래시 켜기 v7 ── 스트림 획득 후 applyConstraints만 사용
-    // (torch:true를 getUserMedia에 넣으면 Android에서 검은 화면 유발)
-    if(isRear){
-      const vTrack=stream.getVideoTracks()[0];
-      await new Promise(r=>setTimeout(r,300)); // 스트림 안정 대기
-      torchActive=await enableTorch(vTrack);
-      if(torchActive){
-        torchTrack=vTrack;
+    // v8.3: 갤럭시 대응 — 첫 프레임 도착 후 torch 시도
+    // (play() 직후 바로 applyConstraints 하면 일부 Android에서 실패)
+    if (isRear) {
+      const vTrack = stream.getVideoTracks()[0];
+
+      // 첫 프레임 도착 대기 (최대 1.5초)
+      await new Promise(r => {
+        let done = false;
+        const onFrame = () => { if (!done) { done = true; r(); } };
+        videoEl.requestVideoFrameCallback
+          ? videoEl.requestVideoFrameCallback(onFrame)
+          : setTimeout(onFrame, 800); // requestVideoFrameCallback 미지원 기기
+        setTimeout(onFrame, 1500); // 안전망 타임아웃
+      });
+
+      // 추가 안정화 대기 (갤럭시 S 시리즈 필수)
+      await new Promise(r => setTimeout(r, 300));
+
+      torchActive = await enableTorch(vTrack);
+      if (torchActive) {
+        torchTrack = vTrack;
+        console.log('[Camera] Torch activated after first frame');
       } else {
-        await new Promise(r=>setTimeout(r,500)); // 추가 대기 후 재시도
-        torchActive=await enableTorch(vTrack);
-        if(torchActive) torchTrack=vTrack;
-        else console.warn('[Torch v7] Device does not support torch API');
+        // 재시도 1회 (1초 후)
+        await new Promise(r => setTimeout(r, 1000));
+        torchActive = await enableTorch(vTrack);
+        if (torchActive) torchTrack = vTrack;
+        else console.warn('[Camera] Torch not supported on this device');
       }
     }
 
@@ -2337,10 +2392,13 @@ async function toggleMeasure(){
     $('startBtn').innerHTML=`<svg class="bico" viewBox="0 0 22 22" fill="currentColor"><rect x="5" y="5" width="12" height="12" rx="3"/></svg>측정 중지`;
 
     if(currentMode==='finger'){
-      speak('측정을 시작합니다. 검지손가락을 후면 카메라 렌즈에 올려주세요. 30초 안에 결과가 표시됩니다.');
+      // v8.3: Android TTS 언락 후 speak (버튼 클릭이 인터랙션이므로 즉시 동작)
+      _ttsReady = true;
+      setTimeout(() => speak('측정을 시작합니다. 손가락을 카메라에 올려주세요.'), 500);
       setInfo('📱 검지손가락을 렌즈에 올려주세요', torchActive?'🔦 플래시 ON · 30초 측정 시작':'💡 플래시 없어도 측정 가능 · 30초');
     }else{
-      speak('측정을 시작합니다. 얼굴을 화면 중앙에 맞추고 가만히 있어주세요.');
+      _ttsReady = true;
+      setTimeout(() => speak('얼굴을 화면 중앙에 맞추고 가만히 있어주세요.'), 500);
       setInfo('😊 얼굴을 화면 중앙에 맞춰주세요','밝은 실내 조명에서 측정하세요');
       initFaceMesh();
     }
@@ -2429,10 +2487,54 @@ function setInfo(m,sub){
 }
 function setMet(id,v,u){const e=$(id);if(e)e.innerHTML=v+'<span class="munit">'+u+'</span>';}
 function setSt(id,t,c){const e=$(id);if(e){e.textContent=t;e.className='mst '+(c||'');}}
-function speak(text){
-  if(!('speechSynthesis'in window))return;
-  const u=new SpeechSynthesisUtterance(text);u.lang='ko-KR';u.rate=0.9;u.volume=0.8;
-  speechSynthesis.cancel();speechSynthesis.speak(u);
+// ── TTS v8.3 — Android Chrome 완전 대응 ──
+// 갤럭시 문제: Android Chrome은 voices 로드 전, 인터랙션 전 speak() 묵음
+let _ttsReady = false;
+let _ttsQueue = [];
+let _ttsVoice = null;
+
+function _initTTS() {
+  if (!('speechSynthesis' in window)) return;
+  const tryLoad = () => {
+    const voices = speechSynthesis.getVoices();
+    // ko-KR 우선, 없으면 ko, 없으면 첫 번째 음성
+    _ttsVoice = voices.find(v => v.lang === 'ko-KR')
+             || voices.find(v => v.lang.startsWith('ko'))
+             || (voices.length ? voices[0] : null);
+    if (voices.length) _ttsReady = true;
+  };
+  tryLoad();
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = tryLoad;
+  }
+  // 2초 후 강제 준비 (voices 이벤트 안 오는 기기 대응)
+  setTimeout(() => { _ttsReady = true; }, 2000);
+}
+_initTTS();
+
+// 첫 사용자 터치 시 TTS 언락 (Android 필수)
+document.addEventListener('touchstart', function _unlockTTS() {
+  if (!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance('');
+  u.volume = 0;
+  speechSynthesis.speak(u);
+  _ttsReady = true;
+  document.removeEventListener('touchstart', _unlockTTS);
+}, { once: true });
+
+function speak(text) {
+  if (!('speechSynthesis' in window) || !text) return;
+  // Android: 큐잉 후 실행
+  speechSynthesis.cancel();
+  setTimeout(() => {
+    const u = new SpeechSynthesisUtterance(text);
+    if (_ttsVoice) u.voice = _ttsVoice;
+    u.lang = _ttsVoice?.lang || 'ko-KR';
+    u.rate = 0.85;
+    u.pitch = 1.0;
+    u.volume = 1.0;
+    speechSynthesis.speak(u);
+  }, 50); // 50ms 딜레이 (cancel 후 안정화)
 }
 function vibrate(p){if(navigator.vibrate)navigator.vibrate(p);}
 
