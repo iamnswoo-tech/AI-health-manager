@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rppg-v8-4';
+const CACHE_NAME = 'rppg-v8-5';
 const ASSETS = [
   '/index.html',
   '/manifest.json',

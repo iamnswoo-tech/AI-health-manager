@@ -14,20 +14,25 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 <style>
 :root{
-  --bg:#f2f4f7;--bg2:#ffffff;--bg3:#eef0f5;--card:#ffffff;
-  --border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.12);
-  --accent:#2563eb;--accent2:#3b82f6;--accent3:#60a5fa;
-  --green:#16a34a;--green2:#22c55e;
-  --warn:#d97706;--warn2:#f59e0b;
-  --danger:#dc2626;--danger2:#ef4444;
-  --purple:#7c3aed;
-  --text:#111827;--text2:#374151;--muted:#6b7280;--muted2:#9ca3af;
+  /* Anura 스타일 팔레트 */
+  --bg:#f7f9fc;--bg2:#ffffff;--bg3:#eef1f6;--card:#ffffff;
+  --border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.14);
+  --accent:#1a56db;--accent2:#3b82f6;--accent3:#93c5fd;
+  --green:#15803d;--green2:#22c55e;--green3:#86efac;
+  --warn:#b45309;--warn2:#f59e0b;--warn3:#fde68a;
+  --danger:#b91c1c;--danger2:#ef4444;--danger3:#fca5a5;
+  --purple:#6d28d9;--teal:#0d9488;
+  --text:#0f172a;--text2:#334155;--muted:#64748b;--muted2:#94a3b8;
   --sans:'Noto Sans KR',system-ui,sans-serif;
-  --radius:16px;--radius-sm:10px;
-  --shadow:0 2px 12px rgba(0,0,0,.08);
-  --shadow-lg:0 4px 24px rgba(0,0,0,.12);
-  --grad:linear-gradient(135deg,#2563eb 0%,#3b82f6 100%);
-  --grad-green:linear-gradient(135deg,#16a34a 0%,#22c55e 100%);
+  --radius:20px;--radius-sm:12px;--radius-xs:8px;
+  --shadow:0 1px 8px rgba(0,0,0,.07),0 0 1px rgba(0,0,0,.05);
+  --shadow-md:0 4px 16px rgba(0,0,0,.10);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.12);
+  --grad:linear-gradient(135deg,#1a56db 0%,#3b82f6 100%);
+  --grad-green:linear-gradient(135deg,#15803d 0%,#22c55e 100%);
+  --grad-warn:linear-gradient(135deg,#b45309 0%,#f59e0b 100%);
+  /* Anura 게이지 그라데이션: 빨강→노랑→초록 */
+  --gauge-grad:linear-gradient(to right,#ef4444 0%,#f59e0b 40%,#22c55e 70%,#15803d 100%);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100dvh;overflow-x:hidden;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
@@ -357,19 +362,70 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
 .bioage-bitem{background:var(--bg3);border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between}
 .bioage-bitem-name{font-size:12px;color:var(--muted)}
 .bioage-bitem-val{font-size:13px;font-weight:700}
+
+/* ══════════ ANURA 스타일 컴포넌트 ══════════ */
+
+/* 결과 탭 */
+.rtab{flex:1;min-width:80px;padding:12px 6px;font-size:12px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2.5px solid transparent;cursor:pointer;font-family:var(--sans);letter-spacing:.06em;white-space:nowrap;transition:all .2s}
+.rtab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:800}
+
+/* 결과 패널 */
+.rpanel{display:none}
+.rpanel.on{display:block;animation:fadeUp .15s ease}
+.rpanel-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px}
+
+/* Anura 게이지 카드 */
+.ag-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px 12px;text-align:center;box-shadow:var(--shadow)}
+.ag-card.wide{grid-column:1/-1}
+.ag-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;margin-bottom:6px}
+.ag-svg{width:100%;max-width:180px;display:block;margin:0 auto}
+.ag-semi-wrap{margin:4px 0}
+.ag-range-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted2);padding:0 8px;margin-bottom:6px}
+.ag-badge-wrap{display:flex;align-items:center;justify-content:center;gap:6px}
+.ag-badge{font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px;background:var(--bg3);color:var(--muted);display:inline-block}
+.ag-badge.ok{background:#dcfce7;color:var(--green)}
+.ag-badge.warn{background:#fef9c3;color:var(--warn)}
+.ag-badge.bad{background:#fee2e2;color:var(--danger)}
+
+/* Anura OVERALL 바 */
+.anura-bar-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}
+.anura-bar-row:last-of-type{border-bottom:none}
+.anura-bar-lbl{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.07em;min-width:72px}
+.anura-bar-track{flex:1;height:10px;background:linear-gradient(to right,#ef4444 0%,#f59e0b 40%,#22c55e 70%,#15803d 100%);border-radius:5px;position:relative;overflow:visible}
+.anura-bar-fill{height:100%;background:var(--bg3);position:absolute;right:0;top:0;border-radius:0 5px 5px 0;transition:width 1s ease}
+.anura-bar-dot{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid #334155;transform:translate(-50%,-50%);transition:left 1s ease;box-shadow:0 1px 4px rgba(0,0,0,.2);left:0}
+
+/* 측정 중 Anura 페이스 오버레이 (얼굴 rPPG) */
+.face-ppg-pulse{position:absolute;border-radius:50%;border:3px solid rgba(220,38,38,.6);animation:pulsePPG 1s ease-in-out infinite;pointer-events:none}
+@keyframes pulsePPG{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.1);opacity:.4}}
 </style>
 </head>
 <body>
 
-<header class="header">
-  <div class="logo">
-    <svg viewBox="0 0 32 32" fill="none">
-      <circle cx="16" cy="16" r="14" stroke="#1a6ef5" stroke-width="1.5" opacity=".6"/>
-      <polyline points="2,16 7,16 10,8 13,24 16,11 19,19 22,16 30,16" stroke="#1a6ef5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    </svg>
-    <span class="logo-text">건강 <span>측정</span></span>
+<header class="header" style="padding:12px 18px;background:#fff;box-shadow:0 1px 0 var(--border)">
+  <div class="logo" style="gap:8px">
+    <!-- Anura 스타일 하트+파형 로고 -->
+    <div style="width:34px;height:34px;background:var(--grad);border-radius:10px;display:flex;align-items:center;justify-content:center">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+        <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.58 3 23 5.42 23 8.5C23 14.5 14 21 12 21Z" fill="white" opacity=".9"/>
+        <polyline points="5,12 7.5,12 9,9 11,15 13,10 15,13 17,12 19,12" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".6"/>
+      </svg>
+    </div>
+    <div>
+      <div style="font-size:17px;font-weight:800;color:var(--text);letter-spacing:-.02em">건강<span style="color:var(--accent)">측정</span></div>
+      <div style="font-size:10px;color:var(--muted);font-weight:500;letter-spacing:.03em">HEALTH MONITOR</div>
+    </div>
   </div>
-  <span class="hbadge">v8.4.0</span>
+  <!-- Anura처럼 SNR 실시간 표시 -->
+  <div style="display:flex;align-items:center;gap:10px">
+    <div id="snrBadge" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--muted);gap:5px;align-items:center;flex-direction:row;display:flex">
+      <span style="color:var(--accent)">SNR</span>
+      <span id="snrVal">--</span>
+      <span style="color:var(--muted2)">dB</span>
+      <span id="snrStars" style="color:#f59e0b;letter-spacing:1px">☆☆☆☆☆</span>
+    </div>
+    <span class="hbadge">v8.5</span>
+  </div>
 </header>
 
 <nav class="tabs">
@@ -442,55 +498,142 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
     <canvas id="waveCanvas" height="60"></canvas>
   </div>
 
-  <!-- v8 메트릭 카드: 2×2 + 스트레스 지수 전체폭 -->
-  <div class="metrics" style="grid-template-columns:1fr 1fr">
-    <div class="mc hr-c" id="cHR">
-      <div class="mname">❤️ 심박수</div>
-      <div class="mval" id="vHR">--<span class="munit"> bpm</span></div>
-      <span class="mst" id="sHR">대기</span>
+  <!-- Anura 스타일 결과 패널 -->
+  <div id="resultPanel" style="display:none">
+    <!-- 결과 탭 네비게이션 -->
+    <div style="display:flex;border-bottom:2px solid var(--border);background:#fff;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+      <button class="rtab on" onclick="switchResultTab('vitals')" id="rtab-vitals">VITALS</button>
+      <button class="rtab" onclick="switchResultTab('mental')" id="rtab-mental">MENTAL</button>
+      <button class="rtab" onclick="switchResultTab('overall')" id="rtab-overall">OVERALL</button>
     </div>
-    <div class="mc spo2-c" id="cSPO2">
-      <div class="mname">🫁 산소포화도</div>
-      <div class="mval" id="vSPO2">--<span class="munit"> %</span></div>
-      <span class="mst" id="sSPO2">대기</span>
-    </div>
-    <div class="mc st-c" id="cST">
-      <div class="mname" id="stCardName">🧠 HRV (RMSSD)</div>
-      <div class="mval" id="vST">--<span class="munit"> ms</span></div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
-        <span class="mst" id="sST">대기</span>
-        <span style="font-size:10px;color:var(--muted2)" id="vPNN50"></span>
+
+    <!-- VITALS 탭: 심박 + 호흡 + SpO2 -->
+    <div class="rpanel on" id="rpanel-vitals">
+      <div class="rpanel-grid">
+        <div class="ag-card" id="cHR">
+          <div class="ag-label">🫀 HEART RATE</div>
+          <div class="ag-semi-wrap">
+            <svg viewBox="0 0 200 110" class="ag-svg">
+              <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#f1f5f9" stroke-width="16" stroke-linecap="round"/>
+              <path id="hrArc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#gg1)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+              <defs><linearGradient id="gg1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ef4444"/><stop offset="45%" stop-color="#f59e0b"/><stop offset="75%" stop-color="#22c55e"/><stop offset="100%" stop-color="#15803d"/></linearGradient></defs>
+              <text id="hrArcVal" x="100" y="96" text-anchor="middle" font-size="38" font-weight="900" fill="#0f172a">--</text>
+              <text x="100" y="108" text-anchor="middle" font-size="11" fill="#94a3b8">bpm</text>
+            </svg>
+          </div>
+          <div class="ag-range-row"><span>60</span><span style="color:var(--muted2)">정상</span><span>100</span></div>
+          <div class="ag-badge-wrap"><span class="ag-badge" id="sHR">대기</span><span id="hrIrregular" style="font-size:11px;color:var(--warn);display:none"></span></div>
+        </div>
+
+        <div class="ag-card" id="cRR">
+          <div class="ag-label">🫁 BREATHING</div>
+          <div class="ag-semi-wrap">
+            <svg viewBox="0 0 200 110" class="ag-svg">
+              <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#f1f5f9" stroke-width="16" stroke-linecap="round"/>
+              <path id="rrArc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#gg2)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+              <defs><linearGradient id="gg2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ef4444"/><stop offset="40%" stop-color="#f59e0b"/><stop offset="72%" stop-color="#22c55e"/><stop offset="100%" stop-color="#15803d"/></linearGradient></defs>
+              <text id="rrArcVal" x="100" y="96" text-anchor="middle" font-size="38" font-weight="900" fill="#0f172a">--</text>
+              <text x="100" y="108" text-anchor="middle" font-size="11" fill="#94a3b8">brpm</text>
+            </svg>
+          </div>
+          <div class="ag-range-row"><span>12</span><span style="color:var(--muted2)">정상</span><span>25</span></div>
+          <div class="ag-badge-wrap"><span class="ag-badge" id="sRR">대기</span></div>
+        </div>
+
+        <div class="ag-card wide" id="cSPO2">
+          <div class="ag-label">💧 OXYGEN SATURATION (SpO₂)</div>
+          <div class="ag-semi-wrap">
+            <svg viewBox="0 0 200 110" class="ag-svg">
+              <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#f1f5f9" stroke-width="16" stroke-linecap="round"/>
+              <path id="spo2Arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#gg3)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+              <defs><linearGradient id="gg3" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ef4444"/><stop offset="30%" stop-color="#f59e0b"/><stop offset="60%" stop-color="#22c55e"/><stop offset="100%" stop-color="#15803d"/></linearGradient></defs>
+              <text id="spo2ArcVal" x="100" y="96" text-anchor="middle" font-size="38" font-weight="900" fill="#0f172a">--</text>
+              <text x="100" y="108" text-anchor="middle" font-size="11" fill="#94a3b8">%</text>
+            </svg>
+          </div>
+          <div class="ag-range-row"><span>90</span><span style="color:var(--muted2)">정상</span><span>100</span></div>
+          <div class="ag-badge-wrap"><span class="ag-badge" id="sSPO2">손가락 측정 시 표시</span></div>
+        </div>
       </div>
     </div>
-    <div class="mc rr-c" id="cRR">
-      <div class="mname">🌬️ 호흡수</div>
-      <div class="mval" id="vRR">--<span class="munit"> rpm</span></div>
-      <span class="mst" id="sRR">대기</span>
+
+    <!-- MENTAL 탭: 스트레스 + HRV -->
+    <div class="rpanel" id="rpanel-mental">
+      <div class="rpanel-grid">
+        <div class="ag-card wide" id="cSTRESS">
+          <div class="ag-label">🧠 STRESS INDEX</div>
+          <div class="ag-semi-wrap">
+            <svg viewBox="0 0 200 120" class="ag-svg">
+              <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#f1f5f9" stroke-width="16" stroke-linecap="round"/>
+              <path id="stressArc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#gg4)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+              <defs><linearGradient id="gg4" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#22c55e"/><stop offset="40%" stop-color="#f59e0b"/><stop offset="80%" stop-color="#ef4444"/><stop offset="100%" stop-color="#991b1b"/></linearGradient></defs>
+              <text x="15" y="112" text-anchor="middle" font-size="12" fill="#94a3b8">1</text>
+              <text x="52" y="84" text-anchor="middle" font-size="12" fill="#94a3b8">2</text>
+              <text x="100" y="73" text-anchor="middle" font-size="12" fill="#94a3b8">3</text>
+              <text x="148" y="84" text-anchor="middle" font-size="12" fill="#94a3b8">4</text>
+              <text x="185" y="112" text-anchor="middle" font-size="12" fill="#94a3b8">5</text>
+              <text id="stressArcVal" x="100" y="96" text-anchor="middle" font-size="38" font-weight="900" fill="#0f172a">--</text>
+            </svg>
+          </div>
+          <div class="ag-range-row"><span style="color:var(--green)">이완</span><span style="color:var(--warn2)">보통</span><span style="color:var(--danger2)">고스트레스</span></div>
+          <div class="ag-badge-wrap"><span class="ag-badge" id="sSTRESS">대기</span></div>
+          <div style="font-size:11px;color:var(--muted2);margin-top:6px;text-align:center" id="stressHint">LF/HF 비율 기반 — 30초 이상 측정 후 표시</div>
+        </div>
+
+        <div class="ag-card wide" id="cST">
+          <div class="ag-label">💓 HRV (RMSSD)</div>
+          <div class="ag-semi-wrap">
+            <svg viewBox="0 0 200 110" class="ag-svg">
+              <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#f1f5f9" stroke-width="16" stroke-linecap="round"/>
+              <path id="hrvArc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#gg5)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+              <defs><linearGradient id="gg5" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ef4444"/><stop offset="35%" stop-color="#f59e0b"/><stop offset="70%" stop-color="#22c55e"/><stop offset="100%" stop-color="#15803d"/></linearGradient></defs>
+              <text id="vST" x="100" y="96" text-anchor="middle" font-size="38" font-weight="900" fill="#0f172a">--</text>
+              <text x="100" y="108" text-anchor="middle" font-size="11" fill="#94a3b8">ms</text>
+            </svg>
+          </div>
+          <div class="ag-range-row"><span>15</span><span style="color:var(--muted2)">RMSSD</span><span>60</span></div>
+          <div class="ag-badge-wrap">
+            <span class="ag-badge" id="sST">대기</span>
+            <span style="font-size:11px;color:var(--muted2)" id="vPNN50"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OVERALL 탭 -->
+    <div class="rpanel" id="rpanel-overall">
+      <div style="padding:16px">
+        <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;box-shadow:var(--shadow-md);margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">GENERAL WELLNESS SCORE ›</div>
+          <div class="ag-semi-wrap">
+            <svg viewBox="0 0 200 110" class="ag-svg">
+              <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#f1f5f9" stroke-width="22" stroke-linecap="round"/>
+              <path id="overallArc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#gg6)" stroke-width="22" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1.2s ease"/>
+              <defs><linearGradient id="gg6" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ef4444"/><stop offset="30%" stop-color="#f59e0b"/><stop offset="65%" stop-color="#22c55e"/><stop offset="100%" stop-color="#15803d"/></linearGradient></defs>
+              <text x="18" y="108" text-anchor="middle" font-size="12" fill="#94a3b8">20</text>
+              <text x="182" y="108" text-anchor="middle" font-size="12" fill="#94a3b8">80</text>
+              <text id="overallArcVal" x="100" y="93" text-anchor="middle" font-size="44" font-weight="900" fill="#0f172a">--</text>
+            </svg>
+          </div>
+          <div id="overallGradeBadge" style="display:inline-block;font-size:14px;font-weight:700;padding:5px 20px;border-radius:20px;background:var(--bg3);color:var(--muted);margin-top:2px">측정 후 표시</div>
+        </div>
+        <!-- Anura 스타일 4개 바 -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)">
+          <div class="anura-bar-row"><span class="anura-bar-lbl">VITALS</span><div class="anura-bar-track"><div class="anura-bar-fill" id="barVitals"></div><div class="anura-bar-dot" id="dotVitals"></div></div></div>
+          <div class="anura-bar-row"><span class="anura-bar-lbl">MENTAL</span><div class="anura-bar-track"><div class="anura-bar-fill" id="barMental"></div><div class="anura-bar-dot" id="dotMental"></div></div></div>
+          <div class="anura-bar-row"><span class="anura-bar-lbl">BREATHING</span><div class="anura-bar-track"><div class="anura-bar-fill" id="barBreath"></div><div class="anura-bar-dot" id="dotBreath"></div></div></div>
+          <div class="anura-bar-row"><span class="anura-bar-lbl">RECOVERY</span><div class="anura-bar-track"><div class="anura-bar-fill" id="barRecovery"></div><div class="anura-bar-dot" id="dotRecovery"></div></div></div>
+          <p style="font-size:11px;color:var(--muted2);margin-top:14px;line-height:1.6;text-align:center">이 수치는 건강 인식 향상을 위한 참고 자료이며 의료 진단을 대체하지 않습니다.</p>
+        </div>
+      </div>
     </div>
   </div>
-  <!-- v8 스트레스 지수 카드 (전체 폭) -->
-  <div class="metrics" style="grid-template-columns:1fr;margin-top:0;padding-top:0">
-    <div class="mc" id="cSTRESS" style="--ca:linear-gradient(90deg,#7c3aed,#a78bfa)">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div>
-          <div class="mname">🧘 스트레스 지수 (LF/HF)</div>
-          <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px">
-            <span class="mval" id="vSTRESS" style="font-size:26px">--</span>
-            <span class="munit">/ 100</span>
-          </div>
-          <span class="mst" id="sSTRESS">대기</span>
-        </div>
-        <div style="flex:1;min-width:120px">
-          <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:4px">
-            <div id="stressBar" style="height:100%;width:0%;border-radius:4px;background:var(--green);transition:width .5s,background .5s"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)">
-            <span>이완</span><span>보통</span><span>스트레스</span>
-          </div>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--muted2);margin-top:6px" id="stressHint">LF/HF 비율 기반 — 30초 이상 측정 후 표시</div>
-    </div>
+
+  <!-- JS 호환용 숨김 요소 -->
+  <div style="display:none" aria-hidden="true">
+    <span id="vHR">--</span><span id="vSPO2">--</span>
+    <span id="vRR">--</span><span id="vSTRESS">--</span>
+    <span id="stressBar"></span>
   </div>
   <p class="finger-only-note" id="spo2Note">💡 산소포화도(SpO2)는 손가락 측정 모드에서만 측정됩니다</p>
 
@@ -994,7 +1137,7 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
 
 <script>
 // ══════════════════════════════════════════════════════════════════════
-//  PPG CORE v8.4 — Galaxy TTS·Torch·카메라폴백·HRV/RR빠른계산
+//  PPG CORE v8.5 — Anura스타일UI·반원게이지·SNR배지·결과탭
 //  참고: Wang et al. 2017 (POS algorithm, IEEE TBME)
 //        de Haan & Jeanne 2013 (CHROM algorithm)
 //        Welch 1967 (Welch's power spectral density)
@@ -2052,55 +2195,57 @@ function handleResult(m, mode){
 
   if(m.hr && currentSQI>=SQI_MIN && m.hr>=36 && m.hr<=220){
     lastResult=m;
-    setMet('vHR',m.hr,' bpm');
 
-    // v7: RMSSD 기반 스트레스 표시 (SDNN 보조)
-    if(m.rmssd!=null && m.rmssd>0){
-      const hrvi = interpretHRV(m.rmssd, m.sdnn);
-      $('vST').innerHTML = m.rmssd+'<span class="munit"> ms</span>';
-      const pnEl=$('vPNN50'); if(pnEl&&m.pnn50>0) pnEl.textContent=`pNN50: ${m.pnn50}%`;
-      setSt('sST', hrvi.label,
-        hrvi.stress==='relaxed'||hrvi.stress==='very_relaxed'?'g':
-        hrvi.stress==='normal'?'w':'d');
-    } else if(m.sdnn!=null && m.sdnn>0){
-      setMet('vST', m.sdnn, ' ms');
-      setSt('sST',m.sdnn>50?'양호':m.sdnn>20?'보통':'높음',m.sdnn>50?'g':m.sdnn>20?'w':'d');
+    // 결과 패널 표시 (처음 결과 나오면 Anura 패널 오픈)
+    const rp=$('resultPanel');
+    if(rp && rp.style.display==='none') {
+      rp.style.display='block';
+      switchResultTab('vitals');
+    }
+
+    // ── Anura 반원 게이지 업데이트 ──
+    // 심박수
+    const hrLabel = m.hr<50?'낮음':m.hr<60?'낮은편':m.hr<=100?'정상':m.hr<=130?'약간높음':'높음';
+    setArcGauge('hrArc','hrArcVal', m.hr, 40, 180, 'sHR', hrLabel);
+
+    // 호흡수
+    if(m.rr!=null){
+      const rrLabel = m.rr<12?'낮음':m.rr<=20?'정상':m.rr<=25?'약간높음':'높음';
+      setArcGauge('rrArc','rrArcVal', m.rr, 8, 30, 'sRR', rrLabel);
     } else {
-      // v8.4: HRV 아직 없을 때 진행 중 표시
-      const elapsed = (performance.now() - measureStartTs) / 1000;
-      const hrv_eta = Math.max(0, Math.ceil(5 - elapsed));
-      if (hrv_eta > 0) {
-        $('vST').innerHTML = `<span style="font-size:14px;color:var(--muted2)">분석 중...</span>`;
-        setSt('sST', `${hrv_eta}초 후`, '');
-      } else {
-        setMet('vST','--',' ms');
-        setSt('sST','데이터 부족','');
-      }
+      const e2=(performance.now()-measureStartTs)/1000;
+      const rrEl=$('rrArcVal'); if(rrEl) rrEl.textContent=e2<12?`${Math.ceil(12-e2)}s`:'--';
     }
 
-    if(m.rr!=null) {
-      setMet('vRR',m.rr,' rpm');
-    } else if(running) {
-      const elapsed2 = (performance.now() - measureStartTs) / 1000;
-      if (elapsed2 < 12) {
-        $('vRR').innerHTML = `<span style="font-size:14px;color:var(--muted2)">${Math.ceil(12-elapsed2)}초 후</span>`;
-      }
-    }
-    ['cHR','cST','cRR'].forEach(id=>{const e=$(id);if(e)e.classList.add('lit');});
-    setSt('sHR',m.hr<50?'낮음':m.hr<=100?'정상':'높음',m.hr<50?'w':m.hr<=100?'g':'w');
-    if(m.rr) setSt('sRR',m.rr>=12&&m.rr<=20?'정상':m.rr<12?'낮음':'높음',m.rr>=12&&m.rr<=20?'g':'w');
-
+    // SpO2
     if(mode==='finger'&&m.spo2!=null){
+      const spo2Label=m.spo2>=95?'정상':m.spo2>=90?'낮음':'매우낮음';
+      setArcGauge('spo2Arc','spo2ArcVal', m.spo2, 85, 100, 'sSPO2', spo2Label);
       updateSpO2UI(m.spo2);
-      $('cSPO2')&&$('cSPO2').classList.add('lit');
-    } else if(mode==='face'){
-      const sn=$('spo2Note');if(sn)sn.classList.add('show');
     }
 
-    // v8: 스트레스 지수 업데이트
+    // HRV (RMSSD)
+    const hrv = m.rmssd&&m.rmssd>0 ? m.rmssd : m.sdnn;
+    if(hrv && hrv>0){
+      const hrvi=interpretHRV(m.rmssd||0, m.sdnn||0);
+      setArcGauge('hrvArc','vST', hrv, 10, 80, 'sST', hrvi.label);
+      const pnEl=$('vPNN50'); if(pnEl&&m.pnn50>0) pnEl.textContent=`pNN50 ${m.pnn50}%`;
+    } else {
+      const elapsed=(performance.now()-measureStartTs)/1000;
+      const stEl=$('vST'); if(stEl) stEl.textContent=elapsed<5?`${Math.ceil(5-elapsed)}s`:'--';
+      const stBadge=$('sST'); if(stBadge){stBadge.textContent='분석중';stBadge.className='ag-badge';}
+    }
+
+    // 스트레스 지수 (LF/HF)
     updateStressUI(m.stressIdx);
 
-    setInfo(`❤️ ${m.hr} bpm  신뢰도 ${currentSQI}%${m.spo2?`  SpO2: ${m.spo2}%`:''}`,
+    // SNR 배지
+    updateSNRBadge(m.sqi ? m.sqi/50 : 0);
+
+    // OVERALL 바 업데이트
+    updateOverallBars(m.hr, m.rmssd, m.rr, m.stressIdx);
+
+    setInfo(`❤️ ${m.hr} bpm  신뢰도 ${currentSQI}%${m.spo2?`  SpO₂: ${m.spo2}%`:''}`,
             '계속 유지해 주세요');
     updateActionGuide(m);
   }
@@ -2150,6 +2295,99 @@ function stopMeasureTimer() {
   if (chip) chip.style.display = 'none';
 }
 
+
+// ── Anura 반원 게이지 업데이트 ──
+// dasharray=283 (반원 둘레), val=측정값, min/max=범위
+function setArcGauge(arcId, valId, val, min, max, badgeId, label, invert=false) {
+  const arc = $(arcId);
+  const valEl = $(valId);
+  if (!arc) return;
+
+  const FULL = 283;
+  let pct = val != null ? Math.min(1, Math.max(0, (val - min) / (max - min))) : 0;
+  if (invert) pct = 1 - pct; // 스트레스: 높을수록 오른쪽
+  const offset = FULL - pct * FULL;
+  arc.style.strokeDashoffset = offset;
+
+  if (valEl) {
+    valEl.textContent = val != null ? val : '--';
+    // 색상: 정상 범위면 녹색
+    const inRange = val != null && val >= min && val <= max;
+    valEl.setAttribute('fill', val == null ? '#94a3b8' : '#0f172a');
+  }
+
+  if (badgeId) {
+    const badge = $(badgeId);
+    if (badge && label) {
+      badge.textContent = label;
+      badge.className = 'ag-badge ' +
+        (label.includes('정상') || label.includes('양호') || label.includes('이완') ? 'ok' :
+         label.includes('높') || label.includes('낮') || label.includes('스트레스') ? 'warn' : '');
+    }
+  }
+}
+
+// SNR → dB 변환 + 별점 표시
+function updateSNRBadge(snr) {
+  const badge = $('snrBadge');
+  if (!badge) return;
+  if (!snr || snr <= 0) { badge.style.display = 'none'; return; }
+  badge.style.display = 'flex';
+  const db = (10 * Math.log10(snr)).toFixed(1);
+  const vEl = $('snrVal'); if (vEl) vEl.textContent = db;
+  const stars = $('snrStars'); if (!stars) return;
+  const s = snr < 1.5 ? 1 : snr < 2 ? 2 : snr < 3 ? 3 : snr < 4.5 ? 4 : 5;
+  stars.textContent = '★'.repeat(s) + '☆'.repeat(5-s);
+  stars.style.color = s >= 4 ? '#22c55e' : s >= 3 ? '#f59e0b' : '#ef4444';
+}
+
+// OVERALL 점수 바 업데이트
+function updateOverallBars(hr, rmssd, rr, stressIdx) {
+  // VITALS: HR 기반
+  const vitalsScore = hr ? (hr>=60&&hr<=100 ? 85 : hr>=50&&hr<=120 ? 60 : 35) : 0;
+  // MENTAL: RMSSD 기반
+  const mentalScore = rmssd ? Math.min(100, (rmssd/60)*100) : (stressIdx ? 100-stressIdx : 0);
+  // BREATHING: RR 기반
+  const breathScore = rr ? (rr>=12&&rr<=20 ? 85 : rr>=8&&rr<=25 ? 55 : 30) : 0;
+  // RECOVERY: HRV 기반
+  const recoveryScore = rmssd ? Math.min(100, (rmssd/50)*100) : 0;
+
+  function setBar(fillId, dotId, score) {
+    const fill = $(fillId), dot = $(dotId);
+    if (!fill || !dot) return;
+    const coverPct = 100 - score; // fill이 오른쪽 덮개
+    fill.style.width = coverPct + '%';
+    dot.style.left = score + '%';
+  }
+  setBar('barVitals',   'dotVitals',   vitalsScore);
+  setBar('barMental',   'dotMental',   mentalScore);
+  setBar('barBreath',   'dotBreath',   breathScore);
+  setBar('barRecovery', 'dotRecovery', recoveryScore);
+
+  // OVERALL 점수
+  const scores = [vitalsScore, mentalScore, breathScore, recoveryScore].filter(s=>s>0);
+  const overall = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+  const oArc = $('overallArc'), oVal = $('overallArcVal');
+  if (oArc) oArc.style.strokeDashoffset = 283 - (overall/100)*283;
+  if (oVal) oVal.textContent = overall || '--';
+
+  const badge = $('overallGradeBadge');
+  if (badge && overall > 0) {
+    const g = overall>=85?'A':overall>=70?'B':overall>=50?'C':'D';
+    badge.textContent = {A:'우수 ★★★★★',B:'양호 ★★★★☆',C:'보통 ★★★☆☆',D:'개선 필요 ★★☆☆☆'}[g];
+    badge.style.background = {A:'#dcfce7',B:'#dbeafe',C:'#fef9c3',D:'#fee2e2'}[g];
+    badge.style.color = {A:'var(--green)',B:'var(--accent)',C:'var(--warn)',D:'var(--danger)'}[g];
+  }
+}
+
+// 결과 탭 전환
+function switchResultTab(tab) {
+  ['vitals','mental','overall'].forEach(t => {
+    $('rpanel-'+t)?.classList.toggle('on', t===tab);
+    $('rtab-'+t)?.classList.toggle('on', t===tab);
+  });
+}
+
 // ── 스트레스 지수 UI 업데이트 ──
 function updateStressUI(idx) {
   const vEl=$('vSTRESS'), sEl=$('sSTRESS'), bar=$('stressBar'), hint=$('stressHint');
@@ -2167,20 +2405,22 @@ function updateStressUI(idx) {
   if(stressBuf.length>5) stressBuf.shift();
   const smooth = Math.round(mean(stressBuf));
 
-  vEl.textContent = smooth;
-  if(bar) bar.style.width = smooth+'%';
+  // Anura 스트레스 반원 게이지 (1~5 스케일로 변환)
+  const stressScale = smooth / 20; // 0~100 → 0~5
+  const stressArc = $('stressArc'), stressVal = $('stressArcVal');
+  if(stressArc) stressArc.style.strokeDashoffset = 283 - (smooth/100)*283;
+  if(stressVal) stressVal.textContent = stressScale.toFixed(1);
 
   let label, col;
-  if(smooth < 30)      { label='매우이완'; col='var(--green)'; }
-  else if(smooth < 45) { label='이완';     col='var(--green)'; }
-  else if(smooth < 60) { label='보통';     col='var(--accent2)'; }
-  else if(smooth < 75) { label='스트레스'; col='var(--warn)'; }
-  else                 { label='고스트레스'; col='var(--danger)'; }
+  if(smooth < 25)      { label='매우이완 (1)'; col='var(--green)'; }
+  else if(smooth < 40) { label='이완 (2)';     col='var(--green)'; }
+  else if(smooth < 55) { label='보통 (3)';     col='var(--warn2)'; }
+  else if(smooth < 70) { label='스트레스 (4)'; col='var(--warn)'; }
+  else                 { label='고스트레스 (5)';col='var(--danger)'; }
 
-  if(sEl){ sEl.textContent=label; sEl.style.color=col; }
-  if(bar){ bar.style.background=col; }
-  if(hint){ hint.textContent=`LF/HF 분석 완료 · ${smooth}점 (높을수록 교감신경 우세)`; }
-  if(card) card.classList.add('lit');
+  const stBadge = $('sSTRESS');
+  if(stBadge){ stBadge.textContent=label; stBadge.className='ag-badge '+(smooth<40?'ok':smooth<60?'warn':'bad'); }
+  if(hint){ hint.textContent=`LF/HF 완료 · ${stressScale.toFixed(1)}점 · ${label}`; }
 }
 
 // ── SQI 바 업데이트 ──

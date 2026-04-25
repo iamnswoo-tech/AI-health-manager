@@ -1,6 +1,6 @@
 {
-  "name": "건강 측정 (rPPG v8.4)",
-  "short_name": "건강측정 v8.4",
+  "name": "건강 측정 (v8.5)",
+  "short_name": "건강측정",
   "description": "30초 손가락·얼굴 측정: 심박수·HRV·스트레스·호흡수 v8.1",
   "start_url": "/index.html",
   "display": "standalone",
