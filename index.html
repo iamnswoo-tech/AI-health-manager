@@ -327,7 +327,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 2</span>
+  <span class="hd-ver">v10.0 · STEP 3</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -509,11 +509,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     <div class="tip-item"><span class="tip-icon">📱</span><span>HTTPS 환경에서 사용 (file://에서 카메라 불가)</span></div>
     <div class="tip-item"><span class="tip-icon">🔆</span><span>밝은 곳에서 측정</span></div>
     <div class="tip-item"><span class="tip-icon">✋</span><span>측정 중 가만히 있기</span></div>
-    <div class="tip-item"><span class="tip-icon">⏱</span><span>15~30초 측정</span></div>
+    <div class="tip-item"><span class="tip-icon">⏱</span><span>15~50초 측정</span></div>
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 2 — HRV/RR/SpO2/Stress + 게이지 결과</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 3 — HRV/RR/SpO2/Stress + 게이지 결과</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
@@ -525,9 +525,9 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 //   ✅ 플래시 실제 상태만 표시 (추정 X — track.getSettings().torch만 신뢰)
 //   ✅ 30초 타이머가 멈추지 않음 (Page Visibility + setInterval)
 //   ✅ 손가락 PPG: Red 채널 추출 + 신호 표시
-//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 2에서 알고리즘)
+//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 3에서 알고리즘)
 //
-// STEP 2 (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
+// STEP 3 (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
 // STEP 3 (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
 // STEP 4 (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
 // ════════════════════════════════════════════════════════════════════
@@ -558,7 +558,7 @@ const App = {
 
   // === 설정 ===
   config: {
-    durationSec: 30,         // 30초 측정
+    durationSec: 50,         // v10s3: 50초 측정 (신뢰도 우선)
     targetSR: 30,            // 목표 샘플레이트 30Hz
     bufferSec: 30,           // 30초 버퍼
     minWarmupSec: 5,         // 5초 후 결과 시도
@@ -588,7 +588,7 @@ const App = {
       : '얼굴을 화면 중앙에 맞춰주세요';
     $('cam-sub').textContent = mode === 'finger'
       ? '플래시가 자동으로 켜집니다'
-      : '얼굴 측정은 STEP 2에서 활성화';
+      : '얼굴 측정은 STEP 3에서 활성화';
     $('video').classList.toggle('front', mode === 'face');
   },
 
@@ -640,7 +640,7 @@ const App = {
           </div>
           <div class="flash-modal-step">
             <span class="step-num">3</span>
-            <div class="step-text"><strong>30초 동안 가만히 유지</strong><br>
+            <div class="step-text"><strong>50초 동안 가만히 유지</strong><br>
             <small>움직이면 측정이 부정확해집니다</small></div>
           </div>
           <div class="flash-modal-countdown" id="fm-cd-text">
@@ -686,7 +686,7 @@ const App = {
   async start() {
     console.log('[App] start()');
 
-    // v10.0 STEP 2: 손가락 모드 플래시 안내 + 5초 준비 시간
+    // v10.0 STEP 3: 손가락 모드 플래시 안내 + 5초 준비 시간
     if (this.state.mode === 'finger') {
       const proceed = await this._showFlashGuide();
       if (!proceed) {
@@ -699,9 +699,10 @@ const App = {
       // 1. 카메라 획득 (모드별)
       await this._acquireCamera();
 
-      // 2. 손가락 모드: 플래시 시도
+      // 2. 손가락 모드: 플래시 시도 (실패해도 진행 — 사용자가 수동으로 켰을 가능성)
       if (this.state.mode === 'finger') {
-        await this._tryEnableTorch();
+        const torchResult = await this._tryEnableTorch();
+        console.log('[App] 코드 토치 결과:', torchResult, '— 사용자가 수동 ON했으면 무관');
       }
 
       // 3. 상태 초기화 후 측정 시작
@@ -757,11 +758,18 @@ const App = {
       console.log('[App] RAF cancelled');
     }
 
-    // 3. 플래시 강제 끄기 (try/catch로 실패해도 진행)
-    try {
-      await this._disableTorch();
-    } catch (err) {
-      console.warn('[App] disableTorch 실패:', err);
+    // 3. 플래시 처리 — v10s3 변경:
+    //    수동으로 켠 플래시는 코드에서 끄지 않음
+    //    카메라 트랙 stop() 시 OS가 자동으로 정리하도록 위임
+    //    (코드의 _disableTorch는 코드로 켰을 때만 호출)
+    if (this.state.torchOn) { // 코드로 켰을 때만 끄기
+      try {
+        await this._disableTorch();
+      } catch (err) {
+        console.warn('[App] disableTorch 실패:', err);
+      }
+    } else {
+      console.log('[App] 코드로 켠 플래시 아님 — disableTorch 스킵');
     }
 
     // 4. 모든 트랙 강제 정지
@@ -1076,63 +1084,148 @@ const App = {
     const avgG = greens.reduce((a,b)=>a+b,0)/greens.length;
     const avgB = blues.reduce((a,b)=>a+b,0)/blues.length;
 
-    let signal, channel;
-    if (avgR > 245 && avgG > 5 && avgG < 245) { signal = greens; channel = 'G'; }
-    else if (avgR > 245 && avgB > 5 && avgB < 245) { signal = blues; channel = 'B'; }
-    else if (avgR < 245) { signal = reds; channel = 'R'; }
-    else return { hr: null, sqi: 0 };
+    // === v10.0 STEP 3 채널 선택: 변동성(std) 기반 ===
+    // 평균값이 아닌 "신호 변동성"으로 판단 — 진짜 PPG 신호가 있는 채널 선택
+    function stdOf(arr) {
+      const m = arr.reduce((a,b)=>a+b,0) / arr.length;
+      return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2, 0) / arr.length);
+    }
+    const stdR = stdOf(reds), stdG = stdOf(greens), stdB = stdOf(blues);
+    console.log('[Channel] avg R/G/B:', avgR.toFixed(1), avgG.toFixed(1), avgB.toFixed(1), '| std:', stdR.toFixed(2), stdG.toFixed(2), stdB.toFixed(2));
+
+    // 채널이 사용 가능한 조건: 포화 안됨(avg 245 미만) + 변동 있음(std >= 0.3)
+    // 변동이 가장 큰 채널 선택 (실제 혈류 흡수가 가장 잘 보이는 채널)
+    const candidates = [];
+    if (avgR > 30 && avgR < 250 && stdR >= 0.3) candidates.push({ ch: 'R', sig: reds, std: stdR });
+    if (avgG > 5  && avgG < 250 && stdG >= 0.3) candidates.push({ ch: 'G', sig: greens, std: stdG });
+    if (avgB > 5  && avgB < 250 && stdB >= 0.3) candidates.push({ ch: 'B', sig: blues, std: stdB });
+
+    if (candidates.length === 0) {
+      console.warn('[Channel] 사용 가능한 채널 없음 — 측정 실패');
+      return { hr: null, sqi: 0, reason: 'no_valid_channel' };
+    }
+
+    // std 가장 큰 채널 선택
+    candidates.sort((a, b) => b.std - a.std);
+    const signal = candidates[0].sig;
+    const channel = candidates[0].ch;
+    console.log('[Channel] 선택:', channel, 'std:', candidates[0].std.toFixed(2));
 
     // === 1. HR 계산 (Goertzel FFT, 마지막 20초) ===
-    const winN = Math.min(sr * 20, signal.length);
+    // === v10.0 STEP 3 HR 산출 — 엄격한 검증 ===
+    // 마지막 25초 사용 (긴 윈도우 = 더 정확한 주파수 분해능)
+    const winN = Math.min(sr * 25, signal.length);
     const sig = signal.slice(-winN);
-    const filtered = this._bandpass(sig, sr, 0.7, 3.0);
+
+    // 1. Detrend (선형 회귀로 트렌드 제거 — 조명 변화 보정)
+    const detrended = this._detrend(sig);
+
+    // 2. BPF (0.7~3.0 Hz = 42~180 bpm)
+    const filtered = this._bandpass(detrended, sr, 0.7, 3.0);
+
+    // 3. 신호 진폭 검증 — 너무 작으면 측정 불가
+    const sigStd = stdOf(filtered);
+    console.log('[HR] filtered std:', sigStd.toFixed(3));
+    if (sigStd < 0.15) {
+      console.warn('[HR] 신호 진폭 너무 작음 — 측정 불가');
+      return { hr: null, sqi: 0, reason: 'signal_too_weak' };
+    }
+
+    // 4. Goertzel FFT 피크 검색
     const { freq: hrHz, snr } = this._goertzelPeak(filtered, sr, 40/60, 200/60);
-    const hr = hrHz > 0 ? Math.round(hrHz * 60) : null;
+    console.log('[HR] Goertzel: freq=', hrHz.toFixed(2), 'Hz =', Math.round(hrHz*60), 'bpm, SNR=', snr.toFixed(2));
 
-    if (!hr || snr < 2.0) return { hr: null, sqi: 0 };
+    // 5. ★ 엄격한 검증: SNR + 적정 범위
+    if (!hrHz || snr < 3.0) {
+      console.warn('[HR] SNR 부족:', snr.toFixed(2), '< 3.0');
+      return { hr: null, sqi: 0, reason: 'low_snr' };
+    }
 
-    // === 2. RR 간격 추출 (피크 검출) ===
+    const hr = Math.round(hrHz * 60);
+
+    // 6. 하한/상한에 정확히 박혀있으면 가짜 결과로 판정
+    if (hr === 40 || hr === 200) {
+      console.warn('[HR] 경계값에 박힘 — 가짜 결과로 판정');
+      return { hr: null, sqi: 0, reason: 'boundary_artifact' };
+    }
+    if (hr < 45 || hr > 180) {
+      console.warn('[HR] 비정상 범위:', hr);
+      return { hr: null, sqi: 0, reason: 'out_of_range' };
+    }
+
+    // === 2. RR 간격 추출 + 이상치 제거 ===
     const peaks = this._detectPeaks(filtered, sr);
+    console.log('[HRV] 검출된 피크 수:', peaks.length);
     const rrIntervals = [];
     for (let i = 1; i < peaks.length; i++) {
       const ms = (peaks[i] - peaks[i-1]) / sr * 1000;
       if (ms > 300 && ms < 1500) rrIntervals.push(ms);
     }
 
+    // 이상치 제거: 평균 ± 30% 벗어나면 제외
+    let cleanRR = rrIntervals;
+    if (rrIntervals.length >= 5) {
+      const mean = rrIntervals.reduce((a,b)=>a+b,0) / rrIntervals.length;
+      cleanRR = rrIntervals.filter(rr => Math.abs(rr - mean) < mean * 0.3);
+      console.log('[HRV] RR 정제:', rrIntervals.length, '→', cleanRR.length);
+    }
+
     // === 3. HRV (RMSSD) ===
     let rmssd = null;
-    if (rrIntervals.length >= 4) {
+    if (cleanRR.length >= 5) {
       let sumSq = 0, n = 0;
-      for (let i = 1; i < rrIntervals.length; i++) {
-        sumSq += (rrIntervals[i] - rrIntervals[i-1]) ** 2;
+      for (let i = 1; i < cleanRR.length; i++) {
+        sumSq += (cleanRR[i] - cleanRR[i-1]) ** 2;
         n++;
       }
       rmssd = Math.round(Math.sqrt(sumSq / n));
+      // 비정상 RMSSD (너무 크거나 작음) 차단
+      if (rmssd < 5 || rmssd > 200) {
+        console.warn('[HRV] 비정상 RMSSD:', rmssd, '— 무효화');
+        rmssd = null;
+      }
     }
 
     // === 4. 호흡수 (RR 변동의 저주파 성분) ===
+    // === 호흡수 산출 — 엄격한 검증 ===
     let respRate = null;
-    if (samples.length >= sr * 25) {
-      const respFiltered = this._bandpass(sig, sr, 0.13, 0.5);
-      const respPeak = this._goertzelPeak(respFiltered, sr, 8/60, 30/60);
-      if (respPeak.snr > 1.4) {
-        respRate = Math.round(respPeak.freq * 60);
+    if (samples.length >= sr * 30) { // 호흡은 최소 30초 데이터 필요
+      const respFiltered = this._bandpass(sig, sr, 0.15, 0.5);
+      const respStd = stdOf(respFiltered);
+      console.log('[RR] resp std:', respStd.toFixed(3));
+      if (respStd > 0.05) {
+        const respPeak = this._goertzelPeak(respFiltered, sr, 8/60, 30/60);
+        console.log('[RR] Goertzel:', respPeak.freq.toFixed(3), 'Hz, SNR:', respPeak.snr.toFixed(2));
+        // 호흡수도 엄격 검증
+        if (respPeak.snr >= 2.5 && respPeak.freq > 0) {
+          const rpm = Math.round(respPeak.freq * 60);
+          // 하한 박힘 차단
+          if (rpm > 9 && rpm < 28) {
+            respRate = rpm;
+          }
+        }
       }
     }
 
     // === 5. SpO2 추정 (R/R 비율, 손가락 모드만) ===
+    // === SpO2 추정 (R/G 비율, 정확한 측정은 IR 센서 필요) ===
+    // 솔직한 표시: 추정값을 95~100% 범위로 클램프, 신뢰도 낮음 명시
     let spo2 = null;
-    if (channel === 'R' || channel === 'G') {
-      // R AC/DC vs G AC/DC 비율 (단순 추정)
-      const rDC = avgR, rAC = this._stdDev(reds);
-      const gDC = avgG, gAC = this._stdDev(greens);
-      if (rDC > 50 && gDC > 5 && rAC > 0.5 && gAC > 0.5) {
+    let spo2Note = '';
+    // R 채널 포화 여부 확인
+    if (avgR < 250 && avgR > 80 && avgG > 5 && avgG < 250) {
+      const rDC = avgR, rAC = stdOf(reds);
+      const gDC = avgG, gAC = stdOf(greens);
+      if (rAC > 0.3 && gAC > 0.3) {
         const ratio = (rAC/rDC) / (gAC/gDC);
-        // 일반 PPG 공식: SpO2 = 110 - 25 × R (R = (AC_R/DC_R)/(AC_IR/DC_IR))
-        // G를 IR 대용으로 (정확도 낮지만 추정용)
-        spo2 = Math.round(110 - 18 * ratio);
-        spo2 = Math.max(85, Math.min(100, spo2));
+        // 일반 PPG: SpO2 = 110 - 25R
+        // 건강한 사람의 R 비율은 보통 0.5~1.0 → SpO2 95~100%
+        spo2 = Math.round(110 - 25 * ratio);
+        spo2 = Math.max(90, Math.min(100, spo2));
+        spo2Note = '추정 (정확하지 않음)';
       }
+    } else {
+      spo2Note = 'R 포화 — 측정 불가';
     }
 
     // === 6. 스트레스 지수 (HRV 기반 단순 추정) ===
@@ -1179,6 +1272,17 @@ const App = {
       const hrCls = r.hr<60?'low':r.hr<=100?'normal':r.hr<=120?'high':'bad';
       const hrLbl = r.hr<60?'서맥':r.hr<=100?'정상':r.hr<=120?'약간높음':'높음';
       setBadge('r-hr-badge', hrLbl, hrCls);
+    } else {
+      $('r-hr-val').textContent = '--';
+      const reason = r.reason || 'unknown';
+      const reasonText = {
+        'no_valid_channel': '채널 없음',
+        'signal_too_weak': '신호 약함',
+        'low_snr': 'SNR 부족',
+        'boundary_artifact': '경계 노이즈',
+        'out_of_range': '범위 벗어남',
+      }[reason] || '데이터 부족';
+      setBadge('r-hr-badge', reasonText, 'bad');
     }
     // RR
     if (r.respRate) {
@@ -1238,6 +1342,19 @@ const App = {
     const gEl = $('result-grade');
     gEl.textContent = `${grade} · ${score}점`;
     gEl.className = 'result-grade ' + grade;
+  },
+
+  // === 헬퍼: Detrend (선형 트렌드 제거) ===
+  _detrend(arr) {
+    const N = arr.length;
+    const mean = arr.reduce((a, b) => a + b, 0) / N;
+    let sumXY = 0, sumXX = 0;
+    for (let i = 0; i < N; i++) {
+      sumXY += (i - N/2) * (arr[i] - mean);
+      sumXX += (i - N/2) ** 2;
+    }
+    const slope = sumXX > 0 ? sumXY / sumXX : 0;
+    return arr.map((v, i) => v - mean - slope * (i - N/2));
   },
 
   // === 헬퍼: 표준편차 ===
@@ -1363,8 +1480,8 @@ const App = {
     if (this.state.mode === 'finger') {
       this._processFingerFrame(video, vw, vh);
     } else {
-      // STEP 2에서 rPPG 알고리즘 추가
-      $('cam-msg').textContent = '얼굴 측정은 STEP 2에서 활성화 예정';
+      // STEP 3에서 rPPG 알고리즘 추가
+      $('cam-msg').textContent = '얼굴 측정은 STEP 3에서 활성화 예정';
     }
 
     this.state.rafId = requestAnimationFrame(() => this._processFrame());
@@ -1474,7 +1591,7 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === HR 추정 v10.0 STEP 2 — 채널 자동 선택 + FFT 기반 ===
+  // === HR 추정 v10.0 STEP 3 — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
@@ -1484,8 +1601,7 @@ const App = {
     const win = Math.min(sr * 10, samples.length);
     const recent = samples.slice(-win);
 
-    // === 채널 자동 선택 ===
-    // R 포화 감지: 최근 10초 평균이 250 이상이면 R 채널 사용 불가
+    // === 채널 자동 선택 (std 기반) ===
     const reds = recent.map(s => s.r);
     const greens = recent.map(s => s.g);
     const blues = recent.map(s => s.b);
@@ -1493,23 +1609,24 @@ const App = {
     const avgG = greens.reduce((a, b) => a + b, 0) / greens.length;
     const avgB = blues.reduce((a, b) => a + b, 0) / blues.length;
 
-    let signal, channel;
-    if (avgR > 245) {
-      // R 포화 — G가 가장 변화 큼 (혈류 흡수)
-      // 단, G도 포화/0이면 B 사용
-      if (avgG > 5 && avgG < 245) {
-        signal = greens; channel = 'G';
-      } else if (avgB > 5 && avgB < 245) {
-        signal = blues; channel = 'B';
-      } else {
-        // 모두 포화 — 측정 불가
-        $('hr-state').textContent = '⚠️ 모든 채널 포화 — 손가락 떼고 다시';
-        $('dbg-snr').textContent = 'saturated';
-        return;
-      }
-    } else {
-      signal = reds; channel = 'R';
+    function stdR(arr) {
+      const m = arr.reduce((a,b)=>a+b,0)/arr.length;
+      return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length);
     }
+    const sR = stdR(reds), sG = stdR(greens), sB = stdR(blues);
+
+    const cands = [];
+    if (avgR > 30 && avgR < 250 && sR >= 0.3) cands.push({ ch: 'R', sig: reds, std: sR });
+    if (avgG > 5  && avgG < 250 && sG >= 0.3) cands.push({ ch: 'G', sig: greens, std: sG });
+    if (avgB > 5  && avgB < 250 && sB >= 0.3) cands.push({ ch: 'B', sig: blues, std: sB });
+    if (cands.length === 0) {
+      $('hr-state').textContent = '⚠️ 사용 가능한 채널 없음';
+      $('dbg-snr').textContent = 'no_ch';
+      return;
+    }
+    cands.sort((a, b) => b.std - a.std);
+    const signal = cands[0].sig;
+    const channel = cands[0].ch;
 
     // === Detrending (선형 트렌드 제거) ===
     const N = signal.length;
@@ -1578,20 +1695,21 @@ const App = {
     // 디버그
     $('dbg-snr').textContent = snr.toFixed(2) + ' (ch:' + channel + ')';
 
-    // === 신호 품질 검증 ===
-    // SNR < 2 = 의미 있는 피크 없음
-    // 신호 표준편차가 너무 작음 = 데이터 변화 없음 (포화)
+    // === 엄격한 신호 품질 검증 ===
     const stdDet = Math.sqrt(det.reduce((a, b) => a + b * b, 0) / N);
-    if (snr < 2.0 || stdDet < 0.5) {
-      $('hr-state').textContent = `신호 약함 (SNR ${snr.toFixed(1)})`;
-      return; // _lastHR 갱신 안 함 (가짜 결과 차단)
+    if (snr < 3.0 || stdDet < 0.3) {
+      $('hr-state').textContent = `신호 분석 중 (SNR ${snr.toFixed(1)})`;
+      return;
+    }
+    // 경계값 박힘 차단
+    if (hr === 40 || hr === 200 || hr < 45 || hr > 180) {
+      $('hr-state').textContent = `신호 분석 중 (경계값)`;
+      return;
     }
 
-    if (hr >= 40 && hr <= 200) {
-      $('hr-num').textContent = hr;
-      $('hr-state').textContent = `측정 중 · ${channel}채널 · SNR ${snr.toFixed(1)}`;
-      this._lastHR = hr;
-    }
+    $('hr-num').textContent = hr;
+    $('hr-state').textContent = `측정 중 · ${channel}채널 · SNR ${snr.toFixed(1)}`;
+    this._lastHR = hr;
   },
 
   // === Canvas 셋업 ===

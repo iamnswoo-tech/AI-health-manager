@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v10 STEP 2",
-  "short_name": "건강측정 v10s2",
-  "description": "v10.0 STEP 2 — HRV·호흡수·SpO2·스트레스 + Anura 게이지 UI",
+  "name": "건강 측정 v10 STEP 3",
+  "short_name": "건강측정 v10s3",
+  "description": "v10.0 STEP 3 — 50초 측정 + 엄격한 신호 검증 + 채널 std 자동 선택",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
