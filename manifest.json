@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v10 STEP 4",
-  "short_name": "건강측정 v10s4",
-  "description": "v10.0 STEP 4 — 후면 카메라 강제 + deviceId 선택 + 플래시 검증",
+  "name": "건강 측정 v10 STEP 5",
+  "short_name": "건강측정 v10s5",
+  "description": "v10.0 STEP 5 — 노트북/폰 호환 + 스마트폰용 화면 콘솔",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

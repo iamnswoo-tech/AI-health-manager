@@ -327,7 +327,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 4</span>
+  <span class="hd-ver">v10.0 · STEP 5</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -403,7 +403,16 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     <button id="dbg-torch-off" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--muted);background:transparent;color:var(--muted);font-size:11px;cursor:pointer">⚫ 플래시 OFF</button>
     <button id="dbg-force-stop" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:11px;cursor:pointer">⚠ 강제 중지</button>
   </div>
-  <div style="font-size:10px;color:var(--muted);margin-top:6px">디버그 콘솔: 위 버튼으로 직접 테스트 가능</div>
+
+  <!-- v10 STEP 5: 화면 콘솔 (스마트폰 진단용) -->
+  <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span style="font-size:11px;color:var(--muted);font-weight:700">📋 화면 콘솔 (스마트폰 진단용)</span>
+      <button id="dbg-clear-log" type="button" style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:10px;cursor:pointer">초기화</button>
+    </div>
+    <div id="dbg-console" style="background:#000;border:1px solid var(--border);border-radius:5px;padding:6px;height:140px;overflow-y:auto;font-family:'SF Mono',Monaco,monospace;font-size:10px;line-height:1.4;color:#86efac"></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:4px">노트북 콘솔 = 화면 콘솔. 스마트폰에서도 동일한 정보 확인 가능</div>
+  </div>
 </div>
 
 <!-- 결과 패널 (Anura 스타일 반원 게이지) -->
@@ -513,9 +522,63 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 4 — HRV/RR/SpO2/Stress + 게이지 결과</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5 — HRV/RR/SpO2/Stress + 게이지 결과</footer>
 
 <script>
+// ════════════════════════════════════════════════════════════════════
+// v10 STEP 5: 화면 콘솔 (스마트폰 진단용)
+// console.log/warn/error를 화면에도 출력
+// ════════════════════════════════════════════════════════════════════
+(function setupOnScreenConsole() {
+  const origLog = console.log.bind(console);
+  const origWarn = console.warn.bind(console);
+  const origError = console.error.bind(console);
+  const buffer = [];
+
+  function appendLog(type, args) {
+    const time = new Date().toTimeString().substring(0, 8);
+    const text = args.map(a => {
+      try {
+        if (typeof a === 'object') return JSON.stringify(a);
+        return String(a);
+      } catch (e) { return '<obj>'; }
+    }).join(' ');
+    buffer.push({ time, type, text });
+    if (buffer.length > 200) buffer.shift();
+    flushToScreen();
+  }
+
+  function flushToScreen() {
+    const el = document.getElementById('dbg-console');
+    if (!el) return; // DOM 미준비 시 스킵
+    el.innerHTML = buffer.map(item => {
+      const color = item.type === 'warn' ? '#fbbf24' : item.type === 'error' ? '#ef4444' : '#86efac';
+      return `<div style="color:${color}"><span style="color:#64748b">${item.time}</span> ${escapeHtml(item.text)}</div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  console.log = function(...args) { origLog(...args); appendLog('log', args); };
+  console.warn = function(...args) { origWarn(...args); appendLog('warn', args); };
+  console.error = function(...args) { origError(...args); appendLog('error', args); };
+
+  // 초기화 버튼 핸들러는 DOMContentLoaded 후 부착
+  window.addEventListener('DOMContentLoaded', () => {
+    const clearBtn = document.getElementById('dbg-clear-log');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      buffer.length = 0;
+      flushToScreen();
+    });
+    // 초기 메시지
+    console.log('[Console] 화면 콘솔 활성화 — 모든 로그가 여기 표시됨');
+    console.log('[Console] 사용자 환경:', navigator.userAgent.substring(0, 80));
+  });
+})();
+
 // ════════════════════════════════════════════════════════════════════
 // 건강 측정 v10.0 — STEP 1
 // 깨끗한 재작성. 단일 App 객체로 모든 상태 관리 (전역 변수 충돌 방지)
@@ -525,11 +588,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 //   ✅ 플래시 실제 상태만 표시 (추정 X — track.getSettings().torch만 신뢰)
 //   ✅ 30초 타이머가 멈추지 않음 (Page Visibility + setInterval)
 //   ✅ 손가락 PPG: Red 채널 추출 + 신호 표시
-//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 4에서 알고리즘)
+//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5에서 알고리즘)
 //
-// STEP 4 (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
-// STEP 4 (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
-// STEP 4 (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
+// STEP 5 (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
+// STEP 5 (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
+// STEP 5 (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
 // ════════════════════════════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
@@ -588,7 +651,7 @@ const App = {
       : '얼굴을 화면 중앙에 맞춰주세요';
     $('cam-sub').textContent = mode === 'finger'
       ? '플래시가 자동으로 켜집니다'
-      : '얼굴 측정은 STEP 4에서 활성화';
+      : '얼굴 측정은 STEP 5에서 활성화';
     $('video').classList.toggle('front', mode === 'face');
   },
 
@@ -692,7 +755,7 @@ const App = {
   async start() {
     console.log('[App] start()');
 
-    // v10.0 STEP 4: 손가락 모드 플래시 안내 + 5초 준비 시간
+    // v10.0 STEP 5: 손가락 모드 플래시 안내 + 5초 준비 시간
     if (this.state.mode === 'finger') {
       const proceed = await this._showFlashGuide();
       if (!proceed) {
@@ -814,110 +877,77 @@ const App = {
     $('cam-sub').textContent = '측정 시작 버튼을 눌러주세요';
   },
 
-  // === v10 STEP 4 카메라 획득 — 후면 강제 + deviceId 직접 지정 ===
+  // === v10 STEP 5 카메라 획득 — 노트북/스마트폰 모두 호환 ===
+  // 노트북: 전면만 있어도 작동, 단 손가락 모드는 의미 없음 (플래시 없음)
+  // 스마트폰: 후면 우선, 폴백으로 사용 가능한 카메라 사용
   async _acquireCamera() {
     const isFinger = this.state.mode === 'finger';
 
+    // 시도 순서: 가장 좋은 옵션 → 가장 느슨한 옵션
+    let attempts;
     if (isFinger) {
-      // 1) 모든 후면 카메라 enumerate
-      let backCamera = null;
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videos = devices.filter(d => d.kind === 'videoinput');
-        console.log('[Camera] 사용 가능한 비디오 장치:', videos.length);
-        videos.forEach((v, i) => console.log(`  [${i}] ${v.label || '(label hidden)'} ${v.deviceId.substring(0,8)}...`));
-
-        // label에서 후면 카메라 식별 (label은 권한 후에만 보임)
-        backCamera = videos.find(v => /back|rear|환경|환경|external/i.test(v.label));
-        if (!backCamera && videos.length >= 2) {
-          // label이 안 보이면: 보통 두 번째 이상이 후면 (Android 관행)
-          backCamera = videos[videos.length - 1];
-        }
-        if (backCamera) console.log('[Camera] 후면 카메라 추정:', backCamera.label || backCamera.deviceId.substring(0,8));
-      } catch (e) { console.warn('[Camera] enumerate 실패:', e); }
-
-      // 2) 후면 강제 시도 순서 (가장 엄격 → 느슨)
-      const attempts = [];
-      // deviceId로 직접 지정 (가장 확실)
-      if (backCamera) {
-        attempts.push({ video: { deviceId: { exact: backCamera.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } });
-        attempts.push({ video: { deviceId: { exact: backCamera.deviceId } } });
-      }
-      // facingMode exact (fps constraint 제거)
-      attempts.push({ video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
-      attempts.push({ video: { facingMode: { exact: 'environment' } } });
-
-      let lastErr = null;
-      for (const c of attempts) {
-        try {
-          console.log('[Camera] 시도:', JSON.stringify(c));
-          // 권한 요청 후 enumerate 다시 시도 (label 노출용)
-          this.state.stream = await navigator.mediaDevices.getUserMedia(c);
-          const track = this.state.stream.getVideoTracks()[0];
-          const settings = track.getSettings ? track.getSettings() : {};
-          console.log('[Camera] 획득 후 settings.facingMode:', settings.facingMode);
-
-          // ★ 검증: 진짜 후면 카메라인가?
-          if (settings.facingMode === 'user') {
-            console.warn('[Camera] 전면 카메라 잡혔음 — 거부하고 다음 시도');
-            this.state.stream.getTracks().forEach(t => t.stop());
-            this.state.stream = null;
-            lastErr = new Error('전면 카메라가 반환됨');
-            continue;
-          }
-          // facingMode 정보가 아예 없으면 capabilities로 확인
-          const caps = track.getCapabilities ? track.getCapabilities() : {};
-          if (caps.facingMode && caps.facingMode.length === 1 && caps.facingMode[0] === 'user') {
-            console.warn('[Camera] capabilities에서 user 카메라로 확인 — 거부');
-            this.state.stream.getTracks().forEach(t => t.stop());
-            this.state.stream = null;
-            lastErr = new Error('전면 카메라(caps에서 확인)');
-            continue;
-          }
-
-          // 후면 카메라 확정
-          this.state.track = track;
-          $('video').srcObject = this.state.stream;
-          await new Promise((res, rej) => {
-            $('video').onloadedmetadata = () => res();
-            setTimeout(() => rej(new Error('메타데이터 타임아웃')), 5000);
-          });
-          await $('video').play();
-          await this._waitFirstFrame();
-
-          this.state.torchSupported = caps.torch === true;
-          console.log('[Camera] ✅ 후면 카메라 획득 성공. torch caps:', this.state.torchSupported);
-          return;
-        } catch (err) {
-          console.warn('[Camera] 시도 실패:', err.message || err);
-          lastErr = err;
-        }
-      }
-
-      throw new Error('후면 카메라를 사용할 수 없습니다. 권한 또는 기기 호환성을 확인해주세요.\n\n오류: ' + (lastErr?.message || ''));
+      // 손가락 모드: 후면 카메라 우선
+      attempts = [
+        { video: { facingMode: { exact: 'environment' } }, label: '후면 카메라 (exact)' },
+        { video: { facingMode: 'environment' }, label: '후면 카메라 (선호)' },
+        { video: true, label: '사용 가능한 카메라' }, // 노트북 폴백
+      ];
+    } else {
+      // 얼굴 모드: 전면 카메라 우선
+      attempts = [
+        { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, label: '전면 카메라 HD' },
+        { video: { facingMode: 'user' }, label: '전면 카메라' },
+        { video: true, label: '사용 가능한 카메라' },
+      ];
     }
 
-    // === 얼굴 모드: 전면 카메라 ===
-    const constraints = [
-      { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } },
-      { video: { facingMode: 'user' } },
-    ];
     let lastErr = null;
-    for (const c of constraints) {
+    for (const attempt of attempts) {
       try {
-        this.state.stream = await navigator.mediaDevices.getUserMedia(c);
+        console.log('[Camera] 시도:', attempt.label, JSON.stringify(attempt.video));
+        this.state.stream = await navigator.mediaDevices.getUserMedia({ video: attempt.video });
         this.state.track = this.state.stream.getVideoTracks()[0];
+
+        const settings = this.state.track.getSettings ? this.state.track.getSettings() : {};
+        console.log('[Camera] 획득 settings:', JSON.stringify({
+          facingMode: settings.facingMode,
+          width: settings.width,
+          height: settings.height,
+          deviceId: settings.deviceId ? settings.deviceId.substring(0,8) + '...' : 'n/a'
+        }));
+
+        // 비디오 연결
         $('video').srcObject = this.state.stream;
         await new Promise((res, rej) => {
           $('video').onloadedmetadata = () => res();
-          setTimeout(() => rej(new Error('타임아웃')), 5000);
+          setTimeout(() => rej(new Error('메타데이터 타임아웃')), 5000);
         });
         await $('video').play();
         await this._waitFirstFrame();
+
+        // 캐퍼빌리티 확인
+        const caps = this.state.track.getCapabilities ? this.state.track.getCapabilities() : {};
+        this.state.torchSupported = caps.torch === true;
+
+        // 후면 카메라 여부 기록 (UI 안내용)
+        this.state.cameraIsBack = settings.facingMode === 'environment'
+          || (caps.facingMode && caps.facingMode.includes('environment'));
+
+        console.log('[Camera] ✅ 획득 성공.',
+          isFinger && !this.state.cameraIsBack ? '⚠️ 전면 카메라 — 손가락 측정에 부적합' : '',
+          'torch caps:', this.state.torchSupported);
+
+        // 손가락 모드인데 전면 카메라가 잡혔다면 안내만 표시 (계속 진행)
+        if (isFinger && !this.state.cameraIsBack) {
+          console.warn('[Camera] 손가락 모드인데 후면 카메라 없음 — 측정 정확도 저하됨');
+        }
         return;
-      } catch (err) { lastErr = err; }
+      } catch (err) {
+        console.warn('[Camera] 시도 실패:', attempt.label, err.message || err);
+        lastErr = err;
+      }
     }
-    throw lastErr;
+    throw lastErr || new Error('카메라를 사용할 수 없습니다.');
   },
 
   // === 첫 프레임 도착 대기 ===
@@ -1193,7 +1223,7 @@ const App = {
     const avgG = greens.reduce((a,b)=>a+b,0)/greens.length;
     const avgB = blues.reduce((a,b)=>a+b,0)/blues.length;
 
-    // === v10.0 STEP 4 채널 선택: 변동성(std) 기반 ===
+    // === v10.0 STEP 5 채널 선택: 변동성(std) 기반 ===
     // 평균값이 아닌 "신호 변동성"으로 판단 — 진짜 PPG 신호가 있는 채널 선택
     function stdOf(arr) {
       const m = arr.reduce((a,b)=>a+b,0) / arr.length;
@@ -1221,7 +1251,7 @@ const App = {
     console.log('[Channel] 선택:', channel, 'std:', candidates[0].std.toFixed(2));
 
     // === 1. HR 계산 (Goertzel FFT, 마지막 20초) ===
-    // === v10.0 STEP 4 HR 산출 — 엄격한 검증 ===
+    // === v10.0 STEP 5 HR 산출 — 엄격한 검증 ===
     // 마지막 25초 사용 (긴 윈도우 = 더 정확한 주파수 분해능)
     const winN = Math.min(sr * 25, signal.length);
     const sig = signal.slice(-winN);
@@ -1592,8 +1622,8 @@ const App = {
     if (this.state.mode === 'finger') {
       this._processFingerFrame(video, vw, vh);
     } else {
-      // STEP 4에서 rPPG 알고리즘 추가
-      $('cam-msg').textContent = '얼굴 측정은 STEP 4에서 활성화 예정';
+      // STEP 5에서 rPPG 알고리즘 추가
+      $('cam-msg').textContent = '얼굴 측정은 STEP 5에서 활성화 예정';
     }
 
     this.state.rafId = requestAnimationFrame(() => this._processFrame());
@@ -1716,7 +1746,7 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === HR 추정 v10.0 STEP 4 — 채널 자동 선택 + FFT 기반 ===
+  // === HR 추정 v10.0 STEP 5 — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
