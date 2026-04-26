@@ -228,7 +228,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 1</span>
+  <span class="hd-ver">v10.0 · STEP 1c</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -325,7 +325,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 1 — 측정 코어 재작성</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 1c — Goertzel FFT + 자동완료</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
@@ -434,6 +434,24 @@ const App = {
   // === 측정 시작 ===
   async start() {
     console.log('[App] start()');
+
+    // v10.0 STEP 1c: 손가락 모드는 플래시 안내 후 진행
+    if (this.state.mode === 'finger') {
+      const ok = confirm(
+        '🔦 손가락 측정 안내\n\n' +
+        '정확한 측정을 위해 다음을 확인해주세요:\n\n' +
+        '1️⃣ 휴대폰 플래시(손전등)를 미리 켜주세요\n' +
+        '   (알림창 아래로 내려서 손전등 ON)\n\n' +
+        '2️⃣ 검지 손가락으로 후면 카메라 + 플래시를 함께 덮어주세요\n\n' +
+        '3️⃣ 30초 동안 가만히 유지하세요\n\n' +
+        '준비되었으면 [확인]을 누르세요'
+      );
+      if (!ok) {
+        console.log('[App] 사용자가 시작을 취소함');
+        return;
+      }
+    }
+
     try {
       // 1. 카메라 획득 (모드별)
       await this._acquireCamera();
@@ -761,35 +779,55 @@ const App = {
     $('dbg-elapsed').textContent = elapsed.toFixed(1);
   },
 
-  // === 측정 완료 처리 (자동 또는 수동 중지 시) ===
+  // === 측정 완료 처리 (30초 자동 또는 수동 중지) ===
   async _finalizeMeasurement() {
-    console.log('[App] _finalizeMeasurement() — HR:', this._lastHR);
+    console.log('[App] _finalizeMeasurement() — HR:', this._lastHR, 'SQI:', this._lastSQI);
 
-    // 1. 결과 패널에 최종 값 표시
     const finalHR = this._lastHR || null;
     const sqi = this._lastSQI || 0;
 
+    // 진동 알림 먼저 (사용자에게 명확한 신호)
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
     if (finalHR && finalHR >= 40 && finalHR <= 200 && sqi >= 30) {
-      // 정상 측정 결과
+      // ✅ 정상 측정 결과
       $('hr-num').textContent = finalHR;
       $('hr-state').textContent = `✅ 측정 완료 · 신뢰도 ${sqi}%`;
       $('cam-msg').textContent = '✅ 측정 완료';
       $('cam-sub').textContent = `심박수 ${finalHR} bpm · 신뢰도 ${sqi}%`;
 
-      // 결과 알림
-      this._showResultAlert(finalHR, sqi);
+      // 결과 알림 박스 표시
+      setTimeout(() => {
+        alert(
+          `✅ 측정 완료\n\n` +
+          `심박수: ${finalHR} bpm\n` +
+          `신뢰도: ${sqi}%\n` +
+          `측정 시간: 30초\n\n` +
+          `정확한 측정을 위해 3회 평균을 권장합니다.`
+        );
+      }, 500);
     } else {
-      // 신뢰도 부족 → 재측정 안내
-      $('hr-state').textContent = '⚠️ 신뢰도 부족 — 재측정 필요';
+      // ⚠️ 신뢰도 부족 또는 측정 실패
+      $('hr-state').textContent = '⚠️ 측정 실패 — 재측정 필요';
       $('cam-msg').textContent = '⚠️ 측정 신뢰도 부족';
       $('cam-sub').textContent = '손가락을 더 잘 밀착하고 다시 시도해주세요';
-      this._showResultAlert(null, sqi);
+      setTimeout(() => {
+        alert(
+          `⚠️ 측정 실패\n\n` +
+          `심박수를 정확히 추출하지 못했습니다.\n\n` +
+          `다음을 확인해주세요:\n` +
+          `• 플래시(손전등)가 켜져 있는지\n` +
+          `• 손가락이 카메라+플래시를 완전히 덮는지\n` +
+          `• 너무 세게 누르지 않았는지\n` +
+          `• 측정 중 움직이지 않았는지`
+        );
+      }, 500);
     }
 
-    // 2. 측정 자동 중지 (1초 후)
+    // 결과 표시 후 1.5초 뒤 자동 중지
     setTimeout(async () => {
       await this.stop();
-    }, 1000);
+    }, 1500);
   },
 
   // === 결과 알림 (시각적 강조) ===
@@ -957,47 +995,123 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === 간단한 HR 추정 (STEP 2에서 정밀 알고리즘으로 교체) ===
+  // === HR 추정 v10.0 STEP 1c — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
     if (samples.length < sr * this.config.minWarmupSec) return;
 
-    // 최근 8초 윈도우
-    const win = Math.min(sr * 8, samples.length);
+    // 최근 10초 윈도우 (FFT 분해능 0.1Hz = 6bpm)
+    const win = Math.min(sr * 10, samples.length);
     const recent = samples.slice(-win);
+
+    // === 채널 자동 선택 ===
+    // R 포화 감지: 최근 10초 평균이 250 이상이면 R 채널 사용 불가
     const reds = recent.map(s => s.r);
+    const greens = recent.map(s => s.g);
+    const blues = recent.map(s => s.b);
+    const avgR = reds.reduce((a, b) => a + b, 0) / reds.length;
+    const avgG = greens.reduce((a, b) => a + b, 0) / greens.length;
+    const avgB = blues.reduce((a, b) => a + b, 0) / blues.length;
 
-    // detrend (mean 빼기)
-    const m = reds.reduce((a, b) => a + b, 0) / reds.length;
-    const det = reds.map(v => v - m);
+    let signal, channel;
+    if (avgR > 245) {
+      // R 포화 — G가 가장 변화 큼 (혈류 흡수)
+      // 단, G도 포화/0이면 B 사용
+      if (avgG > 5 && avgG < 245) {
+        signal = greens; channel = 'G';
+      } else if (avgB > 5 && avgB < 245) {
+        signal = blues; channel = 'B';
+      } else {
+        // 모두 포화 — 측정 불가
+        $('hr-state').textContent = '⚠️ 모든 채널 포화 — 손가락 떼고 다시';
+        $('dbg-snr').textContent = 'saturated';
+        return;
+      }
+    } else {
+      signal = reds; channel = 'R';
+    }
 
-    // 간단한 피크 카운트 (정밀 알고리즘은 STEP 2)
-    let peaks = 0;
-    let lastPeakIdx = -10;
-    const std = Math.sqrt(det.reduce((a, b) => a + b * b, 0) / det.length);
-    const thr = std * 0.3;
+    // === Detrending (선형 트렌드 제거) ===
+    const N = signal.length;
+    const meanS = signal.reduce((a, b) => a + b, 0) / N;
+    let sumXY = 0, sumXX = 0;
+    for (let i = 0; i < N; i++) {
+      sumXY += (i - N/2) * (signal[i] - meanS);
+      sumXX += (i - N/2) ** 2;
+    }
+    const slope = sumXX > 0 ? sumXY / sumXX : 0;
+    const det = signal.map((v, i) => v - meanS - slope * (i - N/2));
 
-    for (let i = 1; i < det.length - 1; i++) {
-      if (det[i] > thr && det[i] > det[i - 1] && det[i] > det[i + 1]) {
-        if (i - lastPeakIdx > sr * 0.4) { // 최소 400ms 간격
-          peaks++;
-          lastPeakIdx = i;
-        }
+    // === 이동평균 BPF (Elgendi 2013) ===
+    // 0.7~3Hz 통과 (42~180 bpm)
+    const w1 = Math.max(2, Math.round(sr / 3.0));    // 고주파 차단
+    const w2 = Math.max(w1+1, Math.round(sr / 0.7)); // 저주파 차단
+    function movAvg(x, win) {
+      const out = new Array(x.length).fill(0);
+      let sum = 0; const buf = new Array(win).fill(0); let idx = 0;
+      for (let i = 0; i < x.length; i++) {
+        const v = isFinite(x[i]) ? x[i] : 0;
+        sum += v - buf[idx];
+        buf[idx] = v;
+        idx = (idx + 1) % win;
+        out[i] = sum / win;
+      }
+      return out;
+    }
+    const ma1 = movAvg(det, w1);
+    const ma2 = movAvg(det, w2);
+    const filtered = ma1.map((v, i) => v - ma2[i]);
+
+    // === Goertzel 알고리즘 (FFT보다 단순, 특정 주파수만 검사) ===
+    // 40~200 bpm 범위에서 가장 강한 주파수 찾기
+    function goertzel(x, sr, freq) {
+      const k = freq * x.length / sr;
+      const w = 2 * Math.PI * k / x.length;
+      const cosw = Math.cos(w), coeff = 2 * cosw;
+      let q0, q1 = 0, q2 = 0;
+      for (let i = 0; i < x.length; i++) {
+        q0 = coeff * q1 - q2 + x[i];
+        q2 = q1; q1 = q0;
+      }
+      return q1*q1 + q2*q2 - q1*q2*coeff;
+    }
+
+    let bestFreq = 0, bestPower = 0, totalPower = 0;
+    const candidates = [];
+    for (let bpm = 40; bpm <= 200; bpm += 1) {
+      const freq = bpm / 60;
+      const power = goertzel(filtered, sr, freq);
+      candidates.push({ bpm, power });
+      totalPower += power;
+      if (power > bestPower) {
+        bestPower = power;
+        bestFreq = freq;
       }
     }
 
-    if (peaks >= 3) {
-      const durSec = (recent[recent.length - 1].t - recent[0].t) / 1000;
-      const hr = Math.round(peaks / durSec * 60);
-      if (hr >= 40 && hr <= 200) {
-        $('hr-num').textContent = hr;
-        $('hr-state').textContent = '측정 중 (피크 ' + peaks + '개 검출)';
-        // SNR 디버그
-        $('dbg-snr').textContent = (std / Math.abs(m + 1)).toFixed(3);
-        // 최종 결과용 저장
-        this._lastHR = hr;
-      }
+    const hr = Math.round(bestFreq * 60);
+
+    // SNR = 최고 피크 / 평균 전력
+    const avgPower = totalPower / candidates.length;
+    const snr = bestPower / Math.max(avgPower, 1e-9);
+
+    // 디버그
+    $('dbg-snr').textContent = snr.toFixed(2) + ' (ch:' + channel + ')';
+
+    // === 신호 품질 검증 ===
+    // SNR < 2 = 의미 있는 피크 없음
+    // 신호 표준편차가 너무 작음 = 데이터 변화 없음 (포화)
+    const stdDet = Math.sqrt(det.reduce((a, b) => a + b * b, 0) / N);
+    if (snr < 2.0 || stdDet < 0.5) {
+      $('hr-state').textContent = `신호 약함 (SNR ${snr.toFixed(1)})`;
+      return; // _lastHR 갱신 안 함 (가짜 결과 차단)
+    }
+
+    if (hr >= 40 && hr <= 200) {
+      $('hr-num').textContent = hr;
+      $('hr-state').textContent = `측정 중 · ${channel}채널 · SNR ${snr.toFixed(1)}`;
+      this._lastHR = hr;
     }
   },
 

@@ -1,14 +1,24 @@
 {
-  "name": "건강 측정 v10 (Clean Rewrite)",
-  "short_name": "건강측정 v10",
-  "description": "v10.0 깨끗한 재작성 — 측정 코어 (STEP 1)",
+  "name": "건강 측정 v10 STEP 1c",
+  "short_name": "건강측정 v10c",
+  "description": "v10.0 STEP 1c — Goertzel FFT + 자동 완료 + 채널 자동 선택",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#0a0e1a",
   "background_color": "#0a0e1a",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
