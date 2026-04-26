@@ -176,7 +176,16 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   color: var(--danger);
   box-shadow: none;
 }
-.btn-main.stop::before { content: ''; width: 14px; height: 14px; background: var(--danger); border-radius: 2px; display: inline-block; }
+.btn-main.stop > * { pointer-events: none; } /* span 위 클릭 → 버튼 click 이벤트 */
+.btn-main.stop::before {
+  content: '';
+  width: 14px; height: 14px;
+  background: var(--danger);
+  border-radius: 2px;
+  display: inline-block;
+  margin-right: 6px;
+  pointer-events: none;
+}
 
 /* TIPS */
 .tips {
@@ -286,14 +295,21 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   <div class="debug-row"><span class="debug-key">실측 FPS</span><span class="debug-val" id="dbg-fps">-</span></div>
   <div class="debug-row"><span class="debug-key">torch.getSettings()</span><span class="debug-val" id="dbg-torch">-</span></div>
   <div class="debug-row"><span class="debug-key">elapsed (s)</span><span class="debug-val" id="dbg-elapsed">-</span></div>
+  <div class="debug-row"><span class="debug-key">running</span><span class="debug-val" id="dbg-running">false</span></div>
   <div class="debug-row"><span class="debug-key">샘플 수</span><span class="debug-val" id="dbg-samples">0</span></div>
   <div class="debug-row"><span class="debug-key">avgR / avgG</span><span class="debug-val" id="dbg-rg">-</span></div>
   <div class="debug-row"><span class="debug-key">SNR</span><span class="debug-val" id="dbg-snr">-</span></div>
+  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+    <button id="dbg-torch-on" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent2);font-size:11px;cursor:pointer">🔦 플래시 ON</button>
+    <button id="dbg-torch-off" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--muted);background:transparent;color:var(--muted);font-size:11px;cursor:pointer">⚫ 플래시 OFF</button>
+    <button id="dbg-force-stop" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:11px;cursor:pointer">⚠ 강제 중지</button>
+  </div>
+  <div style="font-size:10px;color:var(--muted);margin-top:6px">디버그 콘솔: 위 버튼으로 직접 테스트 가능</div>
 </div>
 
 <!-- 시작 버튼 -->
 <div class="controls">
-  <button class="btn-main" id="btn-main" onclick="App.toggle()">
+  <button class="btn-main" id="btn-main" type="button">
     <span id="btn-text">▶ 측정 시작</span>
   </button>
 </div>
@@ -388,12 +404,30 @@ const App = {
     $('video').classList.toggle('front', mode === 'face');
   },
 
-  // === 측정 시작/중지 토글 ===
+  // === 측정 시작/중지 토글 (디바운스 + 명확한 로깅) ===
+  _toggleLock: false,
   async toggle() {
-    if (this.state.running) {
-      await this.stop();
-    } else {
-      await this.start();
+    if (this._toggleLock) {
+      console.warn('[App] toggle 잠금 중 — 무시');
+      return;
+    }
+    this._toggleLock = true;
+    try {
+      console.log('[App] toggle() 진입 — running:', this.state.running);
+      if (this.state.running) {
+        console.log('[App] STOP 호출');
+        await this.stop();
+        console.log('[App] STOP 완료');
+      } else {
+        console.log('[App] START 호출');
+        await this.start();
+        console.log('[App] START 완료');
+      }
+    } catch (err) {
+      console.error('[App] toggle 오류:', err);
+      alert('오류: ' + err.message);
+    } finally {
+      this._toggleLock = false;
     }
   },
 
@@ -438,31 +472,46 @@ const App = {
     }
   },
 
-  // === 측정 중지 ===
+  // === 측정 중지 (강제 해제) ===
   async stop() {
-    console.log('[App] stop()');
+    console.log('[App] stop() 시작 — running was:', this.state.running);
+    // 1. running 플래그 즉시 false (다른 콜백 즉시 종료 트리거)
     this.state.running = false;
 
-    // 타이머 정리 (반드시 먼저)
+    // 2. 모든 타이머 강제 정리
     if (this.state.timerInterval) {
       clearInterval(this.state.timerInterval);
       this.state.timerInterval = null;
+      console.log('[App] timer cleared');
     }
     if (this.state.rafId) {
       cancelAnimationFrame(this.state.rafId);
       this.state.rafId = null;
+      console.log('[App] RAF cancelled');
     }
 
-    // 플래시 끄기
-    await this._disableTorch();
-
-    // 카메라 정지
-    if (this.state.stream) {
-      this.state.stream.getTracks().forEach(t => t.stop());
-      this.state.stream = null;
-      this.state.track = null;
+    // 3. 플래시 강제 끄기 (try/catch로 실패해도 진행)
+    try {
+      await this._disableTorch();
+    } catch (err) {
+      console.warn('[App] disableTorch 실패:', err);
     }
-    $('video').srcObject = null;
+
+    // 4. 모든 트랙 강제 정지
+    try {
+      if (this.state.stream) {
+        const tracks = this.state.stream.getTracks();
+        console.log('[App] stopping', tracks.length, 'tracks');
+        tracks.forEach(t => {
+          try { t.stop(); } catch (e) { console.warn('[App] track.stop 실패:', e); }
+        });
+        this.state.stream = null;
+      }
+    } catch (err) {
+      console.warn('[App] stream 정지 실패:', err);
+    }
+    this.state.track = null;
+    try { $('video').srcObject = null; } catch (e) {}
 
     // UI 복원
     $('btn-main').classList.remove('stop');
@@ -543,33 +592,93 @@ const App = {
     });
   },
 
-  // === 플래시 켜기 (실제 결과만 신뢰) ===
+  // === 플래시 켜기 (5단계 폴백 + 명시 안내) ===
   async _tryEnableTorch() {
-    if (!this.state.track || !this.state.torchSupported) {
-      console.log('[Torch] 지원 안 함 또는 트랙 없음');
+    if (!this.state.track) {
+      console.log('[Torch] 트랙 없음');
       this._updateTorchUI(false);
       return false;
     }
+
     // 카메라 안정화 대기
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 500));
 
+    const track = this.state.track;
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    console.log('[Torch] getCapabilities():', JSON.stringify(caps));
+
+    // 진단 정보 디버그 패널에 표시
+    const dbgTorch = document.getElementById('dbg-torch');
+    if (dbgTorch) dbgTorch.textContent = 'caps.torch=' + (caps.torch === undefined ? 'undef' : caps.torch);
+
+    // === 시도 1: 표준 advanced constraint ===
+    let success = await this._attemptTorch(track, { advanced: [{ torch: true }] }, '표준 advanced');
+    if (success) return this._confirmTorch(track);
+
+    // === 시도 2: flat constraint ===
+    success = await this._attemptTorch(track, { torch: true }, 'flat');
+    if (success) return this._confirmTorch(track);
+
+    // === 시도 3: fillLightMode (일부 Android) ===
+    if (caps.fillLightMode && caps.fillLightMode.includes('flash')) {
+      success = await this._attemptTorch(track, { advanced: [{ fillLightMode: 'flash' }] }, 'fillLightMode');
+      if (success) return this._confirmTorch(track);
+    }
+
+    // === 시도 4: ImageCapture API ===
+    if (typeof ImageCapture !== 'undefined') {
+      try {
+        const ic = new ImageCapture(track);
+        const photoCaps = await ic.getPhotoCapabilities();
+        console.log('[Torch] ImageCapture caps:', photoCaps);
+        if (photoCaps.fillLightMode && photoCaps.fillLightMode.includes('flash')) {
+          await ic.setOptions ? ic.setOptions({ fillLightMode: 'flash' }) : null;
+          success = await this._attemptTorch(track, { advanced: [{ torch: true }] }, 'ImageCapture+torch');
+          if (success) return this._confirmTorch(track);
+        }
+      } catch (err) {
+        console.warn('[Torch] ImageCapture 실패:', err.message);
+      }
+    }
+
+    // === 모두 실패 ===
+    console.warn('[Torch] 모든 방법 실패. 수동 안내 필요');
+    this.state.torchOn = false;
+    this._updateTorchUI(false);
+    this._showTorchHelp();
+    return false;
+  },
+
+  async _attemptTorch(track, constraint, label) {
     try {
-      await this.state.track.applyConstraints({ advanced: [{ torch: true }] });
-      // 적용 확인 — getSettings()만 신뢰 (절대 추정 X)
-      await new Promise(r => setTimeout(r, 200));
-      const settings = this.state.track.getSettings ? this.state.track.getSettings() : {};
-      const actuallyOn = settings.torch === true;
-
-      this.state.torchOn = actuallyOn;
-      this._updateTorchUI(actuallyOn);
-      console.log('[Torch] applyConstraints 후 getSettings().torch =', actuallyOn);
-      return actuallyOn;
+      console.log('[Torch] 시도:', label, JSON.stringify(constraint));
+      await track.applyConstraints(constraint);
+      await new Promise(r => setTimeout(r, 250));
+      const settings = track.getSettings ? track.getSettings() : {};
+      console.log('[Torch] 시도 후 settings:', JSON.stringify(settings));
+      if (settings.torch === true) {
+        console.log('[Torch] ✅ 성공:', label);
+        return true;
+      }
+      // settings에 반영 안 됐어도 에러 없이 적용된 경우 (일부 기기)
+      // → 다음 단계로
+      return false;
     } catch (err) {
-      console.warn('[Torch] 실패:', err.message);
-      this.state.torchOn = false;
-      this._updateTorchUI(false);
+      console.warn('[Torch] 시도 실패:', label, err.message);
       return false;
     }
+  },
+
+  _confirmTorch(track) {
+    this.state.torchOn = true;
+    this._updateTorchUI(true);
+    return true;
+  },
+
+  _showTorchHelp() {
+    // 플래시 자동 켜기 실패 → 사용자에게 안내
+    const sub = document.getElementById('cam-sub');
+    if (sub) sub.textContent = '⚠️ 자동 플래시 실패. 어두운 곳에서도 측정 가능';
   },
 
   // === 플래시 끄기 ===
@@ -894,8 +1003,58 @@ const App = {
   },
 };
 
-// 시작
-window.addEventListener('DOMContentLoaded', () => App.init());
+// 시작 + 명시적 이벤트 바인딩 (onclick 속성 의존성 제거)
+window.addEventListener('DOMContentLoaded', () => {
+  App.init();
+
+  const btn = document.getElementById('btn-main');
+  if (btn) {
+    let lastClick = 0;
+    const handler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const now = Date.now();
+      if (now - lastClick < 300) return; // 300ms 디바운스
+      lastClick = now;
+      console.log('[Button] click — running:', App.state.running);
+      App.toggle();
+    };
+    btn.addEventListener('click', handler, true);
+  }
+
+  // 디버그 버튼들
+  const torchOnBtn = document.getElementById('dbg-torch-on');
+  const torchOffBtn = document.getElementById('dbg-torch-off');
+  const forceStopBtn = document.getElementById('dbg-force-stop');
+
+  if (torchOnBtn) torchOnBtn.addEventListener('click', async () => {
+    console.log('[DEBUG] 수동 플래시 ON 시도');
+    if (!App.state.track) {
+      alert('먼저 측정을 시작하세요 (카메라가 켜져야 함)');
+      return;
+    }
+    const ok = await App._tryEnableTorch();
+    alert(ok ? '✅ 플래시 ON 성공' : '❌ 플래시 켜기 실패\n\n콘솔에서 자세한 로그 확인');
+  });
+
+  if (torchOffBtn) torchOffBtn.addEventListener('click', async () => {
+    console.log('[DEBUG] 수동 플래시 OFF 시도');
+    await App._disableTorch();
+  });
+
+  if (forceStopBtn) forceStopBtn.addEventListener('click', async () => {
+    console.log('[DEBUG] 강제 중지 호출');
+    App._toggleLock = false; // 잠금 해제
+    await App.stop();
+    alert('강제 중지 완료. 모든 리소스 해제됨');
+  });
+
+  // running 상태 디버그 자동 갱신
+  setInterval(() => {
+    const dbg = document.getElementById('dbg-running');
+    if (dbg) dbg.textContent = String(App.state.running);
+  }, 500);
+});
 </script>
 </body>
 </html>
