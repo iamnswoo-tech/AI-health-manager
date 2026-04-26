@@ -327,7 +327,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 3</span>
+  <span class="hd-ver">v10.0 · STEP 4</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -513,7 +513,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 3 — HRV/RR/SpO2/Stress + 게이지 결과</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 4 — HRV/RR/SpO2/Stress + 게이지 결과</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
@@ -525,10 +525,10 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 //   ✅ 플래시 실제 상태만 표시 (추정 X — track.getSettings().torch만 신뢰)
 //   ✅ 30초 타이머가 멈추지 않음 (Page Visibility + setInterval)
 //   ✅ 손가락 PPG: Red 채널 추출 + 신호 표시
-//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 3에서 알고리즘)
+//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 4에서 알고리즘)
 //
-// STEP 3 (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
-// STEP 3 (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
+// STEP 4 (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
+// STEP 4 (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
 // STEP 4 (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
 // ════════════════════════════════════════════════════════════════════
 
@@ -588,7 +588,7 @@ const App = {
       : '얼굴을 화면 중앙에 맞춰주세요';
     $('cam-sub').textContent = mode === 'finger'
       ? '플래시가 자동으로 켜집니다'
-      : '얼굴 측정은 STEP 3에서 활성화';
+      : '얼굴 측정은 STEP 4에서 활성화';
     $('video').classList.toggle('front', mode === 'face');
   },
 
@@ -659,6 +659,12 @@ const App = {
       const okBtn = document.getElementById('fm-ok');
       const cancelBtn = document.getElementById('fm-cancel');
 
+      // 갤럭시 안내 강화 (Web API torch 미지원)
+      const cdText = document.getElementById('fm-cd-text');
+      cdText.innerHTML = '⚠️ <strong>중요:</strong> Galaxy 등 일부 폰은 코드로 플래시 제어 불가능합니다.<br>알림창에서 손전등을 <strong>반드시 직접 켜주세요!</strong>';
+      cdText.style.color = '#ef4444';
+      cdText.style.background = 'rgba(239,68,68,.08)';
+
       const timer = setInterval(() => {
         countdown--;
         if (countdown > 0) {
@@ -686,7 +692,7 @@ const App = {
   async start() {
     console.log('[App] start()');
 
-    // v10.0 STEP 3: 손가락 모드 플래시 안내 + 5초 준비 시간
+    // v10.0 STEP 4: 손가락 모드 플래시 안내 + 5초 준비 시간
     if (this.state.mode === 'finger') {
       const proceed = await this._showFlashGuide();
       if (!proceed) {
@@ -808,48 +814,110 @@ const App = {
     $('cam-sub').textContent = '측정 시작 버튼을 눌러주세요';
   },
 
-  // === 카메라 획득 (3단계 폴백) ===
+  // === v10 STEP 4 카메라 획득 — 후면 강제 + deviceId 직접 지정 ===
   async _acquireCamera() {
     const isFinger = this.state.mode === 'finger';
-    const constraints = isFinger ? [
-      { video: { facingMode: { exact: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30, min: 15 } } },
-      { video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } } },
-      { video: { facingMode: 'environment' } },
-    ] : [
+
+    if (isFinger) {
+      // 1) 모든 후면 카메라 enumerate
+      let backCamera = null;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videos = devices.filter(d => d.kind === 'videoinput');
+        console.log('[Camera] 사용 가능한 비디오 장치:', videos.length);
+        videos.forEach((v, i) => console.log(`  [${i}] ${v.label || '(label hidden)'} ${v.deviceId.substring(0,8)}...`));
+
+        // label에서 후면 카메라 식별 (label은 권한 후에만 보임)
+        backCamera = videos.find(v => /back|rear|환경|환경|external/i.test(v.label));
+        if (!backCamera && videos.length >= 2) {
+          // label이 안 보이면: 보통 두 번째 이상이 후면 (Android 관행)
+          backCamera = videos[videos.length - 1];
+        }
+        if (backCamera) console.log('[Camera] 후면 카메라 추정:', backCamera.label || backCamera.deviceId.substring(0,8));
+      } catch (e) { console.warn('[Camera] enumerate 실패:', e); }
+
+      // 2) 후면 강제 시도 순서 (가장 엄격 → 느슨)
+      const attempts = [];
+      // deviceId로 직접 지정 (가장 확실)
+      if (backCamera) {
+        attempts.push({ video: { deviceId: { exact: backCamera.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+        attempts.push({ video: { deviceId: { exact: backCamera.deviceId } } });
+      }
+      // facingMode exact (fps constraint 제거)
+      attempts.push({ video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+      attempts.push({ video: { facingMode: { exact: 'environment' } } });
+
+      let lastErr = null;
+      for (const c of attempts) {
+        try {
+          console.log('[Camera] 시도:', JSON.stringify(c));
+          // 권한 요청 후 enumerate 다시 시도 (label 노출용)
+          this.state.stream = await navigator.mediaDevices.getUserMedia(c);
+          const track = this.state.stream.getVideoTracks()[0];
+          const settings = track.getSettings ? track.getSettings() : {};
+          console.log('[Camera] 획득 후 settings.facingMode:', settings.facingMode);
+
+          // ★ 검증: 진짜 후면 카메라인가?
+          if (settings.facingMode === 'user') {
+            console.warn('[Camera] 전면 카메라 잡혔음 — 거부하고 다음 시도');
+            this.state.stream.getTracks().forEach(t => t.stop());
+            this.state.stream = null;
+            lastErr = new Error('전면 카메라가 반환됨');
+            continue;
+          }
+          // facingMode 정보가 아예 없으면 capabilities로 확인
+          const caps = track.getCapabilities ? track.getCapabilities() : {};
+          if (caps.facingMode && caps.facingMode.length === 1 && caps.facingMode[0] === 'user') {
+            console.warn('[Camera] capabilities에서 user 카메라로 확인 — 거부');
+            this.state.stream.getTracks().forEach(t => t.stop());
+            this.state.stream = null;
+            lastErr = new Error('전면 카메라(caps에서 확인)');
+            continue;
+          }
+
+          // 후면 카메라 확정
+          this.state.track = track;
+          $('video').srcObject = this.state.stream;
+          await new Promise((res, rej) => {
+            $('video').onloadedmetadata = () => res();
+            setTimeout(() => rej(new Error('메타데이터 타임아웃')), 5000);
+          });
+          await $('video').play();
+          await this._waitFirstFrame();
+
+          this.state.torchSupported = caps.torch === true;
+          console.log('[Camera] ✅ 후면 카메라 획득 성공. torch caps:', this.state.torchSupported);
+          return;
+        } catch (err) {
+          console.warn('[Camera] 시도 실패:', err.message || err);
+          lastErr = err;
+        }
+      }
+
+      throw new Error('후면 카메라를 사용할 수 없습니다. 권한 또는 기기 호환성을 확인해주세요.\n\n오류: ' + (lastErr?.message || ''));
+    }
+
+    // === 얼굴 모드: 전면 카메라 ===
+    const constraints = [
       { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } },
       { video: { facingMode: 'user' } },
     ];
-
     let lastErr = null;
     for (const c of constraints) {
       try {
-        console.log('[Camera] 시도:', JSON.stringify(c));
         this.state.stream = await navigator.mediaDevices.getUserMedia(c);
         this.state.track = this.state.stream.getVideoTracks()[0];
-
-        // 비디오 연결
         $('video').srcObject = this.state.stream;
         await new Promise((res, rej) => {
           $('video').onloadedmetadata = () => res();
-          setTimeout(() => rej(new Error('비디오 메타데이터 로드 타임아웃')), 5000);
+          setTimeout(() => rej(new Error('타임아웃')), 5000);
         });
         await $('video').play();
-
-        // 첫 프레임 도착 대기 (Galaxy 호환성)
         await this._waitFirstFrame();
-
-        // 캐퍼빌리티 확인
-        const caps = this.state.track.getCapabilities ? this.state.track.getCapabilities() : {};
-        this.state.torchSupported = caps.torch === true;
-
-        console.log('[Camera] 획득 성공. torch 지원:', this.state.torchSupported);
         return;
-      } catch (err) {
-        console.warn('[Camera] 시도 실패:', err.message);
-        lastErr = err;
-      }
+      } catch (err) { lastErr = err; }
     }
-    throw lastErr || new Error('카메라를 사용할 수 없습니다');
+    throw lastErr;
   },
 
   // === 첫 프레임 도착 대기 ===
@@ -928,19 +996,27 @@ const App = {
     try {
       console.log('[Torch] 시도:', label, JSON.stringify(constraint));
       await track.applyConstraints(constraint);
-      await new Promise(r => setTimeout(r, 250));
+      await new Promise(r => setTimeout(r, 300));
       const settings = track.getSettings ? track.getSettings() : {};
       console.log('[Torch] 시도 후 settings:', JSON.stringify(settings));
+
+      // ★ 전면 카메라면 토치는 절대 작동 안 함
+      if (settings.facingMode === 'user') {
+        console.warn('[Torch] 전면 카메라 → 토치 비활성화');
+        return false;
+      }
+
+      // ✅ 명확하게 true면 성공
       if (settings.torch === true) {
-        console.log('[Torch] ✅ 성공 (확인됨):', label);
+        console.log('[Torch] ✅ 성공 확인:', label);
         return true;
       }
-      // ⚠️ Galaxy S Ultra: settings.torch === undefined 이지만 실제로는 켜진 케이스
-      // 에러 없이 통과한 경우 → "성공으로 간주" (낙관적 처리)
+
+      // ⚠️ undefined: 실제 작동 여부 알 수 없음 → "false"로 간주
+      // (이전엔 true로 간주했지만 사용자 보고로 잘못된 결정이었음)
       if (settings.torch === undefined) {
-        console.log('[Torch] ⚠️ settings.torch=undefined — 에러 없이 통과. 켜진 것으로 간주:', label);
-        // 사용자에게 시각적 신호: 카메라 화면이 빨갛게 변하면 켜진 것
-        return true;
+        console.warn('[Torch] settings.torch=undefined — Web API 미지원. 사용자가 수동으로 켜야 함');
+        return false;
       }
       return false;
     } catch (err) {
@@ -1052,10 +1128,23 @@ const App = {
       $('cam-msg').textContent = '✅ 측정 완료';
       $('cam-sub').textContent = `결과 패널을 확인하세요`;
     } else {
-      // ⚠️ 측정 실패
-      $('hr-state').textContent = '⚠️ 측정 실패 — 재측정 필요';
-      $('cam-msg').textContent = '⚠️ 측정 신뢰도 부족';
-      $('cam-sub').textContent = '손가락을 더 잘 밀착하고 다시 시도해주세요';
+      // ⚠️ 측정 실패 - 사유별 안내
+      const reasonMsg = {
+        'flash_off': '🔦 플래시가 꺼진 상태로 측정되었습니다.\n\n알림창에서 손전등을 ON 한 뒤 다시 측정해주세요.',
+        'no_variation': '신호 변동이 거의 없습니다.\n\n손가락을 카메라+플래시 위에 정확히 올려주세요.',
+        'no_valid_channel': '카메라 채널에 유효한 신호가 없습니다.\n\n손가락 위치 또는 플래시를 확인해주세요.',
+        'signal_too_weak': '신호가 너무 약합니다.\n\n손가락을 더 정확히 밀착해주세요.',
+        'low_snr': 'PPG 신호 품질이 낮습니다.\n\n움직이지 말고 다시 측정해주세요.',
+        'boundary_artifact': '심박수가 범위 경계에 박혀있습니다.\n\n손가락+플래시 접촉 상태가 좋지 않을 수 있습니다.',
+        'out_of_range': '심박수가 정상 범위를 벗어났습니다.\n\n다시 측정해주세요.',
+        'insufficient_data': '데이터가 부족합니다. (50초 측정 필요)',
+      }[result.reason] || '측정에 실패했습니다.';
+
+      $('hr-state').textContent = '⚠️ 측정 실패';
+      $('cam-msg').textContent = '⚠️ 측정 실패';
+      $('cam-sub').textContent = '아래 안내 확인';
+
+      setTimeout(() => alert('측정 실패\n\n' + reasonMsg), 800);
     }
 
     // 2초 후 자동 중지 (결과 보여주기)
@@ -1070,11 +1159,31 @@ const App = {
     document.querySelectorAll('.r-panel').forEach(p => p.classList.toggle('on', p.dataset.panel === tab));
   },
 
-  // === 모든 지표 계산 (30초 데이터 기반) ===
+  // === 모든 지표 계산 (50초 데이터 기반) ===
   _computeAllMetrics() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
-    if (samples.length < sr * 10) return { hr: null, sqi: 0 };
+    if (samples.length < sr * 10) return { hr: null, sqi: 0, reason: 'insufficient_data' };
+
+    // ★ 데이터 품질 사전 검증 — 측정 전체 기간 동안 손가락+플래시가 유지되었는가
+    const allReds = samples.map(s => s.r);
+    const avgReds = allReds.reduce((a,b)=>a+b,0) / allReds.length;
+    const minReds = Math.min(...allReds);
+    const maxReds = Math.max(...allReds);
+
+    console.log('[Quality] 전체 R: avg=', avgReds.toFixed(1), 'min=', minReds.toFixed(1), 'max=', maxReds.toFixed(1));
+
+    // 평균 R이 100 미만 = 플래시 없거나 손가락 부족
+    if (avgReds < 100) {
+      console.warn('[Quality] avgR <', 100, '— 플래시 OFF 상태로 측정됨');
+      return { hr: null, sqi: 0, reason: 'flash_off' };
+    }
+
+    // 변동폭이 너무 작음 = 신호 없음
+    if (maxReds - minReds < 3) {
+      console.warn('[Quality] 변동 부족');
+      return { hr: null, sqi: 0, reason: 'no_variation' };
+    }
 
     // === 채널 자동 선택 ===
     const reds = samples.map(s => s.r);
@@ -1084,7 +1193,7 @@ const App = {
     const avgG = greens.reduce((a,b)=>a+b,0)/greens.length;
     const avgB = blues.reduce((a,b)=>a+b,0)/blues.length;
 
-    // === v10.0 STEP 3 채널 선택: 변동성(std) 기반 ===
+    // === v10.0 STEP 4 채널 선택: 변동성(std) 기반 ===
     // 평균값이 아닌 "신호 변동성"으로 판단 — 진짜 PPG 신호가 있는 채널 선택
     function stdOf(arr) {
       const m = arr.reduce((a,b)=>a+b,0) / arr.length;
@@ -1112,7 +1221,7 @@ const App = {
     console.log('[Channel] 선택:', channel, 'std:', candidates[0].std.toFixed(2));
 
     // === 1. HR 계산 (Goertzel FFT, 마지막 20초) ===
-    // === v10.0 STEP 3 HR 산출 — 엄격한 검증 ===
+    // === v10.0 STEP 4 HR 산출 — 엄격한 검증 ===
     // 마지막 25초 사용 (긴 윈도우 = 더 정확한 주파수 분해능)
     const winN = Math.min(sr * 25, signal.length);
     const sig = signal.slice(-winN);
@@ -1132,7 +1241,7 @@ const App = {
     }
 
     // 4. Goertzel FFT 피크 검색
-    const { freq: hrHz, snr } = this._goertzelPeak(filtered, sr, 40/60, 200/60);
+    const { freq: hrHz, snr } = this._goertzelPeak(filtered, sr, 45/60, 180/60);
     console.log('[HR] Goertzel: freq=', hrHz.toFixed(2), 'Hz =', Math.round(hrHz*60), 'bpm, SNR=', snr.toFixed(2));
 
     // 5. ★ 엄격한 검증: SNR + 적정 범위
@@ -1281,7 +1390,10 @@ const App = {
         'low_snr': 'SNR 부족',
         'boundary_artifact': '경계 노이즈',
         'out_of_range': '범위 벗어남',
-      }[reason] || '데이터 부족';
+        'flash_off': '플래시 OFF',
+        'no_variation': '변동 부족',
+        'insufficient_data': '데이터 부족',
+      }[reason] || '측정 실패';
       setBadge('r-hr-badge', reasonText, 'bad');
     }
     // RR
@@ -1480,8 +1592,8 @@ const App = {
     if (this.state.mode === 'finger') {
       this._processFingerFrame(video, vw, vh);
     } else {
-      // STEP 3에서 rPPG 알고리즘 추가
-      $('cam-msg').textContent = '얼굴 측정은 STEP 3에서 활성화 예정';
+      // STEP 4에서 rPPG 알고리즘 추가
+      $('cam-msg').textContent = '얼굴 측정은 STEP 4에서 활성화 예정';
     }
 
     this.state.rafId = requestAnimationFrame(() => this._processFrame());
@@ -1489,15 +1601,16 @@ const App = {
 
   // === 손가락 프레임 처리 ===
   _processFingerFrame(video, vw, vh) {
-    // 중앙 100x100 ROI에서 RGB 평균 추출
+    // ROI 크기를 영상 비율에 맞춰 (100x100 고정 → 더 큰 ROI = 더 안정)
+    const roiSize = Math.min(150, Math.floor(Math.min(vw, vh) * 0.4));
     const cv = this._cv;
     cv.width = vw; cv.height = vh;
     const ctx = cv.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(video, 0, 0, vw, vh);
 
-    const sx = Math.floor(vw / 2 - 50);
-    const sy = Math.floor(vh / 2 - 50);
-    const data = ctx.getImageData(sx, sy, 100, 100).data;
+    const sx = Math.floor(vw / 2 - roiSize / 2);
+    const sy = Math.floor(vh / 2 - roiSize / 2);
+    const data = ctx.getImageData(sx, sy, roiSize, roiSize).data;
 
     let r = 0, g = 0, b = 0;
     const N = data.length / 4;
@@ -1557,11 +1670,23 @@ const App = {
       }
     }
 
-    // 0~30: 미접촉, 30~80: 접촉 약함, 80~200: 정상, 200+: 너무 세게
+    // === 손가락 + 플래시 접촉 판정 ===
+    // 핵심: avgR이 충분히 높아야 측정 가능
+    // - 어두운 곳 + 플래시 OFF + 손가락: avgR 5~50 (실패)
+    // - 플래시 ON + 손가락 정상 접촉: avgR 200+ (성공)
+
+    // 후면카메라 + 손가락 떼짐 (어두운 화면): avgR < 30
     if (r < 30) {
       this._setSqi(0, 'var(--danger)', '🚫 손가락이 감지되지 않습니다');
       camMsg.textContent = '📱 손가락을 후면 카메라에 올려주세요';
-      camSub.textContent = '카메라 렌즈를 완전히 덮어주세요';
+      camSub.textContent = '플래시도 함께 덮어주세요';
+      return;
+    }
+    // 플래시 OFF 상태 + 손가락 (어두운 빨강) — 측정 불가
+    if (r < 100 && g < 50) {
+      this._setSqi(15, 'var(--warn)', '🔦 플래시가 꺼져있는 것 같습니다');
+      camMsg.textContent = '🔦 플래시(손전등)를 켜주세요';
+      camSub.textContent = '알림창을 내려서 손전등 ON';
       return;
     }
     if (r > 250 && g > 250) {
@@ -1591,7 +1716,7 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === HR 추정 v10.0 STEP 3 — 채널 자동 선택 + FFT 기반 ===
+  // === HR 추정 v10.0 STEP 4 — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
@@ -1675,7 +1800,7 @@ const App = {
 
     let bestFreq = 0, bestPower = 0, totalPower = 0;
     const candidates = [];
-    for (let bpm = 40; bpm <= 200; bpm += 1) {
+    for (let bpm = 45; bpm <= 180; bpm += 1) {
       const freq = bpm / 60;
       const power = goertzel(filtered, sr, freq);
       candidates.push({ bpm, power });
