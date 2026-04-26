@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v10 STEP 1c",
-  "short_name": "건강측정 v10c",
-  "description": "v10.0 STEP 1c — Goertzel FFT + 자동 완료 + 채널 자동 선택",
+  "name": "건강 측정 v10 STEP 2",
+  "short_name": "건강측정 v10s2",
+  "description": "v10.0 STEP 2 — HRV·호흡수·SpO2·스트레스 + Anura 게이지 UI",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

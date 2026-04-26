@@ -158,6 +158,105 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   60% { transform: scale(1.08); }
 }
 
+@keyframes pulseResult {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16,185,129,.5); }
+  50% { transform: scale(1.03); box-shadow: 0 0 0 12px rgba(16,185,129,0); }
+}
+
+/* === 플래시 안내 모달 === */
+.flash-modal {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.85); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; animation: fadeIn .2s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.flash-modal-card {
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: 18px; padding: 24px 22px;
+  max-width: 380px; width: 100%;
+  box-shadow: 0 12px 48px rgba(0,0,0,.6);
+}
+.flash-modal-icon { font-size: 48px; text-align: center; margin-bottom: 8px; }
+.flash-modal-title { font-size: 19px; font-weight: 800; text-align: center; color: var(--text); margin-bottom: 16px; }
+.flash-modal-step {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 10px 12px; margin-bottom: 8px;
+  background: var(--bg2); border-radius: 10px;
+}
+.step-num {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-weight: 800; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.step-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+.step-text strong { color: var(--text); }
+.step-text small { color: var(--muted); font-size: 11px; }
+.flash-modal-countdown {
+  text-align: center; padding: 10px;
+  font-size: 13px; color: var(--muted); font-weight: 600;
+  margin: 12px 0; background: rgba(245,158,11,.08); border-radius: 8px;
+}
+.flash-modal-btns { display: flex; gap: 8px; }
+.fm-btn {
+  flex: 1; padding: 12px; border-radius: 10px;
+  font-family: var(--sans); font-size: 14px; font-weight: 700;
+  cursor: pointer; border: none;
+}
+.fm-btn.cancel { background: transparent; border: 1.5px solid var(--border2); color: var(--text2); }
+.fm-btn.ok {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,.4);
+}
+.fm-btn:active { transform: scale(.97); }
+
+/* === 결과 패널 (반원 게이지 카드) === */
+.result-panel {
+  margin: 14px 16px 0; padding: 14px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: none;
+}
+.result-panel.show { display: block; animation: slideUp .3s ease; }
+@keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.result-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.result-title-text { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: .03em; text-transform: uppercase; }
+.result-grade { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: var(--bg2); }
+.result-grade.A { background: rgba(16,185,129,.15); color: var(--green); }
+.result-grade.B { background: rgba(59,130,246,.15); color: var(--accent2); }
+.result-grade.C { background: rgba(245,158,11,.15); color: var(--warn); }
+.result-grade.D { background: rgba(239,68,68,.15); color: var(--danger); }
+
+.result-tabs { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.r-tab {
+  flex: 1; padding: 10px 6px;
+  background: none; border: none;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.r-tab.on { color: var(--accent2); border-bottom-color: var(--accent); font-weight: 800; }
+
+.r-panel { display: none; }
+.r-panel.on { display: block; }
+.r-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.r-gauge-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; text-align: center; }
+.r-gauge-card.wide { grid-column: 1/-1; }
+.rg-label { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .07em; margin-bottom: 6px; }
+.rg-svg { width: 100%; max-width: 140px; display: block; margin: 0 auto; }
+.rg-range { font-size: 10px; color: var(--muted); margin-top: 2px; display: flex; justify-content: space-between; padding: 0 6px; }
+.rg-badge { font-size: 11px; font-weight: 700; margin-top: 4px; padding: 2px 10px; border-radius: 10px; display: inline-block; }
+.rg-badge.normal { background: rgba(16,185,129,.15); color: var(--green); }
+.rg-badge.high   { background: rgba(245,158,11,.15); color: var(--warn); }
+.rg-badge.low    { background: rgba(245,158,11,.15); color: var(--warn); }
+.rg-badge.bad    { background: rgba(239,68,68,.15); color: var(--danger); }
+.rg-badge.wait   { background: var(--bg); color: var(--muted); }
+
+
 /* CONTROL BUTTON */
 .controls { padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 .btn-main {
@@ -228,7 +327,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 1c</span>
+  <span class="hd-ver">v10.0 · STEP 2</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -307,6 +406,95 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   <div style="font-size:10px;color:var(--muted);margin-top:6px">디버그 콘솔: 위 버튼으로 직접 테스트 가능</div>
 </div>
 
+<!-- 결과 패널 (Anura 스타일 반원 게이지) -->
+<div class="result-panel" id="result-panel">
+  <div class="result-title">
+    <span class="result-title-text">📊 측정 결과</span>
+    <span class="result-grade" id="result-grade">-</span>
+  </div>
+  <div class="result-tabs">
+    <button class="r-tab on" data-tab="vitals" type="button" onclick="App.switchResultTab('vitals')">VITALS</button>
+    <button class="r-tab" data-tab="mental" type="button" onclick="App.switchResultTab('mental')">MENTAL</button>
+  </div>
+
+  <!-- VITALS -->
+  <div class="r-panel on" data-panel="vitals">
+    <div class="r-grid">
+      <!-- HR -->
+      <div class="r-gauge-card">
+        <div class="rg-label">❤️ HEART RATE</div>
+        <svg class="rg-svg" viewBox="0 0 200 110">
+          <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+          <path id="r-hr-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-hr)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+          <defs><linearGradient id="g-hr"><stop offset="0%" stop-color="#ef4444"/><stop offset="50%" stop-color="#f59e0b"/><stop offset="80%" stop-color="#10b981"/></linearGradient></defs>
+          <text id="r-hr-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
+          <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">bpm</text>
+        </svg>
+        <div class="rg-range"><span>40</span><span>200</span></div>
+        <span class="rg-badge wait" id="r-hr-badge">대기</span>
+      </div>
+      <!-- RR -->
+      <div class="r-gauge-card">
+        <div class="rg-label">🫁 BREATHING</div>
+        <svg class="rg-svg" viewBox="0 0 200 110">
+          <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+          <path id="r-rr-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-rr)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+          <defs><linearGradient id="g-rr"><stop offset="0%" stop-color="#ef4444"/><stop offset="50%" stop-color="#10b981"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs>
+          <text id="r-rr-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
+          <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">bpm</text>
+        </svg>
+        <div class="rg-range"><span>8</span><span>30</span></div>
+        <span class="rg-badge wait" id="r-rr-badge">대기</span>
+      </div>
+      <!-- SpO2 -->
+      <div class="r-gauge-card wide">
+        <div class="rg-label">💧 SpO₂ (산소포화도)</div>
+        <svg class="rg-svg" viewBox="0 0 200 110">
+          <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+          <path id="r-sp-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-sp)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+          <defs><linearGradient id="g-sp"><stop offset="0%" stop-color="#ef4444"/><stop offset="40%" stop-color="#f59e0b"/><stop offset="70%" stop-color="#10b981"/></linearGradient></defs>
+          <text id="r-sp-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
+          <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">%</text>
+        </svg>
+        <div class="rg-range"><span>90</span><span>100</span></div>
+        <span class="rg-badge wait" id="r-sp-badge">대기</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENTAL -->
+  <div class="r-panel" data-panel="mental">
+    <div class="r-grid">
+      <!-- HRV -->
+      <div class="r-gauge-card wide">
+        <div class="rg-label">💓 HRV (RMSSD)</div>
+        <svg class="rg-svg" viewBox="0 0 200 110">
+          <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+          <path id="r-hv-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-hv)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+          <defs><linearGradient id="g-hv"><stop offset="0%" stop-color="#ef4444"/><stop offset="40%" stop-color="#f59e0b"/><stop offset="70%" stop-color="#10b981"/></linearGradient></defs>
+          <text id="r-hv-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
+          <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">ms</text>
+        </svg>
+        <div class="rg-range"><span>15</span><span>60</span></div>
+        <span class="rg-badge wait" id="r-hv-badge">대기</span>
+      </div>
+      <!-- 스트레스 지수 -->
+      <div class="r-gauge-card wide">
+        <div class="rg-label">🧠 STRESS INDEX</div>
+        <svg class="rg-svg" viewBox="0 0 200 110">
+          <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+          <path id="r-st-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-st)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
+          <defs><linearGradient id="g-st"><stop offset="0%" stop-color="#10b981"/><stop offset="50%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs>
+          <text id="r-st-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
+          <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">/100</text>
+        </svg>
+        <div class="rg-range"><span style="color:#10b981">이완</span><span style="color:#f59e0b">보통</span><span style="color:#ef4444">스트레스</span></div>
+        <span class="rg-badge wait" id="r-st-badge">대기</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 시작 버튼 -->
 <div class="controls">
   <button class="btn-main" id="btn-main" type="button">
@@ -325,7 +513,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 1c — Goertzel FFT + 자동완료</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 2 — HRV/RR/SpO2/Stress + 게이지 결과</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
@@ -431,22 +619,77 @@ const App = {
     }
   },
 
+  // === 플래시 안내 모달 (5초 카운트다운) ===
+  async _showFlashGuide() {
+    return new Promise(resolve => {
+      const modal = document.createElement('div');
+      modal.className = 'flash-modal';
+      modal.innerHTML = `
+        <div class="flash-modal-card">
+          <div class="flash-modal-icon">🔦</div>
+          <div class="flash-modal-title">손가락 측정 준비</div>
+          <div class="flash-modal-step">
+            <span class="step-num">1</span>
+            <div class="step-text"><strong>휴대폰 플래시(손전등)를 켜주세요</strong><br>
+            <small>알림창을 내려서 손전등 아이콘 ON</small></div>
+          </div>
+          <div class="flash-modal-step">
+            <span class="step-num">2</span>
+            <div class="step-text"><strong>검지손가락으로 후면 카메라+플래시 함께 덮기</strong><br>
+            <small>너무 세게 누르지 마세요</small></div>
+          </div>
+          <div class="flash-modal-step">
+            <span class="step-num">3</span>
+            <div class="step-text"><strong>30초 동안 가만히 유지</strong><br>
+            <small>움직이면 측정이 부정확해집니다</small></div>
+          </div>
+          <div class="flash-modal-countdown" id="fm-cd-text">
+            준비되면 [측정 시작] 버튼을 누르세요
+          </div>
+          <div class="flash-modal-btns">
+            <button class="fm-btn cancel" id="fm-cancel">취소</button>
+            <button class="fm-btn ok" id="fm-ok">측정 시작 (5초 후 자동)</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      let countdown = 5;
+      const cdText = document.getElementById('fm-cd-text');
+      const okBtn = document.getElementById('fm-ok');
+      const cancelBtn = document.getElementById('fm-cancel');
+
+      const timer = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          okBtn.textContent = `측정 시작 (${countdown}초 후 자동)`;
+          cdText.textContent = `🔦 플래시를 켜주세요 — ${countdown}초 후 자동 시작`;
+          cdText.style.color = '#f59e0b';
+        } else {
+          clearInterval(timer);
+          cleanup(true);
+        }
+      }, 1000);
+
+      const cleanup = (ok) => {
+        clearInterval(timer);
+        modal.remove();
+        resolve(ok);
+      };
+
+      okBtn.addEventListener('click', () => cleanup(true));
+      cancelBtn.addEventListener('click', () => cleanup(false));
+    });
+  },
+
   // === 측정 시작 ===
   async start() {
     console.log('[App] start()');
 
-    // v10.0 STEP 1c: 손가락 모드는 플래시 안내 후 진행
+    // v10.0 STEP 2: 손가락 모드 플래시 안내 + 5초 준비 시간
     if (this.state.mode === 'finger') {
-      const ok = confirm(
-        '🔦 손가락 측정 안내\n\n' +
-        '정확한 측정을 위해 다음을 확인해주세요:\n\n' +
-        '1️⃣ 휴대폰 플래시(손전등)를 미리 켜주세요\n' +
-        '   (알림창 아래로 내려서 손전등 ON)\n\n' +
-        '2️⃣ 검지 손가락으로 후면 카메라 + 플래시를 함께 덮어주세요\n\n' +
-        '3️⃣ 30초 동안 가만히 유지하세요\n\n' +
-        '준비되었으면 [확인]을 누르세요'
-      );
-      if (!ok) {
+      const proceed = await this._showFlashGuide();
+      if (!proceed) {
         console.log('[App] 사용자가 시작을 취소함');
         return;
       }
@@ -470,6 +713,9 @@ const App = {
       this._autoFinalized = false;
       this._lastHR = null;
       this._lastSQI = 0;
+      // 결과 패널 숨기기
+      const rp = $('result-panel');
+      if (rp) rp.classList.remove('show');
 
       // 4. UI 변경
       $('btn-main').classList.add('stop');
@@ -779,55 +1025,288 @@ const App = {
     $('dbg-elapsed').textContent = elapsed.toFixed(1);
   },
 
-  // === 측정 완료 처리 (30초 자동 또는 수동 중지) ===
+  // === 측정 완료 처리 (30초 자동) ===
   async _finalizeMeasurement() {
-    console.log('[App] _finalizeMeasurement() — HR:', this._lastHR, 'SQI:', this._lastSQI);
+    console.log('[App] _finalizeMeasurement()');
 
-    const finalHR = this._lastHR || null;
-    const sqi = this._lastSQI || 0;
+    // 30초 데이터로 모든 지표 계산
+    const result = this._computeAllMetrics();
+    console.log('[App] 결과:', result);
 
-    // 진동 알림 먼저 (사용자에게 명확한 신호)
+    // 진동 알림
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
-    if (finalHR && finalHR >= 40 && finalHR <= 200 && sqi >= 30) {
-      // ✅ 정상 측정 결과
-      $('hr-num').textContent = finalHR;
-      $('hr-state').textContent = `✅ 측정 완료 · 신뢰도 ${sqi}%`;
+    if (result.hr) {
+      // ✅ 정상 측정 — 게이지로 표시
+      this._displayResults(result);
+      $('hr-num').textContent = result.hr;
+      $('hr-state').textContent = `✅ 측정 완료 · 신뢰도 ${result.sqi}%`;
       $('cam-msg').textContent = '✅ 측정 완료';
-      $('cam-sub').textContent = `심박수 ${finalHR} bpm · 신뢰도 ${sqi}%`;
-
-      // 결과 알림 박스 표시
-      setTimeout(() => {
-        alert(
-          `✅ 측정 완료\n\n` +
-          `심박수: ${finalHR} bpm\n` +
-          `신뢰도: ${sqi}%\n` +
-          `측정 시간: 30초\n\n` +
-          `정확한 측정을 위해 3회 평균을 권장합니다.`
-        );
-      }, 500);
+      $('cam-sub').textContent = `결과 패널을 확인하세요`;
     } else {
-      // ⚠️ 신뢰도 부족 또는 측정 실패
+      // ⚠️ 측정 실패
       $('hr-state').textContent = '⚠️ 측정 실패 — 재측정 필요';
       $('cam-msg').textContent = '⚠️ 측정 신뢰도 부족';
       $('cam-sub').textContent = '손가락을 더 잘 밀착하고 다시 시도해주세요';
-      setTimeout(() => {
-        alert(
-          `⚠️ 측정 실패\n\n` +
-          `심박수를 정확히 추출하지 못했습니다.\n\n` +
-          `다음을 확인해주세요:\n` +
-          `• 플래시(손전등)가 켜져 있는지\n` +
-          `• 손가락이 카메라+플래시를 완전히 덮는지\n` +
-          `• 너무 세게 누르지 않았는지\n` +
-          `• 측정 중 움직이지 않았는지`
-        );
-      }, 500);
     }
 
-    // 결과 표시 후 1.5초 뒤 자동 중지
+    // 2초 후 자동 중지 (결과 보여주기)
     setTimeout(async () => {
       await this.stop();
-    }, 1500);
+    }, 2000);
+  },
+
+  // === 결과 탭 전환 ===
+  switchResultTab(tab) {
+    document.querySelectorAll('.r-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+    document.querySelectorAll('.r-panel').forEach(p => p.classList.toggle('on', p.dataset.panel === tab));
+  },
+
+  // === 모든 지표 계산 (30초 데이터 기반) ===
+  _computeAllMetrics() {
+    const sr = this.config.targetSR;
+    const samples = this.state.samples;
+    if (samples.length < sr * 10) return { hr: null, sqi: 0 };
+
+    // === 채널 자동 선택 ===
+    const reds = samples.map(s => s.r);
+    const greens = samples.map(s => s.g);
+    const blues = samples.map(s => s.b);
+    const avgR = reds.reduce((a,b)=>a+b,0)/reds.length;
+    const avgG = greens.reduce((a,b)=>a+b,0)/greens.length;
+    const avgB = blues.reduce((a,b)=>a+b,0)/blues.length;
+
+    let signal, channel;
+    if (avgR > 245 && avgG > 5 && avgG < 245) { signal = greens; channel = 'G'; }
+    else if (avgR > 245 && avgB > 5 && avgB < 245) { signal = blues; channel = 'B'; }
+    else if (avgR < 245) { signal = reds; channel = 'R'; }
+    else return { hr: null, sqi: 0 };
+
+    // === 1. HR 계산 (Goertzel FFT, 마지막 20초) ===
+    const winN = Math.min(sr * 20, signal.length);
+    const sig = signal.slice(-winN);
+    const filtered = this._bandpass(sig, sr, 0.7, 3.0);
+    const { freq: hrHz, snr } = this._goertzelPeak(filtered, sr, 40/60, 200/60);
+    const hr = hrHz > 0 ? Math.round(hrHz * 60) : null;
+
+    if (!hr || snr < 2.0) return { hr: null, sqi: 0 };
+
+    // === 2. RR 간격 추출 (피크 검출) ===
+    const peaks = this._detectPeaks(filtered, sr);
+    const rrIntervals = [];
+    for (let i = 1; i < peaks.length; i++) {
+      const ms = (peaks[i] - peaks[i-1]) / sr * 1000;
+      if (ms > 300 && ms < 1500) rrIntervals.push(ms);
+    }
+
+    // === 3. HRV (RMSSD) ===
+    let rmssd = null;
+    if (rrIntervals.length >= 4) {
+      let sumSq = 0, n = 0;
+      for (let i = 1; i < rrIntervals.length; i++) {
+        sumSq += (rrIntervals[i] - rrIntervals[i-1]) ** 2;
+        n++;
+      }
+      rmssd = Math.round(Math.sqrt(sumSq / n));
+    }
+
+    // === 4. 호흡수 (RR 변동의 저주파 성분) ===
+    let respRate = null;
+    if (samples.length >= sr * 25) {
+      const respFiltered = this._bandpass(sig, sr, 0.13, 0.5);
+      const respPeak = this._goertzelPeak(respFiltered, sr, 8/60, 30/60);
+      if (respPeak.snr > 1.4) {
+        respRate = Math.round(respPeak.freq * 60);
+      }
+    }
+
+    // === 5. SpO2 추정 (R/R 비율, 손가락 모드만) ===
+    let spo2 = null;
+    if (channel === 'R' || channel === 'G') {
+      // R AC/DC vs G AC/DC 비율 (단순 추정)
+      const rDC = avgR, rAC = this._stdDev(reds);
+      const gDC = avgG, gAC = this._stdDev(greens);
+      if (rDC > 50 && gDC > 5 && rAC > 0.5 && gAC > 0.5) {
+        const ratio = (rAC/rDC) / (gAC/gDC);
+        // 일반 PPG 공식: SpO2 = 110 - 25 × R (R = (AC_R/DC_R)/(AC_IR/DC_IR))
+        // G를 IR 대용으로 (정확도 낮지만 추정용)
+        spo2 = Math.round(110 - 18 * ratio);
+        spo2 = Math.max(85, Math.min(100, spo2));
+      }
+    }
+
+    // === 6. 스트레스 지수 (HRV 기반 단순 추정) ===
+    // 정상 RMSSD: 25~50ms. 낮을수록 스트레스 ↑
+    let stressIdx = null;
+    if (rmssd) {
+      // RMSSD 60ms = 0점 (이완), 10ms = 100점 (고스트레스)
+      stressIdx = Math.round(Math.max(0, Math.min(100, (60 - rmssd) * 2)));
+    }
+
+    // === 7. SQI ===
+    const sqi = Math.min(100, Math.round((snr - 1) * 50));
+
+    return {
+      hr, rmssd, respRate, spo2, stressIdx, sqi, channel, snr,
+      sampleCount: samples.length, peakCount: peaks.length
+    };
+  },
+
+  // === 결과를 게이지 패널에 표시 ===
+  _displayResults(r) {
+    const panel = $('result-panel');
+    panel.classList.add('show');
+
+    const setArc = (id, val, min, max, invert=false) => {
+      const arc = $(id);
+      if (!arc || val == null) return;
+      let pct = (val - min) / (max - min);
+      pct = Math.max(0, Math.min(1, pct));
+      if (invert) pct = 1 - pct;
+      arc.style.strokeDashoffset = String(283 - pct * 283);
+    };
+    const setBadge = (id, label, cls) => {
+      const el = $(id);
+      if (!el) return;
+      el.textContent = label;
+      el.className = 'rg-badge ' + cls;
+    };
+
+    // HR
+    if (r.hr) {
+      $('r-hr-val').textContent = r.hr;
+      setArc('r-hr-arc', r.hr, 40, 200);
+      const hrCls = r.hr<60?'low':r.hr<=100?'normal':r.hr<=120?'high':'bad';
+      const hrLbl = r.hr<60?'서맥':r.hr<=100?'정상':r.hr<=120?'약간높음':'높음';
+      setBadge('r-hr-badge', hrLbl, hrCls);
+    }
+    // RR
+    if (r.respRate) {
+      $('r-rr-val').textContent = r.respRate;
+      setArc('r-rr-arc', r.respRate, 8, 30);
+      const rrCls = r.respRate<12?'low':r.respRate<=20?'normal':'high';
+      const rrLbl = r.respRate<12?'느림':r.respRate<=20?'정상':'빠름';
+      setBadge('r-rr-badge', rrLbl, rrCls);
+    } else {
+      $('r-rr-val').textContent = '--';
+      setBadge('r-rr-badge', '데이터 부족', 'wait');
+    }
+    // SpO2
+    if (r.spo2) {
+      $('r-sp-val').textContent = r.spo2;
+      setArc('r-sp-arc', r.spo2, 85, 100);
+      const spCls = r.spo2>=95?'normal':r.spo2>=92?'high':'bad';
+      const spLbl = r.spo2>=95?'정상':r.spo2>=92?'주의':'낮음';
+      setBadge('r-sp-badge', spLbl, spCls);
+    } else {
+      $('r-sp-val').textContent = '--';
+      setBadge('r-sp-badge', '추정 불가', 'wait');
+    }
+    // HRV
+    if (r.rmssd) {
+      $('r-hv-val').textContent = r.rmssd;
+      setArc('r-hv-arc', r.rmssd, 15, 60);
+      const hvCls = r.rmssd<20?'bad':r.rmssd<35?'high':'normal';
+      const hvLbl = r.rmssd<20?'스트레스':r.rmssd<35?'보통':'이완';
+      setBadge('r-hv-badge', hvLbl, hvCls);
+    } else {
+      $('r-hv-val').textContent = '--';
+      setBadge('r-hv-badge', '피크 부족', 'wait');
+    }
+    // 스트레스
+    if (r.stressIdx != null) {
+      $('r-st-val').textContent = r.stressIdx;
+      setArc('r-st-arc', r.stressIdx, 0, 100);
+      const stCls = r.stressIdx<35?'normal':r.stressIdx<60?'high':'bad';
+      const stLbl = r.stressIdx<35?'이완':r.stressIdx<60?'보통':'스트레스';
+      setBadge('r-st-badge', stLbl, stCls);
+    } else {
+      $('r-st-val').textContent = '--';
+      setBadge('r-st-badge', '데이터 부족', 'wait');
+    }
+
+    // 종합 등급
+    let score = 100;
+    if (r.hr) {
+      if (r.hr<50||r.hr>120) score -= 20;
+      else if (r.hr<60||r.hr>100) score -= 8;
+    }
+    if (r.rmssd && r.rmssd<20) score -= 18;
+    if (r.stressIdx && r.stressIdx>70) score -= 15;
+    score = Math.max(0, Math.min(100, score));
+    const grade = score>=85?'A':score>=70?'B':score>=50?'C':'D';
+    const gEl = $('result-grade');
+    gEl.textContent = `${grade} · ${score}점`;
+    gEl.className = 'result-grade ' + grade;
+  },
+
+  // === 헬퍼: 표준편차 ===
+  _stdDev(arr) {
+    const m = arr.reduce((a,b)=>a+b,0)/arr.length;
+    return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length);
+  },
+
+  // === 헬퍼: 이동평균 BPF ===
+  _bandpass(sig, sr, loHz, hiHz) {
+    const w1 = Math.max(2, Math.round(sr / hiHz));
+    const w2 = Math.max(w1+1, Math.round(sr / loHz));
+    const movAvg = (x, win) => {
+      const out = new Array(x.length).fill(0);
+      let sum = 0; const buf = new Array(win).fill(0); let idx = 0;
+      for (let i = 0; i < x.length; i++) {
+        const v = isFinite(x[i]) ? x[i] : 0;
+        sum += v - buf[idx]; buf[idx] = v; idx = (idx + 1) % win;
+        out[i] = sum / win;
+      }
+      return out;
+    };
+    const ma1 = movAvg(sig, w1);
+    const ma2 = movAvg(sig, w2);
+    return ma1.map((v, i) => v - ma2[i]);
+  },
+
+  // === 헬퍼: Goertzel 피크 찾기 ===
+  _goertzelPeak(sig, sr, loHz, hiHz) {
+    const goertzel = (x, sr, freq) => {
+      const k = freq * x.length / sr;
+      const w = 2 * Math.PI * k / x.length;
+      const cosw = Math.cos(w), coeff = 2 * cosw;
+      let q1 = 0, q2 = 0, q0;
+      for (let i = 0; i < x.length; i++) {
+        q0 = coeff * q1 - q2 + x[i];
+        q2 = q1; q1 = q0;
+      }
+      return q1*q1 + q2*q2 - q1*q2*coeff;
+    };
+    let bestF = 0, bestP = 0, total = 0, count = 0;
+    const startBPM = Math.round(loHz * 60);
+    const endBPM = Math.round(hiHz * 60);
+    for (let bpm = startBPM; bpm <= endBPM; bpm += 1) {
+      const f = bpm / 60;
+      const p = goertzel(sig, sr, f);
+      total += p; count++;
+      if (p > bestP) { bestP = p; bestF = f; }
+    }
+    const avg = total / count;
+    return { freq: bestF, snr: bestP / Math.max(avg, 1e-9), power: bestP };
+  },
+
+  // === 헬퍼: 피크 검출 ===
+  _detectPeaks(sig, sr) {
+    const std = this._stdDev(sig);
+    const thr = std * 0.35;
+    const minDist = Math.round(sr * 0.4);
+    const peaks = [];
+    let lastIdx = -minDist;
+    for (let i = 1; i < sig.length - 1; i++) {
+      if (sig[i] > thr && sig[i] > sig[i-1] && sig[i] > sig[i+1]) {
+        if (i - lastIdx >= minDist) {
+          peaks.push(i);
+          lastIdx = i;
+        }
+      }
+    }
+    return peaks;
   },
 
   // === 결과 알림 (시각적 강조) ===
@@ -995,7 +1474,7 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === HR 추정 v10.0 STEP 1c — 채널 자동 선택 + FFT 기반 ===
+  // === HR 추정 v10.0 STEP 2 — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
