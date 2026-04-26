@@ -398,6 +398,22 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
 /* 측정 중 Anura 페이스 오버레이 (얼굴 rPPG) */
 .face-ppg-pulse{position:absolute;border-radius:50%;border:3px solid rgba(220,38,38,.6);animation:pulsePPG 1s ease-in-out infinite;pointer-events:none}
 @keyframes pulsePPG{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.1);opacity:.4}}
+
+/* ══ 몸 분석 Anura 스타일 개선 ══ */
+.tcard { transition: box-shadow .2s, transform .08s; }
+.tcard:active { transform: scale(.995); }
+
+/* 검사 상태 배지 */
+.tc-badge.done { background: #dcfce7; color: #15803d; border: 1px solid rgba(21,128,61,.2); }
+.tc-badge.running { background: #fef9c3; color: #b45309; animation: badgePulse 1.2s infinite; }
+@keyframes badgePulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+/* 결과 그리드 */
+.ritem { transition: background .3s; }
+.ritem .rval { color: var(--accent); }
+
+/* 가이드 슬라이더 스크롤바 숨기기 */
+#guideSlider::-webkit-scrollbar { display: none; }
 </style>
 </head>
 <body>
@@ -763,6 +779,149 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
 <!-- ══ BODY ANALYSIS SCREEN ══ -->
 <div class="screen" id="screen-body">
 <div class="body-screen">
+
+  <!-- ═══════════ 사용법 가이드 카드 (Anura 스타일) ═══════════ -->
+  <div id="usageGuide" style="margin:14px 16px 0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-md)">
+    <div style="background:var(--grad);padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <div style="color:#fff">
+        <div style="font-size:15px;font-weight:700;letter-spacing:-.01em">몸 분석 사용법</div>
+        <div style="font-size:12px;opacity:.8;margin-top:2px">각 검사 방법을 확인하세요</div>
+      </div>
+      <button onclick="$('usageGuide').style.display='none'" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:var(--sans)">닫기 ✕</button>
+    </div>
+
+    <!-- 가이드 슬라이드 -->
+    <div style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:0" id="guideSlider">
+
+      <!-- 1. 균형 -->
+      <div style="min-width:100%;scroll-snap-align:start;padding:16px 18px">
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="flex-shrink:0">
+            <svg width="90" height="120" viewBox="0 0 90 120" fill="none">
+              <!-- 사람 실루엣 -->
+              <circle cx="45" cy="14" r="11" fill="#dbeafe" stroke="#1a56db" stroke-width="1.5"/>
+              <rect x="36" y="26" width="18" height="32" rx="6" fill="#dbeafe" stroke="#1a56db" stroke-width="1.5"/>
+              <rect x="21" y="28" width="12" height="26" rx="5" fill="#bfdbfe" stroke="#1a56db" stroke-width="1.5"/>
+              <rect x="57" y="28" width="12" height="26" rx="5" fill="#bfdbfe" stroke="#1a56db" stroke-width="1.5"/>
+              <rect x="38" y="57" width="7" height="30" rx="4" fill="#bfdbfe" stroke="#1a56db" stroke-width="1.5"/>
+              <rect x="45" y="57" width="7" height="30" rx="4" fill="#bfdbfe" stroke="#1a56db" stroke-width="1.5"/>
+              <!-- 폰 위치 표시 (허리) -->
+              <rect x="33" y="44" width="24" height="14" rx="3" fill="#1a56db" opacity=".85"/>
+              <rect x="36" y="46" width="18" height="10" rx="2" fill="#93c5fd"/>
+              <!-- 화살표 안내 -->
+              <path d="M60 50 L75 50" stroke="#1a56db" stroke-width="1.5" stroke-dasharray="3,2" marker-end="url(#arr1)"/>
+              <defs><marker id="arr1" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6Z" fill="#1a56db"/></marker></defs>
+              <text x="76" y="48" font-size="8" fill="#1a56db">허리</text>
+              <text x="76" y="56" font-size="8" fill="#1a56db">위치</text>
+              <!-- 발 모아서 서기 -->
+              <ellipse cx="42" cy="93" rx="5" ry="3" fill="#1a56db" opacity=".4"/>
+              <ellipse cx="48" cy="93" rx="5" ry="3" fill="#1a56db" opacity=".4"/>
+            </svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:6px">① 균형 검사</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7">
+              📱 폰을 <strong>허리에 수평</strong>으로 잡기<br>
+              🦶 <strong>발을 모아</strong> 가만히 서기<br>
+              ⏱ <strong>20초</strong> 유지<br>
+              🚫 흔들리거나 걸으면 안 됨
+            </div>
+            <div style="margin-top:8px;padding:6px 10px;background:#eff6ff;border-radius:8px;font-size:11px;color:var(--muted)">
+              📊 기준: 95% 신뢰 타원 &lt;1.5cm² = 정상
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 보행 -->
+      <div style="min-width:100%;scroll-snap-align:start;padding:16px 18px">
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="flex-shrink:0">
+            <svg width="90" height="120" viewBox="0 0 90 120" fill="none">
+              <circle cx="45" cy="14" r="11" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+              <rect x="36" y="26" width="18" height="30" rx="6" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+              <!-- 걷는 자세 (다리 벌림) -->
+              <path d="M43 56 L36 87" stroke="#15803d" stroke-width="5" stroke-linecap="round"/>
+              <path d="M47 56 L55 80" stroke="#15803d" stroke-width="5" stroke-linecap="round"/>
+              <path d="M36 87 L30 95" stroke="#15803d" stroke-width="4" stroke-linecap="round"/>
+              <path d="M55 80 L62 88" stroke="#15803d" stroke-width="4" stroke-linecap="round"/>
+              <!-- 팔 -->
+              <path d="M36 32 L22 52" stroke="#86efac" stroke-width="5" stroke-linecap="round"/>
+              <path d="M54 32 L68 48" stroke="#86efac" stroke-width="5" stroke-linecap="round"/>
+              <!-- 폰 (손에) -->
+              <rect x="68" y="41" width="12" height="18" rx="2" fill="#15803d" opacity=".85"/>
+              <rect x="70" y="43" width="8" height="14" rx="1" fill="#86efac"/>
+              <!-- 발자국 -->
+              <ellipse cx="28" cy="99" rx="5" ry="3" fill="#15803d" opacity=".3"/>
+              <ellipse cx="60" cy="92" rx="5" ry="3" fill="#15803d" opacity=".3"/>
+              <!-- 이동 화살표 -->
+              <path d="M10 108 L80 108" stroke="#15803d" stroke-width="1.5" stroke-dasharray="4,3"/>
+            </svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:6px">② 보행 검사</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7">
+              📱 폰을 <strong>손에 쥐고</strong> 걷기<br>
+              🚶 <strong>평소처럼</strong> 자연스럽게<br>
+              📏 <strong>10m 이상</strong> 걷기<br>
+              ⏹ 걷기 완료 후 버튼 누르기
+            </div>
+            <div style="margin-top:8px;padding:6px 10px;background:#f0fdf4;border-radius:8px;font-size:11px;color:var(--muted)">
+              📊 기준: 케이던스 100~120 steps/min = 정상
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 자세 -->
+      <div style="min-width:100%;scroll-snap-align:start;padding:16px 18px">
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="flex-shrink:0">
+            <svg width="90" height="120" viewBox="0 0 90 120" fill="none">
+              <circle cx="45" cy="14" r="11" fill="#fef9c3" stroke="#b45309" stroke-width="1.5"/>
+              <!-- 직립 자세 -->
+              <rect x="37" y="26" width="16" height="34" rx="6" fill="#fef9c3" stroke="#b45309" stroke-width="1.5"/>
+              <!-- 팔 (양옆) -->
+              <rect x="23" y="28" width="11" height="24" rx="5" fill="#fde68a" stroke="#b45309" stroke-width="1.5"/>
+              <rect x="56" y="28" width="11" height="24" rx="5" fill="#fde68a" stroke="#b45309" stroke-width="1.5"/>
+              <!-- 다리 -->
+              <rect x="38" y="58" width="7" height="32" rx="4" fill="#fde68a" stroke="#b45309" stroke-width="1.5"/>
+              <rect x="46" y="58" width="7" height="32" rx="4" fill="#fde68a" stroke="#b45309" stroke-width="1.5"/>
+              <!-- 폰 (등에) -->
+              <rect x="55" y="32" width="14" height="20" rx="2" fill="#b45309" opacity=".8"/>
+              <rect x="57" y="34" width="10" height="16" rx="1" fill="#fde68a"/>
+              <!-- 수직선 (기준) -->
+              <line x1="45" y1="5" x2="45" y2="115" stroke="#b45309" stroke-width="1" stroke-dasharray="4,3" opacity=".4"/>
+              <!-- 각도 표시 -->
+              <path d="M45 45 Q55 50 58 42" stroke="#b45309" stroke-width="1.5" fill="none"/>
+              <text x="57" y="36" font-size="8" fill="#b45309">0°</text>
+            </svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700;color:var(--warn);margin-bottom:6px">③ 자세 검사</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7">
+              📱 폰을 <strong>등 중앙에 세로</strong>로 대기<br>
+              🧍 <strong>바르게 서서</strong> 유지<br>
+              ⏱ <strong>15초</strong> 정지<br>
+              💨 자연스럽게 호흡하기
+            </div>
+            <div style="margin-top:8px;padding:6px 10px;background:#fffbeb;border-radius:8px;font-size:11px;color:var(--muted)">
+              📊 기준: 좌우 편차 &lt;3°, 앞뒤 &lt;5° = 정상
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 슬라이드 인디케이터 -->
+    <div style="display:flex;justify-content:center;gap:6px;padding:10px 0 14px">
+      <div style="width:20px;height:4px;border-radius:2px;background:var(--accent)"></div>
+      <div style="width:6px;height:4px;border-radius:2px;background:var(--bg3)"></div>
+      <div style="width:6px;height:4px;border-radius:2px;background:var(--bg3)"></div>
+    </div>
+  </div>
+
 
   <!-- 종합 점수 카드 -->
   <div class="bsec" style="padding-top:16px">
@@ -3429,7 +3588,10 @@ B.balance = (() => {
     function onMot(e){
       const now=performance.now();
       if(now-last<1000/SR)return; last=now;
-      const a=e.accelerationIncludingGravity||e.acceleration||{};
+      // v8.5: acceleration(중력 제거됨) 우선, 없으면 accelerationIncludingGravity
+      // Android Chrome은 acceleration을 항상 제공
+      const a = e.acceleration?.x != null ? e.acceleration
+              : e.accelerationIncludingGravity || {};
       if(!isFinite(a.x||0))return;
       samples.push({ax:a.x||0,ay:a.y||0,az:a.z||0,t:now-start_t});
       drawLive();
@@ -3457,41 +3619,74 @@ B.balance = (() => {
     speak(`균형 검사 완료. 안정성 ${r.stab}점, 낙상 위험 ${r.riskLabel}입니다.`);
   }
 
+  // ── 균형 분석 v8.5 ──
+  // 참고: Prieto 1996 (Clin Biomech) — 95% ellipse
+  //       Mancini & Horak 2010 (J Neuroeng Rehabil) — sway 임상 기준
+  //       Howcroft 2013 (J Neuroeng Rehabil) — 낙상 위험 분류
   function analyze(smp) {
-    const G={x:bsMean(smp.map(s=>s.ax)),y:bsMean(smp.map(s=>s.ay)),z:bsMean(smp.map(s=>s.az))};
-    const ml=smp.map(s=>s.ax-G.x), ap=smp.map(s=>s.ay-G.y);
+    const n = smp.length;
+    const dt = 1 / SR;
 
-    function integrate2(acc){
-      const m=bsMean(acc),det=acc.map(v=>v-m),dt=1/SR;
-      let v=0; const vel=det.map(a=>{v+=a*dt;return v;});
-      const vm=bsMean(vel),velZ=vel.map(v=>v-vm);
-      let p=0; const pos=velZ.map(v=>{p+=v*dt;return p;});
-      const pm=bsMean(pos); return pos.map(v=>(v-pm)*100); // cm
+    // ── 중력 분리: 상보 필터 (Mahony 2008) ──
+    // α=0.98: 저주파(중력)는 가속도, 고주파(동작)는 자이로
+    // 자이로 없으면 LP 필터로 중력 추정 (cutoff 0.5Hz)
+    const ALPHA_HP = Math.exp(-2 * Math.PI * 0.5 * dt); // 0.5Hz LP → 중력 추정
+    let gx = smp[0].ax, gy = smp[0].ay, gz = smp[0].az;
+    const ml = [], ap = [];
+    for (let i = 0; i < n; i++) {
+      // LP로 중력 추정 (슬로우 드리프트)
+      gx = ALPHA_HP * gx + (1 - ALPHA_HP) * smp[i].ax;
+      gy = ALPHA_HP * gy + (1 - ALPHA_HP) * smp[i].ay;
+      gz = ALPHA_HP * gz + (1 - ALPHA_HP) * smp[i].az;
+      // HP: 중력 제거 → 순수 동작 가속도
+      ml.push(smp[i].ax - gx); // 좌우(ML)
+      ap.push(smp[i].ay - gy); // 전후(AP)
     }
-    const mlP=integrate2(ml), apP=integrate2(ap);
 
-    // 95% ellipse area
-    const mlS=bsStd(mlP),apS=bsStd(apP);
-    const mlM=bsMean(mlP),apM=bsMean(apP);
-    const cov=bsMean(mlP.map((v,i)=>(v-mlM)*(apP[i]-apM)));
-    const r2=mlS*apS>0?(cov/(mlS*apS))**2:0;
-    const sway=Math.round(Math.PI*2.448*mlS*apS*Math.sqrt(Math.max(0,1-r2))*10)/10;
+    // ── 2차 적분: 가속도 → 속도 → 위치 ──
+    function integrate2(acc) {
+      // 선형 드리프트 제거
+      const trend = acc.map((_, i) => acc[0] + (acc[n-1] - acc[0]) * i / (n - 1));
+      const det = acc.map((v, i) => v - trend[i]);
+      let v = 0;
+      const vel = det.map(a => { v += a * dt; return v; });
+      const vt = vel.map((_, i) => vel[0] + (vel[n-1] - vel[0]) * i / (n - 1));
+      const velD = vel.map((v, i) => v - vt[i]);
+      let p = 0;
+      const pos = velD.map(v => { p += v * dt; return p; });
+      const pm = bsMean(pos);
+      return pos.map(v => (v - pm) * 100); // m → cm
+    }
+    const mlP = integrate2(ml), apP = integrate2(ap);
 
-    // Mean velocity
-    const mlV=mlP.map((v,i,a)=>i>0?(v-a[i-1])*SR:0);
-    const apV=apP.map((v,i,a)=>i>0?(v-a[i-1])*SR:0);
-    const vel=Math.round(Math.sqrt(bsMean(mlV.map((v,i)=>v*v+apV[i]*apV[i])))*10)/10;
+    // ── 95% 신뢰 타원 면적 (Prieto 1996) ──
+    const mlS = bsStd(mlP), apS = bsStd(apP);
+    const mlM = bsMean(mlP), apM = bsMean(apP);
+    const cov = bsMean(mlP.map((v, i) => (v - mlM) * (apP[i] - apM)));
+    const r2 = mlS * apS > 0 ? (cov / (mlS * apS)) ** 2 : 0;
+    // F-분포 95% 임계값 = 5.991 (자유도 2)
+    const sway = Math.round(Math.PI * 5.991 * mlS * apS * Math.sqrt(Math.max(0, 1 - r2)) * 10) / 10;
 
-    // Risk & stability score
-    const risk=sway*0.5+vel*0.5;
-    let riskLabel,riskCol,score;
-    if(risk<2)      {riskLabel='낮음';riskCol='var(--green)';score=90;}
-    else if(risk<4) {riskLabel='보통';riskCol='var(--accent2)';score=72;}
-    else if(risk<7) {riskLabel='주의';riskCol='var(--warn)';score=52;}
-    else            {riskLabel='높음';riskCol='var(--danger)';score=28;}
-    const stab=bsClamp(Math.round(100-risk*6),0,100);
+    // ── COP 이동 평균 속도 (cm/s) ──
+    const mlV = mlP.map((v, i, a) => i > 0 ? (v - a[i-1]) * SR : 0);
+    const apV = apP.map((v, i, a) => i > 0 ? (v - a[i-1]) * SR : 0);
+    const vel = Math.round(Math.sqrt(bsMean(mlV.map((v, i) => v*v + apV[i]*apV[i]))) * 10) / 10;
 
-    return {sway,vel,stab,score,riskLabel,riskCol,mlP,apP,mlS,apS};
+    // ── 임상 기준 분류 (Mancini & Horak 2010) ──
+    // 건강한 성인: 95% ellipse < 1.5cm², MV < 1.5cm/s
+    // 낙상 위험: ellipse > 4cm² OR MV > 3cm/s
+    let riskLabel, riskCol, score;
+    if (sway < 1.5 && vel < 1.5)      { riskLabel='낮음'; riskCol='var(--green)';  score=92; }
+    else if (sway < 3.0 && vel < 2.5) { riskLabel='보통'; riskCol='var(--accent2)'; score=75; }
+    else if (sway < 5.0 && vel < 3.5) { riskLabel='주의'; riskCol='var(--warn)';   score=52; }
+    else                               { riskLabel='높음'; riskCol='var(--danger)'; score=28; }
+
+    // 안정성: 정상 범위 대비 백분율 (100% = 완전 정상)
+    const swayNorm = bsClamp(1 - sway / 8, 0, 1);
+    const velNorm  = bsClamp(1 - vel / 6,  0, 1);
+    const stab     = bsClamp(Math.round((swayNorm * 0.6 + velNorm * 0.4) * 100), 0, 100);
+
+    return {sway, vel, stab, score, riskLabel, riskCol, mlP, apP, mlS, apS};
   }
 
   function drawLive() {
@@ -3587,7 +3782,9 @@ B.gait = (() => {
     function onMot(e){
       const now=performance.now();
       if(now-last<1000/SR)return; last=now;
-      const a=e.accelerationIncludingGravity||e.acceleration||{};
+      // v8.5: acceleration(중력 제거) 우선
+      const a = e.acceleration?.x != null ? e.acceleration
+              : e.accelerationIncludingGravity || {};
       const mag=Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2);
       samples.push({mag,t:now-t0});
       drawLive();
@@ -3608,36 +3805,81 @@ B.gait = (() => {
     speak(`보행 분석 완료. ${r.steps}걸음 감지, 규칙성 ${r.reg}퍼센트입니다.`);
   }
 
+  // ── 보행 분석 v8.5 ──
+  // 참고: Karantonis 2006 (IEEE Trans Inf Tech Biomed) — 스마트폰 보행 분석
+  //       Zijlstra & Hof 2003 (J Biomech) — 보행 대칭성
+  //       정상 보행 기준: 보행 주기 1~1.3초, 케이던스 100~120 steps/min
   function analyze(smp){
-    const mags=smp.map(s=>s.mag);
-    const filt=lpf(mags,5,SR);
-    const gEst=bsMean(filt);
-    const cent=filt.map(v=>v-gEst);
-    const thr=bsStd(cent)*0.45;
-    const minD=Math.round(SR*0.28); // 280ms min
-    const peaks=[];
-    for(let i=minD;i<cent.length-minD;i++){
-      if(cent[i]>thr&&cent[i]>cent[i-1]&&cent[i]>cent[i+1]
-         &&(!peaks.length||i-peaks[peaks.length-1]>minD)) peaks.push(i);
-    }
-    const steps=peaks.length;
-    const durSec=(smp[smp.length-1].t-smp[0].t)/1000||1;
-    const cad=Math.round(steps/durSec*60);
+    const mags = smp.map(s => s.mag);
 
-    let reg=0,sym=0,score=50;
-    if(peaks.length>=4){
-      const ival=[];
-      for(let i=1;i<peaks.length;i++)ival.push(peaks[i]-peaks[i-1]);
-      const mI=bsMean(ival),sI=bsStd(ival);
-      reg=bsClamp(Math.round((1-sI/mI)*100),0,100);
-      const odd=ival.filter((_,i)=>i%2===0),evn=ival.filter((_,i)=>i%2===1);
-      if(odd.length&&evn.length){
-        const mO=bsMean(odd),mE=bsMean(evn);
-        sym=bsClamp(Math.round((1-Math.abs(mO-mE)/((mO+mE)/2||1))*100),0,100);
+    // ── LP 필터 (4Hz) → 고주파 노이즈 제거 ──
+    const filt = lpf(mags, 4, SR);
+
+    // ── 중력 제거: 100샘플 이동평균으로 DC 오프셋 추정 ──
+    // acceleration 사용 시 이미 제거됨, 안전망으로 처리
+    const winG = Math.min(Math.round(SR * 1.0), filt.length);
+    const dc = filt.map((_, i) => {
+      const lo = Math.max(0, i - winG), hi = Math.min(filt.length, i + winG);
+      return bsMean(filt.slice(lo, hi));
+    });
+    const cent = filt.map((v, i) => v - dc[i]);
+
+    // ── 적응형 피크 검출 (Karantonis 2006) ──
+    // 보행 주기: 0.4~2.0초 (cadence 30~150 steps/min)
+    const minD = Math.round(SR * 0.35); // 최소 간격 350ms
+    const maxD = Math.round(SR * 1.8);  // 최대 간격 1800ms
+
+    // 슬라이딩 윈도우 임계값 (전체 std의 30%)
+    const globalThr = bsStd(cent) * 0.30;
+
+    const peaks = [];
+    for (let i = minD; i < cent.length - minD; i++) {
+      if (cent[i] <= globalThr) continue;
+      if (cent[i] <= cent[i-1] || cent[i] <= cent[i+1]) continue;
+      if (peaks.length && i - peaks[peaks.length-1] < minD) continue;
+      if (peaks.length && i - peaks[peaks.length-1] > maxD) {
+        // 너무 긴 간격 → 이전 피크 제거 (신뢰도 낮음)
+        if (peaks.length > 1) peaks.pop();
+      }
+      peaks.push(i);
+    }
+
+    const steps = peaks.length;
+    const durSec = (smp[smp.length-1].t - smp[0].t) / 1000 || 1;
+    const cad = Math.round(steps / durSec * 60);
+
+    // ── 규칙성 (CoV of stride intervals) ──
+    let reg = 0, sym = 0;
+    if (peaks.length >= 4) {
+      const ival = [];
+      for (let i = 1; i < peaks.length; i++) {
+        const gap = (peaks[i] - peaks[i-1]) / SR * 1000; // ms
+        if (gap >= 350 && gap <= 1800) ival.push(gap);
+      }
+      if (ival.length >= 3) {
+        const mI = bsMean(ival), sI = bsStd(ival);
+        // CoV < 3%: 정상 (Hausdorff 2001), < 5%: 보통, > 5%: 비규칙
+        const cov = sI / mI;
+        reg = bsClamp(Math.round((1 - cov / 0.08) * 100), 0, 100);
+
+        // 대칭성: 홀수/짝수 보폭 간격 비교 (Zijlstra & Hof 2003)
+        const odd = ival.filter((_, i) => i % 2 === 0);
+        const evn = ival.filter((_, i) => i % 2 === 1);
+        if (odd.length >= 2 && evn.length >= 2) {
+          const mO = bsMean(odd), mE = bsMean(evn);
+          const symRatio = Math.abs(mO - mE) / ((mO + mE) / 2 || 1);
+          // 건강한 성인: symmetry ratio < 10% (Nagano 2011)
+          sym = bsClamp(Math.round((1 - symRatio / 0.15) * 100), 0, 100);
+        }
       }
     }
-    score=100;
-    if(cad<70||cad>140)score-=22; else if(cad<80||cad>125)score-=10;
+
+    // ── 종합 점수 (임상 기준) ──
+    let score = 100;
+    // 케이던스: 정상 100~120 steps/min (Lindemann 2003)
+    if (cad < 60 || cad > 160)       score -= 25;
+    else if (cad < 80 || cad > 140)  score -= 12;
+    else if (cad < 90 || cad > 130)  score -= 5;
     if(reg<60)score-=28; else if(reg<80)score-=12;
     if(sym<70)score-=22; else if(sym<85)score-=8;
     score=bsClamp(score,0,100);
@@ -3754,11 +3996,14 @@ B.posture = (() => {
     const rollDev=Math.round(Math.abs(mR)*10)/10;
     const pitchDev=Math.round(Math.abs(mP)*10)/10;
     const totalStd=Math.sqrt(sR**2+sP**2);
-    const stab=bsClamp(Math.round(100-totalStd*7),0,100);
+    // v8.5: 임상 기준 (Ferriero 2013) — 정상 자세 변동: 롤 <3°, 피치 <5°
+    // totalStd 1° → stab 95%, 5° → stab 65%, 10° → stab 30%
+    const stab=bsClamp(Math.round(100 - totalStd * 5), 0, 100);
     let score=100;
     if(rollDev>12)score-=28; else if(rollDev>6)score-=14;
     if(pitchDev>18)score-=22; else if(pitchDev>9)score-=10;
-    if(stab<60)score-=22; else if(stab<80)score-=8;
+    // 임상 기준 완화 (일반인 자세는 완벽하지 않음)
+    if(stab<45)score-=22; else if(stab<65)score-=8;
     score=bsClamp(score,0,100);
     return {score,rollDev,pitchDev,stab,rolls,pitches,mR,mP};
   }
