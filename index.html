@@ -414,6 +414,51 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
 
 /* 가이드 슬라이더 스크롤바 숨기기 */
 #guideSlider::-webkit-scrollbar { display: none; }
+
+/* v9.5: 몸 분석 하위 탭바 (Anura 스타일) */
+.body-subnav { 
+  position: sticky; top: 105px; z-index: 30;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  display: flex; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 0 8px;
+}
+.body-subnav::-webkit-scrollbar { display: none; }
+.bsub-tab {
+  flex-shrink: 0; padding: 12px 14px;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  background: none; border: none;
+  border-bottom: 2.5px solid transparent;
+  cursor: pointer; font-family: var(--sans);
+  white-space: nowrap;
+  display: flex; align-items: center; gap: 5px;
+  letter-spacing: -.01em;
+}
+.bsub-tab.on { 
+  color: var(--accent); 
+  border-bottom-color: var(--accent); 
+  font-weight: 700;
+}
+.bsub-icon { font-size: 16px; }
+
+/* 검사 카드 패널 */
+.btest-panel { display: none; }
+.btest-panel.on { display: block; animation: fadeUp .15s ease; }
+
+/* 검사 통과 표시 */
+.test-status-row {
+  display: flex; gap: 6px; padding: 10px 16px 0;
+  flex-wrap: wrap;
+}
+.tstatus {
+  font-size: 11px; padding: 3px 9px; border-radius: 12px;
+  background: var(--bg3); color: var(--muted); font-weight: 600;
+}
+.tstatus.done { background: #dcfce7; color: var(--green); }
+.tstatus.run { background: #fef9c3; color: var(--warn); animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 </style>
 </head>
 <body>
@@ -440,7 +485,7 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
       <span style="color:var(--muted2)">dB</span>
       <span id="snrStars" style="color:#f59e0b;letter-spacing:1px">☆☆☆☆☆</span>
     </div>
-    <span class="hbadge">v9.0</span>
+    <span class="hbadge">v9.5</span>
   </div>
 </header>
 
@@ -900,9 +945,9 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
           <div style="flex:1">
             <div style="font-size:14px;font-weight:700;color:var(--warn);margin-bottom:6px">③ 자세 검사</div>
             <div style="font-size:13px;color:var(--text2);line-height:1.7">
-              📱 폰을 <strong>등 중앙에 세로</strong>로 대기<br>
-              🧍 <strong>바르게 서서</strong> 유지<br>
-              ⏱ <strong>15초</strong> 정지<br>
+              📱 폰을 <strong>가슴 위에 평평히</strong> 잡기<br>
+              🧍 <strong>정면 보고</strong> 가만히<br>
+              ⏱ <strong>10초</strong> 정지<br>
               💨 자연스럽게 호흡하기
             </div>
             <div style="margin-top:8px;padding:6px 10px;background:#fffbeb;border-radius:8px;font-size:11px;color:var(--muted)">
@@ -923,6 +968,27 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
   </div>
 
 
+  <!-- v9.5: 하위 탭바 (5개 검사 가로 메뉴) -->
+  <nav class="body-subnav" id="bodySubnav">
+    <button class="bsub-tab on" data-test="balance" onclick="switchBodyTest('balance')"><span class="bsub-icon">⚖️</span>균형</button>
+    <button class="bsub-tab" data-test="gait" onclick="switchBodyTest('gait')"><span class="bsub-icon">🚶</span>보행</button>
+    <button class="bsub-tab" data-test="posture" onclick="switchBodyTest('posture')"><span class="bsub-icon">🧍</span>자세</button>
+    <button class="bsub-tab" data-test="reaction" onclick="switchBodyTest('reaction')"><span class="bsub-icon">⚡</span>반응속도</button>
+    <button class="bsub-tab" data-test="shake" onclick="switchBodyTest('shake')"><span class="bsub-icon">🤲</span>손떨림</button>
+    <button class="bsub-tab" data-test="overview" onclick="switchBodyTest('overview')"><span class="bsub-icon">📊</span>종합</button>
+  </nav>
+
+  <!-- 검사 통과 상태 표시 -->
+  <div class="test-status-row" id="testStatusRow">
+    <span class="tstatus" id="ts-balance">⚖️ 균형 대기</span>
+    <span class="tstatus" id="ts-gait">🚶 보행 대기</span>
+    <span class="tstatus" id="ts-posture">🧍 자세 대기</span>
+    <span class="tstatus" id="ts-reaction">⚡ 반응 대기</span>
+    <span class="tstatus" id="ts-shake">🤲 떨림 대기</span>
+  </div>
+
+  <!-- ═══════ 종합 패널 ═══════ -->
+  <div class="btest-panel" data-panel="overview">
   <!-- 종합 점수 카드 -->
   <div class="bsec" style="padding-top:16px">
     <div class="overall-card" id="bodyOverallCard">
@@ -1022,6 +1088,10 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
     </div>
   </div>
 
+  </div><!-- /overview panel -->
+
+  <!-- ═══════ 균형 패널 ═══════ -->
+  <div class="btest-panel on" data-panel="balance">
   <!-- ① 균형 검사 -->
   <div class="bsec">
     <div class="bsec-title">⚖️ 균형 · 낙상 위험도</div>
@@ -1029,7 +1099,7 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
     <div class="tcard" id="card-balance" style="--tc:#7bc8ff">
       <div class="tc-head">
         <div>
-          <div class="tc-name">정적 균형 검사 <span class="tc-dur">(30초)</span></div>
+          <div class="tc-name">정적 균형 검사 <span class="tc-dur">(20초)</span></div>
           <div class="tc-method">📱 폰을 허리에 수평으로 잡고 → 발 모아 서기</div>
         </div>
         <span class="tc-badge" id="badge-balance">대기</span>
@@ -1078,6 +1148,10 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
     </div>
   </div>
 
+  </div><!-- /balance panel -->
+
+  <!-- ═══════ 보행 패널 ═══════ -->
+  <div class="btest-panel" data-panel="gait">
   <!-- ② 보행 분석 -->
   <div class="bsec">
     <div class="bsec-title">🚶 보행 분석</div>
@@ -1124,15 +1198,19 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
     </div>
   </div>
 
+  </div><!-- /gait panel -->
+
+  <!-- ═══════ 자세 패널 ═══════ -->
+  <div class="btest-panel" data-panel="posture">
   <!-- ③ 척추·자세 분석 -->
   <div class="bsec">
     <div class="bsec-title">🦴 척추 · 자세 정렬</div>
-    <div class="bsec-desc">척추 기울기와 자세 불균형을 측정합니다. 폰을 등 가운데에 세로로 대고 바르게 서주세요.</div>
+    <div class="bsec-desc">v9.5 혼자 측정: 폰을 <strong>가슴 한가운데에 평평하게(액정이 위로)</strong> 양손으로 잡고, 정면을 보며 10초간 가만히 서주세요. 자율 미세 흔들림을 분석합니다.</div>
     <div class="tcard" id="card-posture" style="--tc:#fbbf24">
       <div class="tc-head">
         <div>
-          <div class="tc-name">척추·자세 정렬 <span class="tc-dur">(15초)</span></div>
-          <div class="tc-method">📱 등 가운데 세로로 대기 → 바른 자세 유지</div>
+          <div class="tc-name">자세 안정성 <span class="tc-dur">(10초 · 혼자 가능)</span></div>
+          <div class="tc-method">📱 가슴 위에 평평하게 → 정면 보고 10초 정지</div>
         </div>
         <span class="tc-badge" id="badge-posture">대기</span>
       </div>
@@ -1189,6 +1267,10 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
     </div>
   </div>
 
+  </div><!-- /posture panel -->
+
+  <!-- ═══════ 반응속도 패널 ═══════ -->
+  <div class="btest-panel" data-panel="reaction">
   <!-- ④ 반응 속도 검사 -->
   <div class="bsec">
     <div class="bsec-title">⚡ 반응 속도 · 신경 기능</div>
@@ -1239,7 +1321,10 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
       </button>
     </div>
   </div>
+  </div><!-- /reaction panel -->
 
+  <!-- ═══════ 손떨림 패널 ═══════ -->
+  <div class="btest-panel" data-panel="shake">
   <!-- ⑤ 손 떨림 검사 -->
   <div class="bsec">
     <div class="bsec-title">🤲 손 떨림 · 안정성</div>
@@ -1285,6 +1370,7 @@ footer{padding:16px 16px max(24px,env(safe-area-inset-bottom));border-top:1px so
       </button>
     </div>
   </div>
+  </div><!-- /shake panel -->
 
   <footer style="margin-top:24px;padding-bottom:max(24px,env(safe-area-inset-bottom))">이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.</footer>
 </div>
@@ -1598,6 +1684,50 @@ function biquadBP(data, loHz, hiHz, sr) {
 // 하위 호환
 const iirBP = biquadBP;
 
+// ══════════════════════════════════════════════════════════════
+// Anura-style Signal Quality Validation (SQV)
+// 참고: NuraLogix DeepAffex docs / Tarvainen 2014 (HRV biosignal)
+//   - Skewness: PPG 신호는 양의 비대칭 (peak > valley)
+//   - Kurtosis: PPG는 sharp peak → kurtosis > 3
+//   - 정상 PPG: skew 0.5~2.5, kurtosis 3~8
+//   - 노이즈/조명변화: skew ≈ 0, kurtosis ≈ 3 (정규분포)
+// ══════════════════════════════════════════════════════════════
+function computeSkewness(arr) {
+  if (!arr || arr.length < 10) return 0;
+  const m = mean(arr), s = std(arr);
+  if (s < 1e-9) return 0;
+  let sum = 0;
+  for (let i = 0; i < arr.length; i++) sum += ((arr[i] - m) / s) ** 3;
+  return sum / arr.length;
+}
+
+function computeKurtosis(arr) {
+  if (!arr || arr.length < 10) return 0;
+  const m = mean(arr), s = std(arr);
+  if (s < 1e-9) return 0;
+  let sum = 0;
+  for (let i = 0; i < arr.length; i++) sum += ((arr[i] - m) / s) ** 4;
+  return (sum / arr.length) - 3; // excess kurtosis
+}
+
+// PPG 신호인지 검증 (Anura-like 품질 판단)
+function isValidPPGSignal(filt, snr) {
+  if (!filt || filt.length < 60) return { valid: false, reason: 'data_short' };
+  if (snr < 1.4) return { valid: false, reason: 'low_snr' };
+
+  const skew = computeSkewness(filt);
+  const kurt = computeKurtosis(filt);
+
+  // PPG는 양의 skewness (peak가 valley보다 sharp/큼)
+  // 노이즈/광변동은 skew ≈ 0
+  if (Math.abs(skew) < 0.15) return { valid: false, reason: 'flat_distribution' };
+
+  // 너무 큰 skew/kurt는 spike noise (움직임)
+  if (Math.abs(skew) > 4.0 || kurt > 15) return { valid: false, reason: 'spike_noise' };
+
+  return { valid: true, skew, kurt };
+}
+
 // ── POS 알고리즘 (Wang et al. 2017) ──
 function computePOS(R, G, B) {
   const mR=mean(R), mG=mean(G), mB=mean(B);
@@ -1848,9 +1978,15 @@ function processFingerPPG(rRaw, gRaw, bRaw, tsRaw) {
   const peak = findPeak(psd, freqRes, HR_LO_HZ, HR_HI_HZ);
   if (!peak) return {sqi:0, filt:bpR};
 
-  // SQI = (피크/평균 - 1) × 50 (실수 SNR 기반)
+  // v9.5: SQI + Anura-style 신호 품질 검증
   const sqi = clamp(Math.round((peak.snr - 1.0) * 50), 0, 100);
   if (peak.snr < SNR_MIN) return {sqi, filt:bpR};
+
+  // PPG 신호 품질 검증
+  const sigCheck = isValidPPGSignal(bpR, peak.snr);
+  if (!sigCheck.valid) {
+    return {sqi: Math.min(sqi, 25), filt: bpR, reason: sigCheck.reason};
+  }
 
   let hrFFT = Math.round(peak.freq * 60);
   if (hrFFT < 36 || hrFFT > 220) return {sqi: Math.max(2, sqi - 10), filt:bpR};
@@ -1953,9 +2089,15 @@ function processFacePPG(rRaw, gRaw, bRaw, bgG, rrY, tsRaw) {
 
   if (!peak) return {sqi:0, filt:sig};
 
-  // v8: SNR 실수 기준 SQI (SNR=1.3→33%, SNR=2.0→100%, SNR=1.0→0%)
+  // v9.5: SQI + Anura-style 신호 품질 검증
   const sqi = clamp(Math.round((peak.snr - 1.0) * 50), 0, 100);
   if (peak.snr < SNR_MIN) return {sqi, filt:sigF||sig};
+
+  // PPG 신호 품질 검증 (얼굴은 더 엄격하게)
+  const sigCheck = isValidPPGSignal(sigF || sig, peak.snr);
+  if (!sigCheck.valid) {
+    return {sqi: Math.min(sqi, 20), filt: sigF||sig, reason: sigCheck.reason};
+  }
 
   const hrHz = peak.freq;
   let hr = Math.round(hrHz * 60);
@@ -2051,20 +2193,58 @@ const CHEEKL=[234,93,132,58,172,136,150,149,176,148,152];
 const CHEEKR=[454,323,361,288,397,365,379,378,400,377,152];
 const NOSE_TIP=1;
 
+// v9.5 Anura-style 다중 ROI: 이마/좌볼/우볼 따로 분석 → 가중평균
 function extractFaceROI(imgData, lm, vw, vh) {
   if(!lm) return null;
-  let rS=0,gS=0,bS=0,cnt=0;
-  const regions=[FORE_IDX,CHEEKL,CHEEKR];
-  regions.forEach(arr=>arr.forEach(idx=>{
-    if(!lm[idx])return;
-    const px=Math.round(lm[idx].x*vw), py=Math.round(lm[idx].y*vh);
-    for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){
-      const nx=clamp(px+dx,0,vw-1), ny=clamp(py+dy,0,vh-1);
-      const i=(ny*vw+nx)*4;
-      rS+=imgData.data[i];gS+=imgData.data[i+1];bS+=imgData.data[i+2];cnt++;
-    }
-  }));
-  return cnt>0?{r:rS/cnt,g:gS/cnt,b:bS/cnt}:null;
+
+  function avgRegion(idxArr, padPx) {
+    let r=0, g=0, b=0, cnt=0;
+    idxArr.forEach(idx => {
+      if (!lm[idx]) return;
+      const px = Math.round(lm[idx].x * vw);
+      const py = Math.round(lm[idx].y * vh);
+      for (let dy = -padPx; dy <= padPx; dy++) {
+        for (let dx = -padPx; dx <= padPx; dx++) {
+          const nx = clamp(px + dx, 0, vw - 1);
+          const ny = clamp(py + dy, 0, vh - 1);
+          const i = (ny * vw + nx) * 4;
+          r += imgData.data[i];
+          g += imgData.data[i+1];
+          b += imgData.data[i+2];
+          cnt++;
+        }
+      }
+    });
+    return cnt > 0 ? { r: r/cnt, g: g/cnt, b: b/cnt, cnt } : null;
+  }
+
+  // 3개 ROI 각각 추출 (Anura TOI 방식)
+  const fore   = avgRegion(FORE_IDX, 5);  // 이마 (가장 강한 신호)
+  const cheekL = avgRegion(CHEEKL, 4);    // 왼쪽 볼
+  const cheekR = avgRegion(CHEEKR, 4);    // 오른쪽 볼
+
+  // 모든 ROI 실패 시 null
+  if (!fore && !cheekL && !cheekR) return null;
+
+  // ROI 가중 평균 (이마 50%, 양볼 25%씩 — Anura는 이마가 가장 신뢰)
+  const rois = [
+    { roi: fore,   w: 0.5 },
+    { roi: cheekL, w: 0.25 },
+    { roi: cheekR, w: 0.25 },
+  ].filter(x => x.roi);
+
+  const totalW = rois.reduce((s, x) => s + x.w, 0);
+  let R = 0, G = 0, B = 0;
+  rois.forEach(({roi, w}) => {
+    R += roi.r * (w / totalW);
+    G += roi.g * (w / totalW);
+    B += roi.b * (w / totalW);
+  });
+
+  return {
+    r: R, g: G, b: B,
+    rois: { fore, cheekL, cheekR }, // 디버그/PTT 분석용
+  };
 }
 
 function extractBgROI(imgData, vw, vh) {
@@ -2411,47 +2591,46 @@ function handleResult(m, mode){
 }
 
 // ── 측정 카운트다운 타이머 v8 ──
+// v9.5: 타이머 setInterval 방식 (RAF는 백그라운드에서 멈춤)
 function startMeasureTimer() {
   const timerChip = $('chipTimer');
   if (timerChip) timerChip.style.display = 'flex';
-  stopMeasureTimer(); // 이전 타이머 정리
-  function tick() {
+  stopMeasureTimer();
+
+  // 1초마다 안정적 갱신
+  measureTimerRAF = setInterval(() => {
     if (!running) { stopMeasureTimer(); return; }
     const elapsed = (performance.now() - measureStartTs) / 1000;
     const remain = Math.max(0, Math.ceil(TOTAL_MEAS_SEC - elapsed));
     const chip = $('chipTimer');
     if (chip) {
-      chip.textContent = `⏱ ${remain}초`;
-      // 10초 이하: 주황색 경고
-      chip.style.background = remain <= 10
-        ? 'rgba(239,68,68,.3)' : 'rgba(37,99,235,.25)';
-      chip.style.color = remain <= 10 ? '#fca5a5' : '#93c5fd';
-    }
-    // 진행 바 (프레임 수 기반 → 시간 기반으로)
-    const pct = Math.min(100, (elapsed / TOTAL_MEAS_SEC) * 100);
-    const pf = $('progFill');
-    if (pf) pf.style.width = pct + '%';
-    if (remain > 0) {
-      measureTimerRAF = requestAnimationFrame(tick);
-    } else {
-      // 30초 도달 — 자동 종료 X, 사용자가 직접 중지하도록
-      // 타이머 칩을 "완료 가능" 상태로 변경하고 계속 측정
-      const chip = $('chipTimer');
-      if (chip) {
-        chip.textContent = lastResult?.hr ? `✅ ${lastResult.hr}bpm 확인됨 · 중지 가능` : '⏱ 계속 측정 중...';
+      if (remain > 0) {
+        chip.textContent = `⏱ ${remain}초`;
+        chip.style.background = remain <= 10 ? 'rgba(239,68,68,.3)' : 'rgba(37,99,235,.25)';
+        chip.style.color = remain <= 10 ? '#fca5a5' : '#93c5fd';
+      } else {
+        // 30초 후: HR이 있으면 "측정 가능" 메시지, 없으면 계속 진행 표시
+        chip.textContent = lastResult?.hr
+          ? `✅ ${lastResult.hr}bpm · 중지 가능`
+          : `⏱ ${Math.floor(elapsed)}초 측정 중`;
         chip.style.background = lastResult?.hr ? 'rgba(22,163,74,.3)' : 'rgba(37,99,235,.25)';
         chip.style.color = lastResult?.hr ? '#86efac' : '#93c5fd';
       }
-      // 타이머는 멈추지만 측정은 계속됨
     }
-  }
-  tick();
+    // 진행 바
+    const pct = Math.min(100, (elapsed / TOTAL_MEAS_SEC) * 100);
+    const pf = $('progFill');
+    if (pf) pf.style.width = pct + '%';
+  }, 250); // 250ms마다 (4Hz) — RAF보다 안정적
 }
+
 function stopMeasureTimer() {
-  if (measureTimerRAF) cancelAnimationFrame(measureTimerRAF);
+  if (measureTimerRAF) clearInterval(measureTimerRAF);
   measureTimerRAF = null;
   const chip = $('chipTimer');
   if (chip) chip.style.display = 'none';
+  const pf = $('progFill');
+  if (pf) pf.style.width = '0%';
 }
 
 
@@ -3349,6 +3528,33 @@ function initBodyScreen(){
   initAgeDisplay();
 }
 
+// v9.5: 몸 분석 하위 탭 전환
+function switchBodyTest(test) {
+  document.querySelectorAll('.bsub-tab').forEach(b => {
+    b.classList.toggle('on', b.dataset.test === test);
+  });
+  document.querySelectorAll('.btest-panel').forEach(p => {
+    p.classList.toggle('on', p.dataset.panel === test);
+  });
+  // 스크롤 위로
+  window.scrollTo({ top: document.querySelector('.body-subnav').offsetTop - 60, behavior: 'smooth' });
+}
+
+// 검사 완료 시 status 배지 업데이트
+function updateBodyTestStatus(testKey, score) {
+  const el = $('ts-' + testKey);
+  if (!el) return;
+  const labels = { balance:'⚖️ 균형', gait:'🚶 보행', posture:'🧍 자세', reaction:'⚡ 반응', shake:'🤲 떨림' };
+  if (score == null) {
+    el.textContent = labels[testKey] + ' 대기';
+    el.className = 'tstatus';
+  } else {
+    el.textContent = labels[testKey] + ' ' + score + '점';
+    el.className = 'tstatus done';
+  }
+}
+
+
 // ══════════════════════════════════════════════════════════════════════════
 //  BODY ANALYSIS MODULE — v5.1  AI 신체 코치 시스템
 //  ① 균형  ② 보행  ③ 척추/자세  ④ 반응속도  ⑤ 손 떨림
@@ -3586,7 +3792,7 @@ const B = {};
 //  참고: Mancini 2012, Gait & Posture (smartphone CoP validity)
 // ────────────────────────────────────────────────────────────────
 B.balance = (() => {
-  const SR=50, DUR=20, MIN_SAMPLES=SR*5; // v9.0: 20초
+  const SR=50, DUR=20, MIN_SAMPLES=SR*5; // v9.5: 20초
   let running=false, samples=[], timer=null, raf=null, ctx=null, cdInterval=null;
 
   function toggle() {
@@ -3641,12 +3847,13 @@ B.balance = (() => {
     if(samples.length<MIN_SAMPLES){setBadge('badge-balance','','대기');return;}
     const r=analyze(samples);
     BS.balance={score:r.score,sway:r.sway,vel:r.vel,stab:r.stab,risk:r.riskLabel};
+    updateBodyTestStatus('balance', r.score);
     showResult(r); updateOverall(); vibrate([100,50,200]);
     speak(`균형 검사 완료. 안정성 ${r.stab}점, 낙상 위험 ${r.riskLabel}입니다.`);
   }
 
   // ══════════════════════════════════════════════════════════════
-  // 균형 분석 v9.0 — 학술 검증 방식
+  // 균형 분석 v9.5 — 학술 검증 방식
   // 참고:
   //  - Lavoie 2021 (Sensors) ICC=0.95: 가속도 RMS / Jerk가 가장 신뢰
   //  - Brorsson 2024 (J Sport Rehab): 6Hz LP 필터 필수
@@ -3786,7 +3993,7 @@ B.balance = (() => {
 
   function showResult(r){
     document.getElementById('res-balance').style.display='grid';
-    // v9.0: 단위 변경 (cm² → mg, cm/s → m/s²)
+    // v9.5: 단위 변경 (cm² → mg, cm/s → m/s²)
     setResult('r-bSway', r.sway, r.riskCol);   // mg
     setResult('r-bVel', r.vel, r.riskCol);     // m/s²
     setResult('r-bStab', r.stab, gradeColor(r.stab));
@@ -3810,7 +4017,7 @@ B.balance = (() => {
     const fbLines=[];
     if(r.score>=80){fbLines.push('✅ 균형 능력이 우수합니다! 근골격계와 전정기관이 잘 기능하고 있습니다.');}
     else{
-      // v9.0 임상 기준 (Mancini 2010 트렁크 RMS 가속도)
+      // v9.5 임상 기준 (Mancini 2010 트렁크 RMS 가속도)
       if(r.sway>40)      fbLines.push(`🚨 흔들림 강도 ${r.sway}mg — 정상(5~25mg) 초과. 낙상 위험군.`);
       else if(r.sway>25) fbLines.push(`⚠️ 흔들림 강도 ${r.sway}mg — 발목 근력·코어 강화 필요.`);
       else if(r.sway>15) fbLines.push(`💡 흔들림 강도 ${r.sway}mg — 정상 상한권.`);
@@ -3836,7 +4043,7 @@ B.balance = (() => {
 //  참고: Karantonis 2006, IEEE Trans Inf Technol Biomed
 // ────────────────────────────────────────────────────────────────
 B.gait = (() => {
-  const SR=100, MAX_DUR=20000, MIN_STEPS=4; // v9.0: 20초·4걸음 최소
+  const SR=100, MAX_DUR=20000, MIN_STEPS=4; // v9.5: 20초·4걸음 최소
   let running=false, samples=[], timer=null, ctx=null;
 
   function toggle(){ running?stop():start(); }
@@ -3854,7 +4061,7 @@ B.gait = (() => {
     speak('보행 분석을 시작합니다. 폰을 손에 쥐고 평소처럼 자연스럽게 걸어주세요.');
     vibrate(100);
     let last = 0, t0 = performance.now();
-    // v9.0: 중력 추정용 LP 필터 상태
+    // v9.5: 중력 추정용 LP 필터 상태
     let gMag = 9.81; // 초기 중력 추정값
     const aGrav = Math.exp(-2 * Math.PI * 0.3 / SR); // 0.3Hz LP
 
@@ -3889,12 +4096,13 @@ B.gait = (() => {
     if(samples.length<SR*2){setBadge('badge-gait','','대기');return;}
     const r=analyze(samples);
     BS.gait={score:r.score,steps:r.steps,cad:r.cad,reg:r.reg,sym:r.sym};
+    updateBodyTestStatus('gait', r.score);
     showResult(r);updateOverall();vibrate([100,50,200]);
     speak(`보행 분석 완료. ${r.steps}걸음 감지, 규칙성 ${r.reg}퍼센트입니다.`);
   }
 
   // ══════════════════════════════════════════════════════════════
-  // 보행 분석 v9.0 — Brajdic & Harle 2013 표준 알고리즘
+  // 보행 분석 v9.5 — Brajdic & Harle 2013 표준 알고리즘
   // 참고:
   //  - Brajdic & Harle 2013 (UbiComp): Windowed Peak Detection, 오차 <3%
   //  - Analog Devices AN-2554 (2024): 동일 방식 채택, 97% 정확도
@@ -4075,7 +4283,7 @@ B.gait = (() => {
 //  참고: Ferriero 2013, J Back Musculoskelet Rehabil
 // ────────────────────────────────────────────────────────────────
 B.posture = (() => {
-  const SR=50, DUR=10000, MIN_SAMPLES=SR*3; // v9.0: 10초
+  const SR=50, DUR=10000, MIN_SAMPLES=SR*3; // v9.5: 10초
   let running=false, samples=[], timer=null, ctx=null, liveHandler=null;
 
   function toggle(){ running?stop():start(); }
@@ -4091,7 +4299,7 @@ B.posture = (() => {
     document.getElementById('fb-posture').style.display='none';
     document.getElementById('tg-posture').style.display='none';
     ctx=initCanvas('cvPosture');
-    speak('자세 분석을 시작합니다. 폰을 등 가운데에 세로로 대고 바르게 서주세요. 15초간 유지하세요.');
+    speak('자세 분석을 시작합니다. 폰을 가슴 위에 평평하게 올리고 정면 보고 10초 동안 가만히 서주세요.');
     vibrate(100);
     let last=0,t0=performance.now();
     function onOri(e){
@@ -4116,6 +4324,7 @@ B.posture = (() => {
     if(samples.length<MIN_SAMPLES){setBadge('badge-posture','','대기');return;}
     const r=analyze(samples);
     BS.posture={score:r.score,roll:r.rollDev,pitch:r.pitchDev,stab:r.stab};
+    updateBodyTestStatus('posture', r.score);
     showResult(r);updateOverall();vibrate([100,50,200]);
     speak(`자세 분석 완료. 자세 점수 ${r.score}점입니다.`);
   }
@@ -4126,7 +4335,7 @@ B.posture = (() => {
     const rollDev=Math.round(Math.abs(mR)*10)/10;
     const pitchDev=Math.round(Math.abs(mP)*10)/10;
     const totalStd=Math.sqrt(sR**2+sP**2);
-    // v9.0: 임상 기준 (Ferriero 2013, Mancini 2010)
+    // v9.5: 임상 기준 (Ferriero 2013, Mancini 2010)
     // 정상 직립 자세: 롤 <2°, 피치 <3° 표준편차
     // totalStd 0.5° → stab 95%, 2° → stab 80%, 5° → stab 50%, 10° → stab 10%
     const stab = bsClamp(Math.round(100 - Math.pow(totalStd, 0.85) * 10), 0, 100);
@@ -4323,6 +4532,7 @@ B.reaction = (() => {
     else if(avg<NORMS.slow) {grade='느린편'; score=48;}
     else                    {grade='느림';   score=30;}
     BS.reaction={score,avg,min,cv,grade};
+    updateBodyTestStatus('reaction', score);
     document.getElementById('res-reaction').style.display='grid';
     const col=gradeColor(score);
     setResult('r-rtAvg',avg,(avg<260)?'var(--green)':(avg<360)?'var(--warn)':'var(--danger)');
@@ -4358,7 +4568,7 @@ B.reaction = (() => {
 //  참고: Bhidayasiri 2011 — 병리적 떨림 3-12Hz (생리적 8-12Hz)
 // ────────────────────────────────────────────────────────────────
 B.shake = (() => {
-  const SR=100, DUR=8000, MIN_SAMPLES=SR*3; // v9.0: 8초
+  const SR=100, DUR=8000, MIN_SAMPLES=SR*3; // v9.5: 8초
   let running=false, samples=[], timer=null, ctx=null;
 
   function toggle(){ running?stop():start(); }
@@ -4404,6 +4614,7 @@ B.shake = (() => {
     if(samples.length<MIN_SAMPLES){setBadge('badge-shake','','대기');return;}
     const r=analyze(samples);
     BS.shake={score:r.score,amp:r.amp,freq:r.freq,stab:r.stab,grade:r.grade};
+    updateBodyTestStatus('shake', r.score);
     showResult(r);updateOverall();vibrate([100,50,200]);
     speak(`손 떨림 검사 완료. 안정성 ${r.stab}점입니다.`);
   }
@@ -4424,7 +4635,7 @@ B.shake = (() => {
     const y=removeGravity(ayRaw);
     const z=removeGravity(azRaw);
 
-    // v9.0: RMS in mg (1 m/s² = 101.97 mg ≈ 102 mg)
+    // v9.5: RMS in mg (1 m/s² = 101.97 mg ≈ 102 mg)
     const ampG = bsStd; // 의도적 별칭(검증 통과용)
     const rms = v => Math.sqrt(bsMean(v.map(a => a**2))) * 102;
     const ampX = rms(x), ampY = rms(y), ampZ = rms(z);
@@ -4435,7 +4646,7 @@ B.shake = (() => {
     const freqR=freq?Math.round(freq*10)/10:null;
 
     // 안정성 점수
-    // v9.0 임상 기준 (Heldman 2014 — Phys Med Rehabil)
+    // v9.5 임상 기준 (Heldman 2014 — Phys Med Rehabil)
     // 폰 양손으로 잡고 팔 뻗기 자세: 정상 5~30mg
     // 본태성 진전 30~100mg, 파킨슨 50~200mg
     const stab = amp < 30  ? bsClamp(Math.round(95 - amp * 0.4), 80, 100)
@@ -4447,7 +4658,7 @@ B.shake = (() => {
     // ── 올바른 임계값 (스마트폰 가속도계 실측 기반)
     // 고정 평면 기기: ~2-5mg, 손에 든 안정 상태: ~10-30mg
     // 일반인 뻗은 팔: ~15-50mg, 파킨슨 수준: >100mg
-    // v9.0: 임상 기준 (생리적 떨림 정상 5~30mg)
+    // v9.5: 임상 기준 (생리적 떨림 정상 5~30mg)
     let grade, score;
     if      (amp < 20)  { grade='매우안정';   score=92; }
     else if (amp < 40)  { grade='안정';       score=80; }
