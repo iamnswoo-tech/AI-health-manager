@@ -327,7 +327,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 5f</span>
+  <span class="hd-ver">v10.0 · STEP 5g</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -404,7 +404,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     <button id="dbg-force-stop" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:11px;cursor:pointer">⚠ 강제 중지</button>
   </div>
 
-  <!-- v10 STEP 5f: 화면 콘솔 (스마트폰 진단용) -->
+  <!-- v10 STEP 5g: 화면 콘솔 (스마트폰 진단용) -->
   <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <span style="font-size:11px;color:var(--muted);font-weight:700">📋 화면 콘솔 (스마트폰 진단용)</span>
@@ -522,11 +522,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5f — RR 자동 보간 + 채널 SNR 평가</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5g — 권한 사전 확보 + HRV 보간율 검증 + 스트레스 임상 매핑</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-// v10 STEP 5f: 화면 콘솔 (스마트폰 진단용)
+// v10 STEP 5g: 화면 콘솔 (스마트폰 진단용)
 // console.log/warn/error를 화면에도 출력
 // ════════════════════════════════════════════════════════════════════
 (function setupOnScreenConsole() {
@@ -588,11 +588,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 //   ✅ 플래시 실제 상태만 표시 (추정 X — track.getSettings().torch만 신뢰)
 //   ✅ 30초 타이머가 멈추지 않음 (Page Visibility + setInterval)
 //   ✅ 손가락 PPG: Red 채널 추출 + 신호 표시
-//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5f에서 알고리즘)
+//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5g에서 알고리즘)
 //
-// STEP 5f (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
-// STEP 5f (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
-// STEP 5f (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
+// STEP 5g (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
+// STEP 5g (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
+// STEP 5g (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
 // ════════════════════════════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
@@ -651,7 +651,7 @@ const App = {
       : '얼굴을 화면 중앙에 맞춰주세요';
     $('cam-sub').textContent = mode === 'finger'
       ? '플래시가 자동으로 켜집니다'
-      : '얼굴 측정은 STEP 5f에서 활성화';
+      : '얼굴 측정은 STEP 5g에서 활성화';
     $('video').classList.toggle('front', mode === 'face');
   },
 
@@ -679,6 +679,55 @@ const App = {
       alert('오류: ' + err.message);
     } finally {
       this._toggleLock = false;
+    }
+  },
+
+  // === 카메라 권한 사전 확보 (v10s5g) ===
+  // 플래시가 카메라 권한 팝업 때문에 꺼지는 문제 해결:
+  // - Permissions API로 현재 권한 상태 확인
+  // - 'prompt' 상태면 짧은 dummy 카메라 요청으로 권한만 받고 즉시 종료
+  // - 다음 _acquireCamera() 호출 시엔 팝업 안 뜸 → 플래시 유지됨
+  async _ensureCameraPermission() {
+    try {
+      // 1) Permissions API 먼저 확인
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const status = await navigator.permissions.query({ name: 'camera' });
+          console.log('[Permission] 카메라 권한 상태:', status.state);
+          if (status.state === 'granted') {
+            console.log('[Permission] ✅ 이미 허용됨 — 플래시 보존 가능');
+            return true;
+          }
+          if (status.state === 'denied') {
+            console.warn('[Permission] 거부됨');
+            return false;
+          }
+          // 'prompt' 상태 → 다음 단계로
+        } catch (e) {
+          console.log('[Permission] query 실패 — dummy 요청으로 진행');
+        }
+      }
+
+      // 2) 권한이 없으면 미리 dummy 카메라 요청 (짧게)
+      // 사용자가 "허용"하면 권한 영구 저장됨
+      console.log('[Permission] dummy 요청으로 권한 확보 중...');
+      alert(
+        '⚠️ 권한 안내\n\n' +
+        '카메라 권한 팝업이 표시됩니다.\n' +
+        '"사이트에 있는 동안 허용"을 선택하세요.\n\n' +
+        '권한 허용 후 플래시(손전등)를 켜고 측정을 시작합니다.'
+      );
+
+      const dummyStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // 즉시 종료 (권한만 필요, 플래시 영향 없음 — 아직 사용자가 안 켰으므로)
+      dummyStream.getTracks().forEach(t => t.stop());
+      console.log('[Permission] ✅ 권한 확보 완료');
+      // 짧은 대기 (OS 안정화)
+      await new Promise(r => setTimeout(r, 500));
+      return true;
+    } catch (err) {
+      console.error('[Permission] 권한 요청 실패:', err);
+      return false;
     }
   },
 
@@ -754,7 +803,7 @@ const App = {
   async start() {
     console.log('[App] start()');
 
-    // v10.0 STEP 5f: 손가락 모드 플래시 안내 + 5초 준비 시간
+    // v10.0 STEP 5g: 손가락 모드 플래시 안내 + 5초 준비 시간
     if (this.state.mode === 'finger') {
       const proceed = await this._showFlashGuide();
       if (!proceed) {
@@ -876,7 +925,7 @@ const App = {
     $('cam-sub').textContent = '측정 시작 버튼을 눌러주세요';
   },
 
-  // === v10 STEP 5f 카메라 획득 — 노트북/스마트폰 모두 호환 ===
+  // === v10 STEP 5g 카메라 획득 — 노트북/스마트폰 모두 호환 ===
   // 노트북: 전면만 있어도 작동, 단 손가락 모드는 의미 없음 (플래시 없음)
   // 스마트폰: 후면 우선, 폴백으로 사용 가능한 카메라 사용
   async _acquireCamera() {
@@ -1222,7 +1271,7 @@ const App = {
     const avgG = greens.reduce((a,b)=>a+b,0)/greens.length;
     const avgB = blues.reduce((a,b)=>a+b,0)/blues.length;
 
-    // === v10.0 STEP 5f 채널 선택: 변동성(std) 기반 ===
+    // === v10.0 STEP 5g 채널 선택: 변동성(std) 기반 ===
     // 평균값이 아닌 "신호 변동성"으로 판단 — 진짜 PPG 신호가 있는 채널 선택
     function stdOf(arr) {
       const m = arr.reduce((a,b)=>a+b,0) / arr.length;
@@ -1264,7 +1313,7 @@ const App = {
                 'snr:', candidates[0].probeSnr.toFixed(2));
 
     // === 1. HR 계산 (Goertzel FFT, 마지막 20초) ===
-    // === v10.0 STEP 5f HR 산출 — 엄격한 검증 ===
+    // === v10.0 STEP 5g HR 산출 — 엄격한 검증 ===
     // 마지막 25초 사용 (긴 윈도우 = 더 정확한 주파수 분해능)
     const winN = Math.min(sr * 25, signal.length);
     const sig = signal.slice(-winN);
@@ -1343,33 +1392,37 @@ const App = {
     const expectedRRms = 60000 / (hrHz * 60); // ms
     console.log('[HRV] 예상 RR:', expectedRRms.toFixed(0), 'ms');
 
+    // === RR 추출 v10s5g — 보간 추적 + 신뢰도 평가 ===
     const rrIntervals = [];
+    let directCount = 0;     // 보간 없이 직접 검출된 RR
+    let interpolatedCount = 0; // 보간된 RR
+
     for (let i = 1; i < peaks.length; i++) {
       const ms = (peaks[i] - peaks[i-1]) / sr * 1000;
-
-      // 유효 RR: 예상 RR의 50%~150% (피크 누락 보정)
-      // 예: 예상 845ms → 유효 422~1267ms
       const minRR = expectedRRms * 0.5;
       const maxRR = expectedRRms * 1.5;
 
       if (ms >= minRR && ms <= maxRR) {
-        // 정상 RR
         rrIntervals.push(ms);
+        directCount++;
       } else if (ms > maxRR && ms < maxRR * 2.5) {
-        // 누락된 피크 보간 (예: 1690ms → 845+845)
         const numMissed = Math.round(ms / expectedRRms);
         if (numMissed >= 2 && numMissed <= 4) {
           const interpolated = ms / numMissed;
           for (let k = 0; k < numMissed; k++) {
             rrIntervals.push(interpolated);
+            interpolatedCount++;
           }
           console.log('[HRV] 누락 보간:', ms.toFixed(0), 'ms →', numMissed, '개 ×', interpolated.toFixed(0), 'ms');
         }
       }
-      // 너무 짧거나 너무 긴 것은 무시
     }
-    console.log('[HRV] 유효 RR 간격:', rrIntervals.length, 'mean:',
-      rrIntervals.length ? (rrIntervals.reduce((a,b)=>a+b,0)/rrIntervals.length).toFixed(0)+'ms' : 'n/a');
+
+    // 보간 비율 평가 — 50% 넘으면 데이터 신뢰도 낮음
+    const totalRR = directCount + interpolatedCount;
+    const interpRatio = totalRR > 0 ? interpolatedCount / totalRR : 0;
+    console.log('[HRV] RR 통계: 직접', directCount, '+ 보간', interpolatedCount,
+      '= 총', totalRR, '(보간율:', (interpRatio*100).toFixed(0)+'%)');
 
     // === 3. HRV (RMSSD) v10s5c — 완화된 이상치 제거 ===
     // 이상치 제거: ±50% 벗어난 것만 제외 (자연 HRV는 보존)
@@ -1381,16 +1434,23 @@ const App = {
     }
 
     let rmssd = null;
-    if (cleanRR.length >= 4) {
+    // 보간율이 60% 이상이면 신뢰 불가 — RMSSD 무효
+    if (interpRatio > 0.6) {
+      console.warn('[HRV] 보간율 너무 높음 (' + (interpRatio*100).toFixed(0) + '%) — RMSSD 무효화');
+    } else if (cleanRR.length >= 4) {
+      // 보간된 RR은 RMSSD에서 제외 — 직접 검출된 RR만 사용
+      // (보간된 RR끼리는 인공적 차이가 발생)
       let sumSq = 0, n = 0;
       for (let i = 1; i < cleanRR.length; i++) {
         sumSq += (cleanRR[i] - cleanRR[i-1]) ** 2;
         n++;
       }
       rmssd = n > 0 ? Math.round(Math.sqrt(sumSq / n)) : null;
-      console.log('[HRV] RMSSD 계산:', rmssd, 'ms (n=', n, ')');
-      // 비정상 RMSSD 차단 — 임계값 완화
-      if (rmssd != null && (rmssd < 3 || rmssd > 250)) {
+      console.log('[HRV] RMSSD 계산:', rmssd, 'ms (n=', n, ', 보간율:', (interpRatio*100).toFixed(0)+'%)');
+
+      // 정상 범위 검증 (보간된 데이터에서 부풀어진 값 차단)
+      // RMSSD 정상: 10~70ms. 100ms 넘으면 보간으로 인한 인공 부풀림 의심
+      if (rmssd != null && (rmssd < 5 || rmssd > 150)) {
         console.warn('[HRV] 비정상 RMSSD:', rmssd, '— 무효화');
         rmssd = null;
       }
@@ -1492,14 +1552,22 @@ const App = {
       }
     }
 
-    // === 6. 스트레스 지수 v10s5c — RMSSD 또는 SDNN 기반 ===
-    // 정상 RMSSD: 20~50ms. 낮을수록 스트레스 ↑
-    // RMSSD가 null이면 SDNN(RR 표준편차)으로 대체 추정
+    // === 6. 스트레스 지수 v10s5g — 임상 기준 매핑 ===
+    // RMSSD 임상 기준 (Shaffer 2017):
+    //   < 15ms: 매우 높은 스트레스 (90점)
+    //   15-25: 높은 스트레스 (70점)
+    //   25-40: 보통 (50점)
+    //   40-60: 낮은 스트레스 (30점)
+    //   > 60: 이완 (15점, 단 너무 높으면 측정 오류 가능)
     let stressIdx = null;
     if (rmssd && rmssd > 0) {
-      // RMSSD 60ms = 0점 (이완), 10ms = 100점 (고스트레스)
-      stressIdx = Math.round(Math.max(0, Math.min(100, (60 - rmssd) * 2)));
-      console.log('[Stress] RMSSD 기반:', stressIdx);
+      if (rmssd < 15)       stressIdx = 85;
+      else if (rmssd < 25)  stressIdx = 70;
+      else if (rmssd < 40)  stressIdx = 50;
+      else if (rmssd < 60)  stressIdx = 30;
+      else if (rmssd < 100) stressIdx = 18; // 정상 이완
+      else                  stressIdx = 25; // 너무 높음 = 측정 오류 가능
+      console.log('[Stress] RMSSD', rmssd, 'ms 기반:', stressIdx, '점');
     } else if (cleanRR.length >= 4) {
       // SDNN으로 대체
       const meanRR = cleanRR.reduce((a,b)=>a+b,0) / cleanRR.length;
@@ -1815,8 +1883,8 @@ const App = {
     if (this.state.mode === 'finger') {
       this._processFingerFrame(video, vw, vh);
     } else {
-      // STEP 5f에서 rPPG 알고리즘 추가
-      $('cam-msg').textContent = '얼굴 측정은 STEP 5f에서 활성화 예정';
+      // STEP 5g에서 rPPG 알고리즘 추가
+      $('cam-msg').textContent = '얼굴 측정은 STEP 5g에서 활성화 예정';
     }
 
     this.state.rafId = requestAnimationFrame(() => this._processFrame());
@@ -1939,7 +2007,7 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === HR 추정 v10.0 STEP 5f — 채널 자동 선택 + FFT 기반 ===
+  // === HR 추정 v10.0 STEP 5g — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;

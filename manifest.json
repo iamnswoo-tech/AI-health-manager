@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v10 STEP 5f",
-  "short_name": "건강측정 v10s5f",
-  "description": "v10.0 STEP 5f — 누락 피크 자동 보간 + 채널별 SNR 평가",
+  "name": "건강 측정 v10 STEP 5g",
+  "short_name": "건강측정 v10s5g",
+  "description": "v10.0 STEP 5g — 카메라 권한 사전 확보 + HRV 보간율 검증",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
