@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v10 STEP 5e",
-  "short_name": "건강측정 v10s5e",
-  "description": "v10.0 STEP 5e — HR 중심 narrow band 필터 + PPG 파형 시각화",
+  "name": "건강 측정 v10 STEP 5f",
+  "short_name": "건강측정 v10s5f",
+  "description": "v10.0 STEP 5f — 누락 피크 자동 보간 + 채널별 SNR 평가",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

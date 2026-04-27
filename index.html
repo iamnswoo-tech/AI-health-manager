@@ -327,7 +327,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 5e</span>
+  <span class="hd-ver">v10.0 · STEP 5f</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -404,7 +404,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     <button id="dbg-force-stop" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:11px;cursor:pointer">⚠ 강제 중지</button>
   </div>
 
-  <!-- v10 STEP 5e: 화면 콘솔 (스마트폰 진단용) -->
+  <!-- v10 STEP 5f: 화면 콘솔 (스마트폰 진단용) -->
   <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <span style="font-size:11px;color:var(--muted);font-weight:700">📋 화면 콘솔 (스마트폰 진단용)</span>
@@ -522,11 +522,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5e — HR 중심 narrow band + PPG 필터 파형</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5f — RR 자동 보간 + 채널 SNR 평가</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-// v10 STEP 5e: 화면 콘솔 (스마트폰 진단용)
+// v10 STEP 5f: 화면 콘솔 (스마트폰 진단용)
 // console.log/warn/error를 화면에도 출력
 // ════════════════════════════════════════════════════════════════════
 (function setupOnScreenConsole() {
@@ -588,11 +588,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 //   ✅ 플래시 실제 상태만 표시 (추정 X — track.getSettings().torch만 신뢰)
 //   ✅ 30초 타이머가 멈추지 않음 (Page Visibility + setInterval)
 //   ✅ 손가락 PPG: Red 채널 추출 + 신호 표시
-//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5e에서 알고리즘)
+//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5f에서 알고리즘)
 //
-// STEP 5e (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
-// STEP 5e (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
-// STEP 5e (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
+// STEP 5f (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
+// STEP 5f (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
+// STEP 5f (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
 // ════════════════════════════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
@@ -651,7 +651,7 @@ const App = {
       : '얼굴을 화면 중앙에 맞춰주세요';
     $('cam-sub').textContent = mode === 'finger'
       ? '플래시가 자동으로 켜집니다'
-      : '얼굴 측정은 STEP 5e에서 활성화';
+      : '얼굴 측정은 STEP 5f에서 활성화';
     $('video').classList.toggle('front', mode === 'face');
   },
 
@@ -754,7 +754,7 @@ const App = {
   async start() {
     console.log('[App] start()');
 
-    // v10.0 STEP 5e: 손가락 모드 플래시 안내 + 5초 준비 시간
+    // v10.0 STEP 5f: 손가락 모드 플래시 안내 + 5초 준비 시간
     if (this.state.mode === 'finger') {
       const proceed = await this._showFlashGuide();
       if (!proceed) {
@@ -876,7 +876,7 @@ const App = {
     $('cam-sub').textContent = '측정 시작 버튼을 눌러주세요';
   },
 
-  // === v10 STEP 5e 카메라 획득 — 노트북/스마트폰 모두 호환 ===
+  // === v10 STEP 5f 카메라 획득 — 노트북/스마트폰 모두 호환 ===
   // 노트북: 전면만 있어도 작동, 단 손가락 모드는 의미 없음 (플래시 없음)
   // 스마트폰: 후면 우선, 폴백으로 사용 가능한 카메라 사용
   async _acquireCamera() {
@@ -1222,7 +1222,7 @@ const App = {
     const avgG = greens.reduce((a,b)=>a+b,0)/greens.length;
     const avgB = blues.reduce((a,b)=>a+b,0)/blues.length;
 
-    // === v10.0 STEP 5e 채널 선택: 변동성(std) 기반 ===
+    // === v10.0 STEP 5f 채널 선택: 변동성(std) 기반 ===
     // 평균값이 아닌 "신호 변동성"으로 판단 — 진짜 PPG 신호가 있는 채널 선택
     function stdOf(arr) {
       const m = arr.reduce((a,b)=>a+b,0) / arr.length;
@@ -1231,26 +1231,40 @@ const App = {
     const stdR = stdOf(reds), stdG = stdOf(greens), stdB = stdOf(blues);
     console.log('[Channel] avg R/G/B:', avgR.toFixed(1), avgG.toFixed(1), avgB.toFixed(1), '| std:', stdR.toFixed(2), stdG.toFixed(2), stdB.toFixed(2));
 
-    // 채널이 사용 가능한 조건: 포화 안됨(avg 245 미만) + 변동 있음(std >= 0.3)
-    // 변동이 가장 큰 채널 선택 (실제 혈류 흡수가 가장 잘 보이는 채널)
+    // === v10s5f: 채널 후보 평가 ===
+    // R 포화여도 std가 충분하면 사용 가능 (255에 박혀도 0.5~3 변동 있을 수 있음)
     const candidates = [];
-    if (avgR > 30 && avgR < 250 && stdR >= 0.3) candidates.push({ ch: 'R', sig: reds, std: stdR });
-    if (avgG > 5  && avgG < 250 && stdG >= 0.3) candidates.push({ ch: 'G', sig: greens, std: stdG });
-    if (avgB > 5  && avgB < 250 && stdB >= 0.3) candidates.push({ ch: 'B', sig: blues, std: stdB });
+    if (stdR >= 0.5 && avgR > 30) candidates.push({ ch: 'R', sig: reds, std: stdR, avg: avgR });
+    if (stdG >= 0.3 && avgG > 5 && avgG < 250) candidates.push({ ch: 'G', sig: greens, std: stdG, avg: avgG });
+    if (stdB >= 0.3 && avgB > 5 && avgB < 250) candidates.push({ ch: 'B', sig: blues, std: stdB, avg: avgB });
 
     if (candidates.length === 0) {
       console.warn('[Channel] 사용 가능한 채널 없음 — 측정 실패');
       return { hr: null, sqi: 0, reason: 'no_valid_channel' };
     }
 
-    // std 가장 큰 채널 선택
-    candidates.sort((a, b) => b.std - a.std);
+    // === 각 채널의 PPG 신호 품질 평가 (신호/잡음비) ===
+    // HR 후보 주파수 근처 에너지 / 전체 에너지 비율
+    candidates.forEach(c => {
+      const detrended = this._detrend(c.sig);
+      const filtered = this._bandpass(detrended, sr, 0.7, 3.0);
+      const probe = this._goertzelPeak(filtered, sr, 45/60, 180/60);
+      c.probeSnr = probe.snr;
+      c.probeFreq = probe.freq;
+    });
+    console.log('[Channel] 후보:', candidates.map(c =>
+      `${c.ch}(std:${c.std.toFixed(2)},snr:${c.probeSnr.toFixed(1)})`).join(' '));
+
+    // SNR 기준 정렬 (최고 신호 품질)
+    candidates.sort((a, b) => b.probeSnr - a.probeSnr);
     const signal = candidates[0].sig;
     const channel = candidates[0].ch;
-    console.log('[Channel] 선택:', channel, 'std:', candidates[0].std.toFixed(2));
+    console.log('[Channel] 최종 선택:', channel,
+                'std:', candidates[0].std.toFixed(2),
+                'snr:', candidates[0].probeSnr.toFixed(2));
 
     // === 1. HR 계산 (Goertzel FFT, 마지막 20초) ===
-    // === v10.0 STEP 5e HR 산출 — 엄격한 검증 ===
+    // === v10.0 STEP 5f HR 산출 — 엄격한 검증 ===
     // 마지막 25초 사용 (긴 윈도우 = 더 정확한 주파수 분해능)
     const winN = Math.min(sr * 25, signal.length);
     const sig = signal.slice(-winN);
@@ -1324,10 +1338,35 @@ const App = {
     console.log('[HRV] 최종 피크 수:', peaks.length, '/ 예상:', expectedPeaks,
                 ' = ' + Math.round(peaks.length / expectedPeaks * 100) + '%');
 
+    // === RR 간격 추출 v10s5f — HR 기반 자동 보간 ===
+    // 예상 RR: HR로부터 계산
+    const expectedRRms = 60000 / (hrHz * 60); // ms
+    console.log('[HRV] 예상 RR:', expectedRRms.toFixed(0), 'ms');
+
     const rrIntervals = [];
     for (let i = 1; i < peaks.length; i++) {
       const ms = (peaks[i] - peaks[i-1]) / sr * 1000;
-      if (ms > 300 && ms < 1500) rrIntervals.push(ms);
+
+      // 유효 RR: 예상 RR의 50%~150% (피크 누락 보정)
+      // 예: 예상 845ms → 유효 422~1267ms
+      const minRR = expectedRRms * 0.5;
+      const maxRR = expectedRRms * 1.5;
+
+      if (ms >= minRR && ms <= maxRR) {
+        // 정상 RR
+        rrIntervals.push(ms);
+      } else if (ms > maxRR && ms < maxRR * 2.5) {
+        // 누락된 피크 보간 (예: 1690ms → 845+845)
+        const numMissed = Math.round(ms / expectedRRms);
+        if (numMissed >= 2 && numMissed <= 4) {
+          const interpolated = ms / numMissed;
+          for (let k = 0; k < numMissed; k++) {
+            rrIntervals.push(interpolated);
+          }
+          console.log('[HRV] 누락 보간:', ms.toFixed(0), 'ms →', numMissed, '개 ×', interpolated.toFixed(0), 'ms');
+        }
+      }
+      // 너무 짧거나 너무 긴 것은 무시
     }
     console.log('[HRV] 유효 RR 간격:', rrIntervals.length, 'mean:',
       rrIntervals.length ? (rrIntervals.reduce((a,b)=>a+b,0)/rrIntervals.length).toFixed(0)+'ms' : 'n/a');
@@ -1776,8 +1815,8 @@ const App = {
     if (this.state.mode === 'finger') {
       this._processFingerFrame(video, vw, vh);
     } else {
-      // STEP 5e에서 rPPG 알고리즘 추가
-      $('cam-msg').textContent = '얼굴 측정은 STEP 5e에서 활성화 예정';
+      // STEP 5f에서 rPPG 알고리즘 추가
+      $('cam-msg').textContent = '얼굴 측정은 STEP 5f에서 활성화 예정';
     }
 
     this.state.rafId = requestAnimationFrame(() => this._processFrame());
@@ -1900,7 +1939,7 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === HR 추정 v10.0 STEP 5e — 채널 자동 선택 + FFT 기반 ===
+  // === HR 추정 v10.0 STEP 5f — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
