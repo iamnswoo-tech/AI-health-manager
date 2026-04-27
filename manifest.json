@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v10 STEP 5",
-  "short_name": "건강측정 v10s5",
-  "description": "v10.0 STEP 5 — 노트북/폰 호환 + 스마트폰용 화면 콘솔",
+  "name": "건강 측정 v10 STEP 5c",
+  "short_name": "건강측정 v10s5c",
+  "description": "v10.0 STEP 5c — 피크 검출 강화 + 호흡 envelope + HRV 완화 + SpO2 폴백",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
