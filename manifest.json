@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v10 STEP 5g",
-  "short_name": "건강측정 v10s5g",
-  "description": "v10.0 STEP 5g — 카메라 권한 사전 확보 + HRV 보간율 검증",
+  "name": "건강 측정 v10 STEP 5h",
+  "short_name": "건강측정 v10s5h",
+  "description": "v10.0 STEP 5h — 카메라 스트림 보존 + 50초 측정 + HRV 개선",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
