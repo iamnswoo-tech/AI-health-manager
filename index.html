@@ -327,7 +327,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 5d</span>
+  <span class="hd-ver">v10.0 · STEP 5e</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -404,7 +404,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     <button id="dbg-force-stop" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:11px;cursor:pointer">⚠ 강제 중지</button>
   </div>
 
-  <!-- v10 STEP 5d: 화면 콘솔 (스마트폰 진단용) -->
+  <!-- v10 STEP 5e: 화면 콘솔 (스마트폰 진단용) -->
   <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <span style="font-size:11px;color:var(--muted);font-weight:700">📋 화면 콘솔 (스마트폰 진단용)</span>
@@ -522,11 +522,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5d — Pan-Tompkins 피크 + 다중 호흡 추출 + 폴백</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5e — HR 중심 narrow band + PPG 필터 파형</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-// v10 STEP 5d: 화면 콘솔 (스마트폰 진단용)
+// v10 STEP 5e: 화면 콘솔 (스마트폰 진단용)
 // console.log/warn/error를 화면에도 출력
 // ════════════════════════════════════════════════════════════════════
 (function setupOnScreenConsole() {
@@ -588,11 +588,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 //   ✅ 플래시 실제 상태만 표시 (추정 X — track.getSettings().torch만 신뢰)
 //   ✅ 30초 타이머가 멈추지 않음 (Page Visibility + setInterval)
 //   ✅ 손가락 PPG: Red 채널 추출 + 신호 표시
-//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5d에서 알고리즘)
+//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5e에서 알고리즘)
 //
-// STEP 5d (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
-// STEP 5d (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
-// STEP 5d (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
+// STEP 5e (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
+// STEP 5e (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
+// STEP 5e (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
 // ════════════════════════════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
@@ -651,7 +651,7 @@ const App = {
       : '얼굴을 화면 중앙에 맞춰주세요';
     $('cam-sub').textContent = mode === 'finger'
       ? '플래시가 자동으로 켜집니다'
-      : '얼굴 측정은 STEP 5d에서 활성화';
+      : '얼굴 측정은 STEP 5e에서 활성화';
     $('video').classList.toggle('front', mode === 'face');
   },
 
@@ -754,7 +754,7 @@ const App = {
   async start() {
     console.log('[App] start()');
 
-    // v10.0 STEP 5d: 손가락 모드 플래시 안내 + 5초 준비 시간
+    // v10.0 STEP 5e: 손가락 모드 플래시 안내 + 5초 준비 시간
     if (this.state.mode === 'finger') {
       const proceed = await this._showFlashGuide();
       if (!proceed) {
@@ -876,7 +876,7 @@ const App = {
     $('cam-sub').textContent = '측정 시작 버튼을 눌러주세요';
   },
 
-  // === v10 STEP 5d 카메라 획득 — 노트북/스마트폰 모두 호환 ===
+  // === v10 STEP 5e 카메라 획득 — 노트북/스마트폰 모두 호환 ===
   // 노트북: 전면만 있어도 작동, 단 손가락 모드는 의미 없음 (플래시 없음)
   // 스마트폰: 후면 우선, 폴백으로 사용 가능한 카메라 사용
   async _acquireCamera() {
@@ -1222,7 +1222,7 @@ const App = {
     const avgG = greens.reduce((a,b)=>a+b,0)/greens.length;
     const avgB = blues.reduce((a,b)=>a+b,0)/blues.length;
 
-    // === v10.0 STEP 5d 채널 선택: 변동성(std) 기반 ===
+    // === v10.0 STEP 5e 채널 선택: 변동성(std) 기반 ===
     // 평균값이 아닌 "신호 변동성"으로 판단 — 진짜 PPG 신호가 있는 채널 선택
     function stdOf(arr) {
       const m = arr.reduce((a,b)=>a+b,0) / arr.length;
@@ -1250,7 +1250,7 @@ const App = {
     console.log('[Channel] 선택:', channel, 'std:', candidates[0].std.toFixed(2));
 
     // === 1. HR 계산 (Goertzel FFT, 마지막 20초) ===
-    // === v10.0 STEP 5d HR 산출 — 엄격한 검증 ===
+    // === v10.0 STEP 5e HR 산출 — 엄격한 검증 ===
     // 마지막 25초 사용 (긴 윈도우 = 더 정확한 주파수 분해능)
     const winN = Math.min(sr * 25, signal.length);
     const sig = signal.slice(-winN);
@@ -1291,37 +1291,38 @@ const App = {
       return { hr: null, sqi: 0, reason: 'out_of_range' };
     }
 
-    // === 2. RR 간격 추출 v10s5d — 다중 피크 검출 + 보정 ===
-    // 우선 filtered에서 피크 검출
-    let peaks = this._detectPeaks(filtered, sr, hrHz);
-    console.log('[HRV] filtered에서 검출된 피크 수:', peaks.length);
-
-    // 예상 피크 수 (HR 기반)
+    // === 2. RR 간격 추출 v10s5e — HR 중심 narrow band 필터 ===
+    // 핵심 인사이트: 호흡(0.16~0.5Hz)이 PPG 파형을 dominant하게 변조
+    // → 0.7~3.0Hz BPF로는 호흡 일부가 남아 시간 도메인 피크가 묻힘
+    // 해결: HR ±0.4Hz narrow band로 심박 성분만 남김
     const expectedPeaks = Math.round((winN / sr) * hrHz);
     console.log('[HRV] 예상 피크 수:', expectedPeaks);
 
-    // 만약 filtered에서 누락이 많으면 detrended에서 다시 시도
-    // (이동평균 BPF의 위상 왜곡으로 피크가 압축되는 경우)
+    // HR 중심 narrow band (HR-0.4 ~ HR+0.6 Hz)
+    const hrLoHz = Math.max(0.7, hrHz - 0.4);
+    const hrHiHz = Math.min(4.0, hrHz + 0.6);
+    console.log('[HRV] narrow band:', hrLoHz.toFixed(2), '~', hrHiHz.toFixed(2), 'Hz');
+    const narrowFiltered = this._bandpass(detrended, sr, hrLoHz, hrHiHz);
+
+    let peaks = this._detectPeaks(narrowFiltered, sr, hrHz);
+    console.log('[HRV] narrow band에서 검출:', peaks.length);
+
+    // 부족하면 기존 filtered에서 시도
+    if (peaks.length < expectedPeaks * 0.7) {
+      console.warn('[HRV] narrow band 부족 — filtered 시도');
+      const peaks2 = this._detectPeaks(filtered, sr, hrHz);
+      if (peaks2.length > peaks.length) peaks = peaks2;
+    }
+
+    // 그래도 부족하면 detrended에서
     if (peaks.length < expectedPeaks * 0.6) {
-      console.warn('[HRV] 피크 누락 감지 — detrended에서 재검출');
-      const peaks2 = this._detectPeaks(detrended, sr, hrHz);
-      console.log('[HRV] detrended에서 검출:', peaks2.length);
-      if (peaks2.length > peaks.length) {
-        peaks = peaks2;
-      }
+      console.warn('[HRV] 여전히 부족 — detrended 시도');
+      const peaks3 = this._detectPeaks(detrended, sr, hrHz);
+      if (peaks3.length > peaks.length) peaks = peaks3;
     }
 
-    // 그래도 부족하면 더 강한 신호 (signal 원본)에서
-    if (peaks.length < expectedPeaks * 0.5) {
-      console.warn('[HRV] 여전히 부족 — 원본 signal에서 시도');
-      const peaks3 = this._detectPeaks(signal.slice(-winN), sr, hrHz);
-      console.log('[HRV] signal 원본에서 검출:', peaks3.length);
-      if (peaks3.length > peaks.length) {
-        peaks = peaks3;
-      }
-    }
-
-    console.log('[HRV] 최종 피크 수:', peaks.length, '/ 예상:', expectedPeaks);
+    console.log('[HRV] 최종 피크 수:', peaks.length, '/ 예상:', expectedPeaks,
+                ' = ' + Math.round(peaks.length / expectedPeaks * 100) + '%');
 
     const rrIntervals = [];
     for (let i = 1; i < peaks.length; i++) {
@@ -1533,8 +1534,9 @@ const App = {
     if (r.respRate) {
       $('r-rr-val').textContent = r.respRate;
       setArc('r-rr-arc', r.respRate, 8, 30);
-      const rrCls = r.respRate<12?'low':r.respRate<=20?'normal':'high';
-      const rrLbl = r.respRate<12?'느림':r.respRate<=20?'정상':'빠름';
+      // 임상 기준: 안정 시 호흡 12~20 bpm 정상, 10~12는 깊은 호흡(정상 범주)
+      const rrCls = r.respRate<10?'low':r.respRate<=22?'normal':'high';
+      const rrLbl = r.respRate<10?'매우느림':r.respRate<=12?'안정':r.respRate<=20?'정상':r.respRate<=22?'약간빠름':'빠름';
       setBadge('r-rr-badge', rrLbl, rrCls);
     } else {
       $('r-rr-val').textContent = '--';
@@ -1774,8 +1776,8 @@ const App = {
     if (this.state.mode === 'finger') {
       this._processFingerFrame(video, vw, vh);
     } else {
-      // STEP 5d에서 rPPG 알고리즘 추가
-      $('cam-msg').textContent = '얼굴 측정은 STEP 5d에서 활성화 예정';
+      // STEP 5e에서 rPPG 알고리즘 추가
+      $('cam-msg').textContent = '얼굴 측정은 STEP 5e에서 활성화 예정';
     }
 
     this.state.rafId = requestAnimationFrame(() => this._processFrame());
@@ -1898,7 +1900,7 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === HR 추정 v10.0 STEP 5d — 채널 자동 선택 + FFT 기반 ===
+  // === HR 추정 v10.0 STEP 5e — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
@@ -2030,7 +2032,7 @@ const App = {
     o.width = 100; o.height = 100;
   },
 
-  // === 파형 그리기 ===
+  // === 파형 그리기 v10s5e — PPG 필터링된 파형 표시 ===
   _drawWaveform() {
     const cv = $('waveCanvas');
     const ctx = this._waveCtx;
@@ -2043,13 +2045,29 @@ const App = {
     // 최근 6초만
     const winSamples = this.config.targetSR * this.config.waveWindowSec;
     const slice = this.state.samples.slice(-winSamples);
+
+    // 채널 자동 선택 (R/G/B 중 std 가장 큰 것)
     const reds = slice.map(s => s.r);
+    const greens = slice.map(s => s.g);
+    const blues = slice.map(s => s.b);
+    function stdQ(arr) {
+      const m = arr.reduce((a,b)=>a+b,0)/arr.length;
+      return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length);
+    }
+    const sR = stdQ(reds), sG = stdQ(greens), sB = stdQ(blues);
+    let raw;
+    if (sR >= sG && sR >= sB) raw = reds;
+    else if (sG >= sB) raw = greens;
+    else raw = blues;
 
-    if (reds.length < 2) return;
+    if (raw.length < 30) return; // BPF 적용 위해 최소 데이터 필요
 
-    const minR = Math.min(...reds);
-    const maxR = Math.max(...reds);
-    const rangeR = Math.max(maxR - minR, 1);
+    // BPF 적용 (0.7~3Hz) — 호흡 제거, 심박만 남김
+    const filtered = this._bandpass(raw, this.config.targetSR, 0.7, 3.0);
+
+    const minR = Math.min(...filtered);
+    const maxR = Math.max(...filtered);
+    const rangeR = Math.max(maxR - minR, 0.1);
 
     // 그리드
     ctx.strokeStyle = 'rgba(59,130,246,.08)';
@@ -2060,15 +2078,15 @@ const App = {
       ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
-    // PPG 파형
+    // PPG 파형 (필터링됨)
     ctx.strokeStyle = '#3b82f6';
     ctx.lineWidth = 1.8;
     ctx.shadowBlur = 4;
     ctx.shadowColor = '#3b82f6';
     ctx.beginPath();
-    reds.forEach((r, i) => {
-      const x = i / (reds.length - 1) * W;
-      const y = H - ((r - minR) / rangeR) * (H - 10) - 5;
+    filtered.forEach((v, i) => {
+      const x = i / (filtered.length - 1) * W;
+      const y = H - ((v - minR) / rangeR) * (H - 10) - 5;
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     });
     ctx.stroke();
