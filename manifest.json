@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v10 STEP 5c",
-  "short_name": "건강측정 v10s5c",
-  "description": "v10.0 STEP 5c — 피크 검출 강화 + 호흡 envelope + HRV 완화 + SpO2 폴백",
+  "name": "건강 측정 v10 STEP 5d",
+  "short_name": "건강측정 v10s5d",
+  "description": "v10.0 STEP 5d — Pan-Tompkins 피크 검출 + 다중 호흡 폴백",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

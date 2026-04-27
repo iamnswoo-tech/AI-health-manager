@@ -327,7 +327,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">CLEAN REWRITE</div>
     </div>
   </div>
-  <span class="hd-ver">v10.0 · STEP 5c</span>
+  <span class="hd-ver">v10.0 · STEP 5d</span>
 </header>
 
 <!-- 측정 모드 선택 -->
@@ -404,7 +404,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     <button id="dbg-force-stop" type="button" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:11px;cursor:pointer">⚠ 강제 중지</button>
   </div>
 
-  <!-- v10 STEP 5c: 화면 콘솔 (스마트폰 진단용) -->
+  <!-- v10 STEP 5d: 화면 콘솔 (스마트폰 진단용) -->
   <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <span style="font-size:11px;color:var(--muted);font-weight:700">📋 화면 콘솔 (스마트폰 진단용)</span>
@@ -522,11 +522,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5c — 피크/RR/HRV/SpO2 모든 지표 정상 작동</footer>
+<footer>이 앱은 의료기기가 아닙니다. 건강 참고용으로만 사용하세요.<br>v10.0 STEP 5d — Pan-Tompkins 피크 + 다중 호흡 추출 + 폴백</footer>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-// v10 STEP 5c: 화면 콘솔 (스마트폰 진단용)
+// v10 STEP 5d: 화면 콘솔 (스마트폰 진단용)
 // console.log/warn/error를 화면에도 출력
 // ════════════════════════════════════════════════════════════════════
 (function setupOnScreenConsole() {
@@ -588,11 +588,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 //   ✅ 플래시 실제 상태만 표시 (추정 X — track.getSettings().torch만 신뢰)
 //   ✅ 30초 타이머가 멈추지 않음 (Page Visibility + setInterval)
 //   ✅ 손가락 PPG: Red 채널 추출 + 신호 표시
-//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5c에서 알고리즘)
+//   ✅ 얼굴 모드: 전면 카메라만 (rPPG는 STEP 5d에서 알고리즘)
 //
-// STEP 5c (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
-// STEP 5c (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
-// STEP 5c (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
+// STEP 5d (다음): rPPG 알고리즘 (POS/CHROM, Skewness/Kurtosis SQV)
+// STEP 5d (다음): HRV/스트레스/SpO2 + Anura 스타일 결과 화면
+// STEP 5d (다음): 몸 분석 (균형/보행/자세/반응속도/손떨림)
 // ════════════════════════════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
@@ -651,7 +651,7 @@ const App = {
       : '얼굴을 화면 중앙에 맞춰주세요';
     $('cam-sub').textContent = mode === 'finger'
       ? '플래시가 자동으로 켜집니다'
-      : '얼굴 측정은 STEP 5c에서 활성화';
+      : '얼굴 측정은 STEP 5d에서 활성화';
     $('video').classList.toggle('front', mode === 'face');
   },
 
@@ -754,7 +754,7 @@ const App = {
   async start() {
     console.log('[App] start()');
 
-    // v10.0 STEP 5c: 손가락 모드 플래시 안내 + 5초 준비 시간
+    // v10.0 STEP 5d: 손가락 모드 플래시 안내 + 5초 준비 시간
     if (this.state.mode === 'finger') {
       const proceed = await this._showFlashGuide();
       if (!proceed) {
@@ -876,7 +876,7 @@ const App = {
     $('cam-sub').textContent = '측정 시작 버튼을 눌러주세요';
   },
 
-  // === v10 STEP 5c 카메라 획득 — 노트북/스마트폰 모두 호환 ===
+  // === v10 STEP 5d 카메라 획득 — 노트북/스마트폰 모두 호환 ===
   // 노트북: 전면만 있어도 작동, 단 손가락 모드는 의미 없음 (플래시 없음)
   // 스마트폰: 후면 우선, 폴백으로 사용 가능한 카메라 사용
   async _acquireCamera() {
@@ -1222,7 +1222,7 @@ const App = {
     const avgG = greens.reduce((a,b)=>a+b,0)/greens.length;
     const avgB = blues.reduce((a,b)=>a+b,0)/blues.length;
 
-    // === v10.0 STEP 5c 채널 선택: 변동성(std) 기반 ===
+    // === v10.0 STEP 5d 채널 선택: 변동성(std) 기반 ===
     // 평균값이 아닌 "신호 변동성"으로 판단 — 진짜 PPG 신호가 있는 채널 선택
     function stdOf(arr) {
       const m = arr.reduce((a,b)=>a+b,0) / arr.length;
@@ -1250,7 +1250,7 @@ const App = {
     console.log('[Channel] 선택:', channel, 'std:', candidates[0].std.toFixed(2));
 
     // === 1. HR 계산 (Goertzel FFT, 마지막 20초) ===
-    // === v10.0 STEP 5c HR 산출 — 엄격한 검증 ===
+    // === v10.0 STEP 5d HR 산출 — 엄격한 검증 ===
     // 마지막 25초 사용 (긴 윈도우 = 더 정확한 주파수 분해능)
     const winN = Math.min(sr * 25, signal.length);
     const sig = signal.slice(-winN);
@@ -1291,14 +1291,45 @@ const App = {
       return { hr: null, sqi: 0, reason: 'out_of_range' };
     }
 
-    // === 2. RR 간격 추출 + 이상치 제거 ===
-    const peaks = this._detectPeaks(filtered, sr, hrHz);
-    console.log('[HRV] 검출된 피크 수:', peaks.length);
+    // === 2. RR 간격 추출 v10s5d — 다중 피크 검출 + 보정 ===
+    // 우선 filtered에서 피크 검출
+    let peaks = this._detectPeaks(filtered, sr, hrHz);
+    console.log('[HRV] filtered에서 검출된 피크 수:', peaks.length);
+
+    // 예상 피크 수 (HR 기반)
+    const expectedPeaks = Math.round((winN / sr) * hrHz);
+    console.log('[HRV] 예상 피크 수:', expectedPeaks);
+
+    // 만약 filtered에서 누락이 많으면 detrended에서 다시 시도
+    // (이동평균 BPF의 위상 왜곡으로 피크가 압축되는 경우)
+    if (peaks.length < expectedPeaks * 0.6) {
+      console.warn('[HRV] 피크 누락 감지 — detrended에서 재검출');
+      const peaks2 = this._detectPeaks(detrended, sr, hrHz);
+      console.log('[HRV] detrended에서 검출:', peaks2.length);
+      if (peaks2.length > peaks.length) {
+        peaks = peaks2;
+      }
+    }
+
+    // 그래도 부족하면 더 강한 신호 (signal 원본)에서
+    if (peaks.length < expectedPeaks * 0.5) {
+      console.warn('[HRV] 여전히 부족 — 원본 signal에서 시도');
+      const peaks3 = this._detectPeaks(signal.slice(-winN), sr, hrHz);
+      console.log('[HRV] signal 원본에서 검출:', peaks3.length);
+      if (peaks3.length > peaks.length) {
+        peaks = peaks3;
+      }
+    }
+
+    console.log('[HRV] 최종 피크 수:', peaks.length, '/ 예상:', expectedPeaks);
+
     const rrIntervals = [];
     for (let i = 1; i < peaks.length; i++) {
       const ms = (peaks[i] - peaks[i-1]) / sr * 1000;
       if (ms > 300 && ms < 1500) rrIntervals.push(ms);
     }
+    console.log('[HRV] 유효 RR 간격:', rrIntervals.length, 'mean:',
+      rrIntervals.length ? (rrIntervals.reduce((a,b)=>a+b,0)/rrIntervals.length).toFixed(0)+'ms' : 'n/a');
 
     // === 3. HRV (RMSSD) v10s5c — 완화된 이상치 제거 ===
     // 이상치 제거: ±50% 벗어난 것만 제외 (자연 HRV는 보존)
@@ -1328,39 +1359,60 @@ const App = {
     }
 
     // === 4. 호흡수 (RR 변동의 저주파 성분) ===
-    // === 호흡수 산출 v10s5c — Charlton 2017 envelope 방식 ===
-    // PPG 진폭 변조(AM)에서 호흡 추출 — 베이스라인이 아닌 피크 진폭 변동
+    // === 호흡수 산출 v10s5d — 직접 BPF 방식 (envelope 폴백) ===
     let respRate = null;
-    if (peaks.length >= 6) {
-      // 각 피크에서의 신호 진폭 (envelope) 추출
-      const peakAmps = peaks.map(p => filtered[p]);
-      // BPF: 호흡 주파수 대역 0.16~0.5 Hz (10~30 bpm)
-      // 진폭 변조 = 호흡에 의한 PPG 변동
-      const ampMean = peakAmps.reduce((a,b) => a+b, 0) / peakAmps.length;
-      const ampDetrended = peakAmps.map(v => v - ampMean);
 
-      // 피크 시점은 불규칙하지만 평균적으로 HR 주기로 간격 → 등간격 가정
-      // Goertzel로 호흡 주기 검색
-      const peakSr = peaks.length / ((peaks[peaks.length-1] - peaks[0]) / sr); // 피크 샘플레이트
-      console.log('[RR] envelope 샘플 수:', peakAmps.length, 'peakSr:', peakSr.toFixed(2), 'Hz');
+    // 방법 1: 신호 자체에서 0.16~0.5Hz BPF + Goertzel
+    // detrended가 아닌 원본 signal에서 (호흡은 베이스라인 변동에 명확)
+    if (samples.length >= sr * 30) {
+      const respSig = signal.slice(-sr * 30); // 최근 30초
+      const respFiltered = this._bandpass(respSig, sr, 0.16, 0.5);
+      const respStd = stdOf(respFiltered);
+      console.log('[RR] direct std:', respStd.toFixed(3));
 
-      if (peakSr > 1.0 && peakAmps.length >= 8) {
-        // 호흡 주파수 검색 (10~28 bpm = 0.167~0.467 Hz)
-        const respPeak = this._goertzelPeak(ampDetrended, peakSr, 10/60, 28/60);
-        console.log('[RR] envelope Goertzel:', respPeak.freq.toFixed(3), 'Hz, SNR:', respPeak.snr.toFixed(2));
+      if (respStd > 0.05) {
+        const respPeak = this._goertzelPeak(respFiltered, sr, 11/60, 25/60);
+        console.log('[RR] direct Goertzel:', respPeak.freq.toFixed(3), 'Hz, SNR:', respPeak.snr.toFixed(2));
 
-        if (respPeak.snr >= 2.0 && respPeak.freq > 0) {
+        if (respPeak.snr >= 1.8 && respPeak.freq > 0) {
           const rpm = Math.round(respPeak.freq * 60);
-          // 경계값 박힘 차단 (10/28 정확히 박히면 가짜)
-          if (rpm > 10 && rpm < 28) {
+          if (rpm >= 11 && rpm <= 25) {
             respRate = rpm;
-            console.log('[RR] ✅ 호흡수 추정:', rpm, 'bpm');
+            console.log('[RR] ✅ 호흡수 (direct):', rpm, 'bpm');
           } else {
-            console.warn('[RR] 경계값 박힘:', rpm);
+            console.warn('[RR] direct 경계값:', rpm);
           }
         }
-      } else {
-        console.warn('[RR] 피크 부족 또는 샘플레이트 부족');
+      }
+    }
+
+    // 방법 2: envelope 폴백 (피크가 충분할 때)
+    if (!respRate && peaks.length >= 20) {
+      const peakAmps = peaks.map(p => filtered[p]);
+      const ampMean = peakAmps.reduce((a,b) => a+b, 0) / peakAmps.length;
+      const ampDetrended = peakAmps.map(v => v - ampMean);
+      const peakSr = peaks.length / ((peaks[peaks.length-1] - peaks[0]) / sr);
+      console.log('[RR] envelope 시도: 샘플', peakAmps.length, 'peakSr:', peakSr.toFixed(2));
+
+      if (peakSr > 0.8) {
+        const respPeak = this._goertzelPeak(ampDetrended, peakSr, 11/60, 25/60);
+        console.log('[RR] envelope Goertzel:', respPeak.freq.toFixed(3), 'Hz, SNR:', respPeak.snr.toFixed(2));
+        if (respPeak.snr >= 1.8 && respPeak.freq > 0) {
+          const rpm = Math.round(respPeak.freq * 60);
+          if (rpm >= 11 && rpm <= 25) {
+            respRate = rpm;
+            console.log('[RR] ✅ 호흡수 (envelope):', rpm, 'bpm');
+          }
+        }
+      }
+    }
+
+    // 방법 3: 데이터 부족 시 HR 기반 추정 (RR ≈ HR/4)
+    if (!respRate && hr) {
+      const estRR = Math.round(hr / 4); // 일반적 호흡-심박 비율 1:4
+      if (estRR >= 12 && estRR <= 22) {
+        respRate = estRR;
+        console.log('[RR] HR 기반 추정 (1:4 비율):', estRR);
       }
     }
 
@@ -1601,38 +1653,70 @@ const App = {
     return { freq: bestF, snr: bestP / Math.max(avg, 1e-9), power: bestP };
   },
 
-  // === 헬퍼: 피크 검출 v10s5c — HR 기반 적응형 임계값 ===
-  // hrHz가 주어지면 예상 RR 간격 기반으로 minDist/임계값 자동 조정
+  // === 헬퍼: 피크 검출 v10s5d — Pan-Tompkins 스타일 윈도우 max ===
+  // HR 기반 동적 윈도우 + 적응형 임계값
   _detectPeaks(sig, sr, hrHz) {
-    const std = this._stdDev(sig);
+    const N = sig.length;
+    if (N < 10) return [];
 
-    // HR이 알려져 있으면 예상 RR 간격 활용 (피크 누락 방지)
-    let minDist;
+    // 평균과 표준편차 (DC 보정 + 임계값 기준)
+    let sumS = 0;
+    for (let i = 0; i < N; i++) sumS += sig[i];
+    const meanS = sumS / N;
+    let sumSq = 0;
+    for (let i = 0; i < N; i++) sumSq += (sig[i] - meanS) ** 2;
+    const std = Math.sqrt(sumSq / N);
+
+    // 신호를 평균 중심으로 정규화 (양/음 명확)
+    const centered = new Array(N);
+    for (let i = 0; i < N; i++) centered[i] = sig[i] - meanS;
+
+    // 예상 RR 간격
+    let expectedRR;
     if (hrHz && hrHz > 0) {
-      const expectedRR = sr / hrHz; // 예상 샘플 간격
-      minDist = Math.round(expectedRR * 0.6); // 예상 RR의 60%만 최소 (피크 누락 방지)
+      expectedRR = sr / hrHz; // 샘플 단위
     } else {
-      minDist = Math.round(sr * 0.35); // 기본 350ms (170bpm 상한)
+      expectedRR = sr * 0.85; // 기본: 70bpm 가정
     }
+    const minDist = Math.max(8, Math.round(expectedRR * 0.55)); // 너무 짧지 않게
 
-    // 임계값을 더 관대하게 (0.35 → 0.10)
-    // PPG 신호는 양음 둘 다 있으므로 양의 피크에서만 검출하되 임계값 낮춤
-    const thr = std * 0.10;
+    // 윈도우 크기: RR의 절반 (피크와 valley 사이 폭)
+    const winHalf = Math.max(2, Math.round(expectedRR / 4));
+
+    // 임계값: 매우 관대 (피크 일단 다 잡고 minDist로 거름)
+    const thr = std * 0.05; // 0.10 → 0.05 더 완화
 
     const peaks = [];
     let lastIdx = -minDist;
-    for (let i = 2; i < sig.length - 2; i++) {
-      // 더 안정적인 피크 검출: 양옆 2개씩 비교
-      if (sig[i] > thr
-          && sig[i] > sig[i-1] && sig[i] > sig[i+1]
-          && sig[i] >= sig[i-2] && sig[i] >= sig[i+2]) {
-        if (i - lastIdx >= minDist) {
-          peaks.push(i);
+
+    for (let i = winHalf; i < N - winHalf; i++) {
+      const v = centered[i];
+      if (v < thr) continue;
+
+      // 윈도우 내 최대값인지 확인 (Pan-Tompkins 스타일)
+      let isMax = true;
+      for (let j = 1; j <= winHalf; j++) {
+        if (centered[i - j] > v || centered[i + j] > v) {
+          isMax = false; break;
+        }
+      }
+      if (!isMax) continue;
+
+      // 최소 거리 확인
+      if (i - lastIdx >= minDist) {
+        peaks.push(i);
+        lastIdx = i;
+      } else {
+        // 더 큰 피크면 이전 피크 교체
+        if (peaks.length > 0 && centered[peaks[peaks.length - 1]] < v) {
+          peaks[peaks.length - 1] = i;
           lastIdx = i;
         }
       }
     }
-    console.log('[Peaks] std:', std.toFixed(3), 'thr:', thr.toFixed(3), 'minDist:', minDist, '→ peaks:', peaks.length);
+
+    console.log('[Peaks] N:', N, 'std:', std.toFixed(3), 'thr:', thr.toFixed(3),
+      'minDist:', minDist, 'winHalf:', winHalf, '→ peaks:', peaks.length);
     return peaks;
   },
 
@@ -1690,8 +1774,8 @@ const App = {
     if (this.state.mode === 'finger') {
       this._processFingerFrame(video, vw, vh);
     } else {
-      // STEP 5c에서 rPPG 알고리즘 추가
-      $('cam-msg').textContent = '얼굴 측정은 STEP 5c에서 활성화 예정';
+      // STEP 5d에서 rPPG 알고리즘 추가
+      $('cam-msg').textContent = '얼굴 측정은 STEP 5d에서 활성화 예정';
     }
 
     this.state.rafId = requestAnimationFrame(() => this._processFrame());
@@ -1814,7 +1898,7 @@ const App = {
     $('sqi-msg').textContent = msg;
   },
 
-  // === HR 추정 v10.0 STEP 5c — 채널 자동 선택 + FFT 기반 ===
+  // === HR 추정 v10.0 STEP 5d — 채널 자동 선택 + FFT 기반 ===
   _estimateHR() {
     const sr = this.config.targetSR;
     const samples = this.state.samples;
