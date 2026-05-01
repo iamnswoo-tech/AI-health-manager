@@ -607,11 +607,38 @@ const App = {
     console.log('[Face] RR: 직접', directCount, '+ 보간', interpolatedCount,
                 '(보간율:', (interpRatio*100).toFixed(0) + '%)');
 
-    // RMSSD
+    // === RMSSD v11s6b — 보간율에 따라 다른 전략 사용 ===
     let rmssd = null;
     if (interpRatio > 0.7) {
-      console.warn('[Face] 보간율 너무 높음 — RMSSD 무효');
+      console.warn('[Face] 보간율 너무 높음 (' + (interpRatio*100).toFixed(0) + '%) — RMSSD 무효');
+    } else if (interpRatio > 0.3) {
+      // 보간율 30~70%: 직접 검출된 RR만으로 RMSSD 계산
+      // (보간 RR끼리는 인공값으로 차이=0 → 직접 RR과 합쳐지면 부풀림 발생)
+      console.log('[Face] 보간율 높음 (' + (interpRatio*100).toFixed(0) + '%) — 직접 RR만 사용');
+      // 직접 검출된 RR만 추출
+      const directRR = [];
+      let idx = 0;
+      for (let i = 1; i < peaks.length; i++) {
+        const ms = (peaks[i] - peaks[i-1]) / sr * 1000;
+        const minRR = expectedRRms * 0.5;
+        const maxRR = expectedRRms * 1.5;
+        if (ms >= minRR && ms <= maxRR) directRR.push(ms);
+      }
+      if (directRR.length >= 4) {
+        const mean = directRR.reduce((a,b)=>a+b,0) / directRR.length;
+        const cleanRR = directRR.filter(rr => Math.abs(rr - mean) < mean * 0.5);
+        let sumSq = 0, n = 0;
+        for (let i = 1; i < cleanRR.length; i++) {
+          const diff = cleanRR[i] - cleanRR[i-1];
+          sumSq += diff * diff;
+          n++;
+        }
+        rmssd = n >= 3 ? Math.round(Math.sqrt(sumSq / n)) : null;
+        console.log('[Face] 직접 RR RMSSD:', rmssd, 'ms (n=', n, ')');
+        if (rmssd != null && (rmssd < 5 || rmssd > 150)) rmssd = null;
+      }
     } else if (rrIntervals.length >= 4) {
+      // 보간율 < 30%: 모든 RR 사용
       const mean = rrIntervals.reduce((a,b)=>a+b,0) / rrIntervals.length;
       const cleanRR = rrIntervals.filter(rr => Math.abs(rr - mean) < mean * 0.5);
       let sumSq = 0, n = 0;
@@ -621,7 +648,7 @@ const App = {
       }
       rmssd = n >= 3 ? Math.round(Math.sqrt(sumSq / n)) : null;
       console.log('[Face] RMSSD:', rmssd, 'ms');
-      if (rmssd != null && (rmssd < 5 || rmssd > 200)) rmssd = null;
+      if (rmssd != null && (rmssd < 5 || rmssd > 150)) rmssd = null;
     }
 
     // SDNN 폴백 데이터
@@ -674,42 +701,92 @@ const App = {
       el.className = 'rg-badge ' + cls;
     };
 
+    // === 각 지표 표시 + 해설 멘트 ===
+    const setComment = (id, text, color) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = text;
+        if (color) el.style.color = color;
+      }
+    };
+
     if (r.hr) {
       document.getElementById('fr-hr-val').textContent = r.hr;
       setArc('fr-hr-arc', r.hr, 40, 180);
       const cls = r.hr<60?'low':r.hr<=100?'normal':r.hr<=120?'high':'bad';
       const lbl = r.hr<60?'서맥':r.hr<=100?'정상':r.hr<=120?'약간높음':'높음';
       setBadge('fr-hr-badge', lbl, cls);
+      // 해설 멘트
+      let cmt;
+      if (r.hr < 50)       cmt = '운동선수 수준의 낮은 심박수입니다.';
+      else if (r.hr < 60)  cmt = '안정 시 서맥. 건강하면 정상 범위입니다.';
+      else if (r.hr <= 80) cmt = '안정 시 정상 심박수입니다.';
+      else if (r.hr <= 100) cmt = '평상시 심박수입니다.';
+      else if (r.hr <= 120) cmt = '약간 빠른 편. 카페인이나 스트레스 영향일 수 있습니다.';
+      else                 cmt = '심박수가 높습니다. 안정 후 재측정 권장.';
+      setComment('fr-hr-cmt', cmt, '');
+    } else {
+      setComment('fr-hr-cmt', '심박수를 측정할 수 없었습니다.');
     }
+
     if (r.respRate) {
       document.getElementById('fr-rr-val').textContent = r.respRate;
       setArc('fr-rr-arc', r.respRate, 8, 30);
       const cls = r.respRate<10?'low':r.respRate<=22?'normal':'high';
       const lbl = r.respRate<10?'느림':r.respRate<=12?'안정':r.respRate<=20?'정상':'빠름';
       setBadge('fr-rr-badge', lbl, cls);
+      // 해설
+      let cmt;
+      if (r.respRate < 10)      cmt = '호흡이 매우 느립니다. 명상 상태일 수 있습니다.';
+      else if (r.respRate <= 12) cmt = '깊고 안정적인 호흡 패턴입니다.';
+      else if (r.respRate <= 20) cmt = '정상 호흡수입니다.';
+      else if (r.respRate <= 22) cmt = '약간 빠른 편. 가벼운 운동/긴장 상태.';
+      else                       cmt = '호흡이 빠릅니다. 휴식이 필요합니다.';
+      setComment('fr-rr-cmt', cmt, '');
     } else {
       document.getElementById('fr-rr-val').textContent = '--';
       setBadge('fr-rr-badge', '데이터 부족', 'wait');
+      setComment('fr-rr-cmt', '신호 부족으로 호흡수를 측정할 수 없었습니다.');
     }
+
     if (r.rmssd) {
       document.getElementById('fr-hv-val').textContent = r.rmssd;
       setArc('fr-hv-arc', r.rmssd, 15, 60);
       const cls = r.rmssd<20?'bad':r.rmssd<35?'high':'normal';
       const lbl = r.rmssd<20?'스트레스':r.rmssd<35?'보통':'이완';
       setBadge('fr-hv-badge', lbl, cls);
+      // 해설
+      let cmt;
+      if (r.rmssd < 15)      cmt = '심박변이도가 매우 낮음. 만성 스트레스 가능성.';
+      else if (r.rmssd < 25) cmt = '심박변이도 낮음. 스트레스/피로 상태일 수 있습니다.';
+      else if (r.rmssd < 40) cmt = '평균적인 자율신경 균형 상태입니다.';
+      else if (r.rmssd < 60) cmt = '좋은 심박변이도. 자율신경이 건강합니다.';
+      else                   cmt = '매우 높은 심박변이도. 운동선수 수준의 회복력입니다.';
+      setComment('fr-hv-cmt', cmt, '');
     } else {
       document.getElementById('fr-hv-val').textContent = '--';
       setBadge('fr-hv-badge', '피크 부족', 'wait');
+      setComment('fr-hv-cmt', '신호 품질이 낮아 HRV 산출이 어렵습니다. 움직이지 말고 재측정해주세요.');
     }
+
     if (r.stressIdx != null) {
       document.getElementById('fr-st-val').textContent = r.stressIdx;
       setArc('fr-st-arc', r.stressIdx, 0, 100);
       const cls = r.stressIdx<35?'normal':r.stressIdx<60?'high':'bad';
       const lbl = r.stressIdx<35?'이완':r.stressIdx<60?'보통':'스트레스';
       setBadge('fr-st-badge', lbl, cls);
+      // 해설
+      let cmt;
+      if (r.stressIdx < 25)      cmt = '매우 이완된 상태. 명상이나 휴식 후 측정한 듯합니다.';
+      else if (r.stressIdx < 40) cmt = '이완 상태. 좋은 컨디션입니다.';
+      else if (r.stressIdx < 60) cmt = '평상시 상태입니다.';
+      else if (r.stressIdx < 75) cmt = '약간의 긴장 상태. 잠시 휴식하세요.';
+      else                       cmt = '높은 스트레스. 심호흡과 휴식이 필요합니다.';
+      setComment('fr-st-cmt', cmt, '');
     } else {
       document.getElementById('fr-st-val').textContent = '--';
       setBadge('fr-st-badge', '데이터 부족', 'wait');
+      setComment('fr-st-cmt', '심박변이도 산출 실패로 스트레스 평가가 어렵습니다.');
     }
 
     let score = 100;
