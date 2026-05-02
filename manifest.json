@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v11 STEP 6b",
-  "short_name": "건강측정 v11s6b",
-  "description": "v11.0 STEP 6b — HRV 안정성 개선 + 각 지표 해설 멘트",
+  "name": "건강 측정 v11 STEP 7",
+  "short_name": "건강측정 v11s7",
+  "description": "v11.0 STEP 7 — 신체 측정 5종 (균형/보행/반응속도/손떨림/자세)",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

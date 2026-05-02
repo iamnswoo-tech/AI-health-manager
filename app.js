@@ -10,9 +10,10 @@ const Console = {
   origWarn: console.warn.bind(console),
   origError: console.error.bind(console),
   init() {
-    console.log = (...args) => { this.origLog(...args); this._append('face', 'log', args); };
-    console.warn = (...args) => { this.origWarn(...args); this._append('face', 'warn', args); };
-    console.error = (...args) => { this.origError(...args); this._append('face', 'error', args); };
+    // 콘솔 메시지를 face/body 모두에 출력 (해당 페이지에 표시)
+    console.log = (...args) => { this.origLog(...args); this._append('face', 'log', args); this._append('body', 'log', args); };
+    console.warn = (...args) => { this.origWarn(...args); this._append('face', 'warn', args); this._append('body', 'warn', args); };
+    console.error = (...args) => { this.origError(...args); this._append('face', 'error', args); this._append('body', 'error', args); };
     console.log('[Console] v11.0 화면 콘솔 활성화');
     console.log('[Console] UA:', navigator.userAgent.substring(0, 60));
   },
@@ -60,11 +61,28 @@ const App = {
       measureStartMs: 0,
       timerInterval: null,
       rafId: null,
-      samples: [],   // {r,g,b,t} from face ROI
+      samples: [],
       fps: 0, fpsCounter: 0, fpsLastT: 0,
       autoFinalized: false,
       lastHR: null,
       faceDetected: false,
+    },
+    body: {
+      currentTest: null,
+      running: false,
+      startMs: 0,
+      timerInterval: null,
+      motionListener: null,
+      // 균형: 각 단계별 가속도 데이터
+      balance: { phase: 'eyes_open', samples: [], openSamples: [], closedSamples: [] },
+      // 보행: 가속도 데이터
+      gait: { samples: [], steps: 0 },
+      // 손떨림
+      tremor: { samples: [] },
+      // 반응속도
+      reaction: { count: 0, total: 5, times: [], waitTimer: null, signalAt: 0, state: 'wait' },
+      // 자세
+      posture: { stream: null, capturedImage: null, captureTimer: null },
     }
   },
 
@@ -979,7 +997,635 @@ const App = {
     if (this.state.face.stream) {
       this.state.face.stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
     }
-  }
+    if (this.state.body.posture.stream) {
+      this.state.body.posture.stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+    }
+    this._stopMotionListener();
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // 신체 측정
+  // ════════════════════════════════════════════════════════════════
+  startBodyTest(test) {
+    console.log('[Body] startBodyTest:', test);
+    this.state.body.currentTest = test;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+    document.getElementById('page-test-' + test).classList.add('on');
+    // 결과/실행 화면 초기화
+    document.getElementById(`bt-${test}-stage`).style.display = 'block';
+    const running = document.getElementById(`bt-${test}-running`);
+    if (running) running.style.display = 'none';
+    const result = document.getElementById(`bt-${test}-result`);
+    if (result) { result.style.display = 'none'; result.innerHTML = ''; }
+    window.scrollTo(0, 0);
+  },
+
+  cancelBodyTest(test) {
+    console.log('[Body] cancelBodyTest:', test);
+    this.bodyStop();
+    this.goPage('body');
+  },
+
+  async bodyStart(test) {
+    console.log('[Body] bodyStart:', test);
+    const b = this.state.body;
+    b.currentTest = test;
+    b.running = true;
+    b.startMs = performance.now();
+
+    document.getElementById(`bt-${test}-stage`).style.display = 'none';
+    document.getElementById(`bt-${test}-running`).style.display = 'block';
+
+    if (test === 'balance') await this._startBalance();
+    else if (test === 'gait') await this._startGait();
+    else if (test === 'tremor') await this._startTremor();
+    else if (test === 'reaction') await this._startReaction();
+    else if (test === 'posture') await this._startPosture();
+  },
+
+  bodyStop() {
+    console.log('[Body] bodyStop');
+    const b = this.state.body;
+    b.running = false;
+    if (b.timerInterval) { clearInterval(b.timerInterval); b.timerInterval = null; }
+    if (b.reaction.waitTimer) { clearTimeout(b.reaction.waitTimer); b.reaction.waitTimer = null; }
+    if (b.posture.captureTimer) { clearTimeout(b.posture.captureTimer); b.posture.captureTimer = null; }
+    this._stopMotionListener();
+    if (b.posture.stream) {
+      try { b.posture.stream.getTracks().forEach(t => t.stop()); } catch(e) {}
+      b.posture.stream = null;
+    }
+  },
+
+  // ─── DeviceMotion 권한 + 리스너 ───
+  async _requestMotionPermission() {
+    // iOS 13+는 명시적 권한 필요
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      try {
+        const res = await DeviceMotionEvent.requestPermission();
+        if (res !== 'granted') {
+          alert('모션 센서 권한이 필요합니다.');
+          return false;
+        }
+      } catch (e) {
+        console.warn('[Motion] 권한 요청 실패:', e);
+        return false;
+      }
+    }
+    return true;
+  },
+
+  _startMotionListener(callback) {
+    this._stopMotionListener();
+    const handler = (event) => {
+      const acc = event.accelerationIncludingGravity || event.acceleration;
+      if (!acc || acc.x == null) return;
+      callback({
+        x: acc.x, y: acc.y, z: acc.z,
+        t: performance.now()
+      });
+    };
+    this.state.body.motionListener = handler;
+    window.addEventListener('devicemotion', handler);
+  },
+
+  _stopMotionListener() {
+    if (this.state.body.motionListener) {
+      window.removeEventListener('devicemotion', this.state.body.motionListener);
+      this.state.body.motionListener = null;
+    }
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // 균형 검사 (Romberg)
+  // 알고리즘: 가속도 흔들림 RMS + Jerk (Lavoie 2021)
+  // ════════════════════════════════════════════════════════════════
+  async _startBalance() {
+    console.log('[Balance] 시작');
+    const ok = await this._requestMotionPermission();
+    if (!ok) { this.bodyStop(); return; }
+    const b = this.state.body.balance;
+    b.phase = 'eyes_open';
+    b.samples = [];
+    b.openSamples = [];
+    b.closedSamples = [];
+
+    document.getElementById('bt-balance-phase').textContent = '👁 눈을 뜨고 정면을 보세요';
+    let remain = 15;
+    document.getElementById('bt-balance-timer').textContent = remain;
+
+    this._startMotionListener(s => {
+      this.state.body.balance.samples.push(s);
+    });
+
+    this.state.body.timerInterval = setInterval(() => {
+      remain--;
+      document.getElementById('bt-balance-timer').textContent = remain;
+      if (remain === 0) {
+        if (b.phase === 'eyes_open') {
+          // 눈 뜬 데이터 저장 후 눈 감고 단계
+          b.openSamples = [...b.samples];
+          b.samples = [];
+          b.phase = 'eyes_closed';
+          document.getElementById('bt-balance-phase').textContent = '👁‍🗨 눈을 감고 가만히 서세요';
+          remain = 15;
+          document.getElementById('bt-balance-timer').textContent = remain;
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        } else {
+          // 완료
+          b.closedSamples = [...b.samples];
+          this._finalizeBalance();
+        }
+      }
+    }, 1000);
+  },
+
+  _finalizeBalance() {
+    console.log('[Balance] finalize');
+    this.bodyStop();
+    const b = this.state.body.balance;
+    const openMetrics = this._computeBalanceMetrics(b.openSamples);
+    const closedMetrics = this._computeBalanceMetrics(b.closedSamples);
+    console.log('[Balance] 눈뜨고:', openMetrics, '눈감고:', closedMetrics);
+
+    // Romberg ratio: 눈감은 흔들림 / 눈뜬 흔들림
+    // 정상: 1.5 ~ 3.0 (눈감으면 약간 더 흔들림)
+    // 비정상: > 4 (눈감으면 크게 흔들림 = 전정 기능 이상)
+    let rombergRatio = 0;
+    if (openMetrics.rms > 0.01) {
+      rombergRatio = closedMetrics.rms / openMetrics.rms;
+    }
+
+    let score = 100;
+    if (closedMetrics.rms > 0.4) score -= 30;
+    else if (closedMetrics.rms > 0.25) score -= 15;
+    if (rombergRatio > 4) score -= 25;
+    else if (rombergRatio > 2.5) score -= 10;
+    score = Math.max(0, Math.min(100, score));
+    const grade = score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 50 ? 'C' : 'D';
+
+    let cmt;
+    if (score >= 85) cmt = '균형 능력이 우수합니다. 전정 기능과 자세 안정성이 양호합니다.';
+    else if (score >= 70) cmt = '균형 능력이 정상 범위입니다.';
+    else if (score >= 50) cmt = '균형 능력이 다소 떨어집니다. 코어 운동을 고려하세요.';
+    else cmt = '균형이 불안정합니다. 어지러움이 잦다면 전문의 상담을 권합니다.';
+
+    document.getElementById('bt-balance-running').style.display = 'none';
+    const result = document.getElementById('bt-balance-result');
+    result.style.display = 'block';
+    result.innerHTML = `
+      <div class="bt-result-card">
+        <div class="bt-result-title">⚖️ 균형 검사 결과</div>
+        <div class="bt-result-value">${score}<span class="bt-result-unit">/ 100</span></div>
+        <div class="bt-result-grade ${grade}">${grade} 등급</div>
+        <div class="bt-result-row"><span class="bt-result-row-label">눈뜨고 흔들림 (RMS)</span><span class="bt-result-row-value">${openMetrics.rms.toFixed(3)} m/s²</span></div>
+        <div class="bt-result-row"><span class="bt-result-row-label">눈감고 흔들림 (RMS)</span><span class="bt-result-row-value">${closedMetrics.rms.toFixed(3)} m/s²</span></div>
+        <div class="bt-result-row"><span class="bt-result-row-label">Romberg 비율</span><span class="bt-result-row-value">${rombergRatio.toFixed(2)}x</span></div>
+        <div class="bt-result-cmt">${cmt}</div>
+      </div>
+      <button class="bt-redo" type="button" onclick="App.startBodyTest('balance')">🔄 다시 측정</button>
+    `;
+  },
+
+  _computeBalanceMetrics(samples) {
+    if (samples.length < 10) return { rms: 0, jerk: 0 };
+    // 중력 제거: 각 축 평균 빼기
+    const meanX = samples.reduce((s, v) => s + v.x, 0) / samples.length;
+    const meanY = samples.reduce((s, v) => s + v.y, 0) / samples.length;
+    const meanZ = samples.reduce((s, v) => s + v.z, 0) / samples.length;
+
+    // RMS (흔들림 크기)
+    let sumSq = 0;
+    for (const s of samples) {
+      const dx = s.x - meanX, dy = s.y - meanY, dz = s.z - meanZ;
+      sumSq += dx*dx + dy*dy + dz*dz;
+    }
+    const rms = Math.sqrt(sumSq / samples.length);
+
+    // Jerk (가속도 변화율)
+    let jerkSum = 0;
+    for (let i = 1; i < samples.length; i++) {
+      const dx = samples[i].x - samples[i-1].x;
+      const dy = samples[i].y - samples[i-1].y;
+      const dz = samples[i].z - samples[i-1].z;
+      const dt = (samples[i].t - samples[i-1].t) / 1000;
+      if (dt > 0) jerkSum += Math.sqrt(dx*dx + dy*dy + dz*dz) / dt;
+    }
+    const jerk = jerkSum / samples.length;
+    return { rms, jerk };
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // 보행 분석 (Brajdic & Harle 2013 윈도우 피크)
+  // ════════════════════════════════════════════════════════════════
+  async _startGait() {
+    console.log('[Gait] 시작');
+    const ok = await this._requestMotionPermission();
+    if (!ok) { this.bodyStop(); return; }
+    const g = this.state.body.gait;
+    g.samples = [];
+    g.steps = 0;
+
+    let remain = 30;
+    document.getElementById('bt-gait-timer').textContent = remain;
+    document.getElementById('bt-gait-steps').textContent = 0;
+
+    this._startMotionListener(s => {
+      this.state.body.gait.samples.push(s);
+    });
+
+    this.state.body.timerInterval = setInterval(() => {
+      remain--;
+      document.getElementById('bt-gait-timer').textContent = remain;
+      // 실시간 스텝 카운트 (간단)
+      const samples = this.state.body.gait.samples;
+      if (samples.length > 30) {
+        const steps = this._countSteps(samples);
+        this.state.body.gait.steps = steps;
+        document.getElementById('bt-gait-steps').textContent = steps;
+      }
+      if (remain === 0) this._finalizeGait();
+    }, 1000);
+  },
+
+  _countSteps(samples) {
+    if (samples.length < 30) return 0;
+    // 가속도 크기 (magnitude)
+    const mags = samples.map(s => Math.sqrt(s.x*s.x + s.y*s.y + s.z*s.z));
+    // 평균 빼기
+    const mean = mags.reduce((a,b) => a+b, 0) / mags.length;
+    const centered = mags.map(v => v - mean);
+
+    // 간단 피크 검출 (보행은 1~3Hz, 즉 0.33~1초 간격)
+    const dt = (samples[samples.length-1].t - samples[0].t) / samples.length / 1000;
+    const sr = 1 / dt;
+    const minDist = Math.max(5, Math.round(sr * 0.3));
+    const std = Math.sqrt(centered.reduce((s,v)=>s+v*v,0) / centered.length);
+    const thr = std * 0.5;
+
+    let steps = 0, lastIdx = -minDist;
+    for (let i = 1; i < centered.length - 1; i++) {
+      if (centered[i] > thr && centered[i] > centered[i-1] && centered[i] > centered[i+1]) {
+        if (i - lastIdx >= minDist) {
+          steps++;
+          lastIdx = i;
+        }
+      }
+    }
+    return steps;
+  },
+
+  _finalizeGait() {
+    console.log('[Gait] finalize');
+    this.bodyStop();
+    const g = this.state.body.gait;
+    const steps = this._countSteps(g.samples);
+    const cadence = steps * 2; // 30초 → 분당
+    const meanInterval = g.samples.length > 0 ? 30000 / Math.max(steps, 1) : 0;
+
+    let score = 100;
+    if (cadence < 80 || cadence > 130) score -= 20;
+    if (steps < 20) score -= 30; // 너무 적게 걸음
+    score = Math.max(0, Math.min(100, score));
+    const grade = score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 50 ? 'C' : 'D';
+
+    let cmt;
+    if (cadence === 0) cmt = '걸음이 거의 감지되지 않았습니다. 걷기 측정을 다시 시도해주세요.';
+    else if (cadence < 80) cmt = '평균보다 느린 걸음입니다.';
+    else if (cadence <= 110) cmt = '안정적이고 정상적인 보행 속도입니다.';
+    else if (cadence <= 130) cmt = '약간 빠른 걸음입니다.';
+    else cmt = '매우 빠른 걸음 또는 측정 오류 가능성이 있습니다.';
+
+    document.getElementById('bt-gait-running').style.display = 'none';
+    const result = document.getElementById('bt-gait-result');
+    result.style.display = 'block';
+    result.innerHTML = `
+      <div class="bt-result-card">
+        <div class="bt-result-title">🚶 보행 분석 결과</div>
+        <div class="bt-result-value">${cadence}<span class="bt-result-unit">걸음/분</span></div>
+        <div class="bt-result-grade ${grade}">${grade} 등급</div>
+        <div class="bt-result-row"><span class="bt-result-row-label">총 스텝 수</span><span class="bt-result-row-value">${steps} 걸음</span></div>
+        <div class="bt-result-row"><span class="bt-result-row-label">분당 케이던스</span><span class="bt-result-row-value">${cadence} steps/min</span></div>
+        <div class="bt-result-row"><span class="bt-result-row-label">평균 간격</span><span class="bt-result-row-value">${meanInterval.toFixed(0)} ms</span></div>
+        <div class="bt-result-cmt">${cmt}</div>
+      </div>
+      <button class="bt-redo" type="button" onclick="App.startBodyTest('gait')">🔄 다시 측정</button>
+    `;
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // 손떨림 (Heldman 2014)
+  // ════════════════════════════════════════════════════════════════
+  async _startTremor() {
+    console.log('[Tremor] 시작');
+    const ok = await this._requestMotionPermission();
+    if (!ok) { this.bodyStop(); return; }
+    const t = this.state.body.tremor;
+    t.samples = [];
+
+    let remain = 15;
+    document.getElementById('bt-tremor-timer').textContent = remain;
+
+    this._startMotionListener(s => {
+      this.state.body.tremor.samples.push(s);
+    });
+
+    this.state.body.timerInterval = setInterval(() => {
+      remain--;
+      document.getElementById('bt-tremor-timer').textContent = remain;
+      if (remain === 0) this._finalizeTremor();
+    }, 1000);
+  },
+
+  _finalizeTremor() {
+    console.log('[Tremor] finalize');
+    this.bodyStop();
+    const t = this.state.body.tremor;
+    if (t.samples.length < 30) {
+      this._showTremorResult({ amp: 0, freq: 0, score: 0, error: '데이터 부족' });
+      return;
+    }
+
+    // 가속도 크기 - 중력 제거
+    const meanX = t.samples.reduce((s,v) => s+v.x, 0) / t.samples.length;
+    const meanY = t.samples.reduce((s,v) => s+v.y, 0) / t.samples.length;
+    const meanZ = t.samples.reduce((s,v) => s+v.z, 0) / t.samples.length;
+    const centered = t.samples.map(s => Math.sqrt(
+      (s.x-meanX)**2 + (s.y-meanY)**2 + (s.z-meanZ)**2
+    ));
+
+    // RMS 진폭 (mg 단위, 1g = 9.8 m/s²)
+    const rms = Math.sqrt(centered.reduce((s,v) => s+v*v, 0) / centered.length);
+    const ampMg = rms / 9.8 * 1000;
+
+    // 주파수 (FFT 대신 0교차 카운트로 추정)
+    const dt = (t.samples[t.samples.length-1].t - t.samples[0].t) / t.samples.length / 1000;
+    const sr = 1 / dt;
+    let zeroCrosses = 0;
+    for (let i = 1; i < centered.length; i++) {
+      if ((centered[i-1] - rms) * (centered[i] - rms) < 0) zeroCrosses++;
+    }
+    const dur = t.samples.length / sr;
+    const freq = zeroCrosses / 2 / dur; // Hz
+
+    // 임상 기준 (Heldman 2014):
+    // 정상: < 30mg, 가벼운 떨림: 30-100mg, 중간: 100-300mg, 심함: > 300mg
+    let score = 100;
+    if (ampMg > 300) score = 30;
+    else if (ampMg > 100) score = 50;
+    else if (ampMg > 30) score = 75;
+    score = Math.max(0, Math.min(100, score));
+
+    this._showTremorResult({ amp: ampMg, freq, score });
+  },
+
+  _showTremorResult(r) {
+    const grade = r.score >= 85 ? 'A' : r.score >= 70 ? 'B' : r.score >= 50 ? 'C' : 'D';
+    let cmt;
+    if (r.error) cmt = r.error;
+    else if (r.amp < 30) cmt = '손떨림이 거의 없습니다. 정상 범위입니다.';
+    else if (r.amp < 100) cmt = '경미한 떨림이 있습니다. 정상에서 약간 벗어난 수준입니다.';
+    else if (r.amp < 300) cmt = '중간 정도의 떨림이 있습니다. 카페인 섭취나 피로 상태일 수 있습니다.';
+    else cmt = '떨림이 심한 편입니다. 지속적이라면 전문의 상담을 권합니다.';
+
+    document.getElementById('bt-tremor-running').style.display = 'none';
+    const result = document.getElementById('bt-tremor-result');
+    result.style.display = 'block';
+    result.innerHTML = `
+      <div class="bt-result-card">
+        <div class="bt-result-title">✋ 손떨림 측정 결과</div>
+        <div class="bt-result-value">${r.amp.toFixed(0)}<span class="bt-result-unit">mg</span></div>
+        <div class="bt-result-grade ${grade}">${grade} 등급</div>
+        <div class="bt-result-row"><span class="bt-result-row-label">진폭 (RMS)</span><span class="bt-result-row-value">${r.amp.toFixed(1)} mg</span></div>
+        <div class="bt-result-row"><span class="bt-result-row-label">주파수</span><span class="bt-result-row-value">${r.freq.toFixed(1)} Hz</span></div>
+        <div class="bt-result-row"><span class="bt-result-row-label">점수</span><span class="bt-result-row-value">${r.score} / 100</span></div>
+        <div class="bt-result-cmt">${cmt}</div>
+      </div>
+      <button class="bt-redo" type="button" onclick="App.startBodyTest('tremor')">🔄 다시 측정</button>
+    `;
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // 반응속도
+  // ════════════════════════════════════════════════════════════════
+  async _startReaction() {
+    console.log('[Reaction] 시작');
+    const r = this.state.body.reaction;
+    r.count = 0;
+    r.times = [];
+    r.state = 'wait';
+    document.getElementById('bt-reaction-count').textContent = 0;
+    this._reactionNextRound();
+  },
+
+  _reactionNextRound() {
+    const r = this.state.body.reaction;
+    if (!this.state.body.running) return;
+    if (r.count >= r.total) {
+      this._finalizeReaction();
+      return;
+    }
+    r.state = 'wait';
+    const area = document.getElementById('bt-reaction-area');
+    area.classList.remove('ready', 'success', 'early');
+    document.getElementById('bt-reaction-text').textContent = '대기 중...';
+    document.getElementById('bt-reaction-sub').textContent = '곧 신호가 나타납니다';
+
+    // 1.5~4초 랜덤 대기
+    const delay = 1500 + Math.random() * 2500;
+    r.waitTimer = setTimeout(() => {
+      if (!this.state.body.running) return;
+      r.state = 'ready';
+      r.signalAt = performance.now();
+      area.classList.add('ready');
+      document.getElementById('bt-reaction-text').textContent = '⚡ 지금!';
+      document.getElementById('bt-reaction-sub').textContent = '터치!';
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, delay);
+  },
+
+  reactionTap() {
+    const r = this.state.body.reaction;
+    if (!this.state.body.running) return;
+
+    const area = document.getElementById('bt-reaction-area');
+    if (r.state === 'wait') {
+      // 너무 빨리 (false start)
+      if (r.waitTimer) clearTimeout(r.waitTimer);
+      area.classList.add('early');
+      document.getElementById('bt-reaction-text').textContent = '❌ 너무 빨라요!';
+      document.getElementById('bt-reaction-sub').textContent = '신호를 기다리세요';
+      setTimeout(() => this._reactionNextRound(), 1500);
+    } else if (r.state === 'ready') {
+      const elapsed = performance.now() - r.signalAt;
+      r.times.push(elapsed);
+      r.count++;
+      r.state = 'done';
+      area.classList.remove('ready');
+      area.classList.add('success');
+      document.getElementById('bt-reaction-text').textContent = elapsed.toFixed(0) + ' ms';
+      document.getElementById('bt-reaction-sub').textContent = `${r.count}/${r.total} 측정 완료`;
+      document.getElementById('bt-reaction-count').textContent = r.count;
+      setTimeout(() => this._reactionNextRound(), 1200);
+    }
+  },
+
+  _finalizeReaction() {
+    console.log('[Reaction] finalize');
+    const r = this.state.body.reaction;
+    this.bodyStop();
+    if (r.times.length === 0) {
+      this._showReactionResult({ avg: 0, error: '측정된 데이터 없음' });
+      return;
+    }
+    const avg = r.times.reduce((a,b) => a+b, 0) / r.times.length;
+    const min = Math.min(...r.times);
+    const max = Math.max(...r.times);
+    this._showReactionResult({ avg, min, max, times: r.times });
+  },
+
+  _showReactionResult(r) {
+    let score = 100;
+    if (!r.error) {
+      if (r.avg > 500) score = 40;
+      else if (r.avg > 350) score = 60;
+      else if (r.avg > 280) score = 75;
+      else if (r.avg > 220) score = 88;
+    }
+    const grade = score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 50 ? 'C' : 'D';
+    let cmt;
+    if (r.error) cmt = r.error;
+    else if (r.avg < 220) cmt = '매우 빠른 반응속도입니다. 운동선수 수준입니다.';
+    else if (r.avg < 280) cmt = '빠른 반응속도입니다.';
+    else if (r.avg < 350) cmt = '평균적인 반응속도입니다.';
+    else if (r.avg < 500) cmt = '반응속도가 다소 느립니다. 휴식을 취해보세요.';
+    else cmt = '반응속도가 느립니다. 피로/집중력 저하 가능성.';
+
+    document.getElementById('bt-reaction-running').style.display = 'none';
+    const result = document.getElementById('bt-reaction-result');
+    result.style.display = 'block';
+    if (r.error) {
+      result.innerHTML = `<div class="bt-result-card"><div class="bt-result-cmt">${r.error}</div></div>
+        <button class="bt-redo" type="button" onclick="App.startBodyTest('reaction')">🔄 다시 측정</button>`;
+      return;
+    }
+    const timesHtml = r.times.map((t, i) =>
+      `<div class="bt-result-row"><span class="bt-result-row-label">시도 ${i+1}</span><span class="bt-result-row-value">${t.toFixed(0)} ms</span></div>`
+    ).join('');
+    result.innerHTML = `
+      <div class="bt-result-card">
+        <div class="bt-result-title">⚡ 반응속도 결과</div>
+        <div class="bt-result-value">${r.avg.toFixed(0)}<span class="bt-result-unit">ms 평균</span></div>
+        <div class="bt-result-grade ${grade}">${grade} 등급</div>
+        <div class="bt-result-row"><span class="bt-result-row-label">최소</span><span class="bt-result-row-value">${r.min.toFixed(0)} ms</span></div>
+        <div class="bt-result-row"><span class="bt-result-row-label">최대</span><span class="bt-result-row-value">${r.max.toFixed(0)} ms</span></div>
+        ${timesHtml}
+        <div class="bt-result-cmt">${cmt}</div>
+      </div>
+      <button class="bt-redo" type="button" onclick="App.startBodyTest('reaction')">🔄 다시 측정</button>
+    `;
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // 자세 평가 (정면 사진)
+  // ════════════════════════════════════════════════════════════════
+  async _startPosture() {
+    console.log('[Posture] 시작');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      this.state.body.posture.stream = stream;
+      const video = document.getElementById('posture-video');
+      video.srcObject = stream;
+      video.classList.add('cam-front');
+      await new Promise((res, rej) => {
+        video.onloadedmetadata = () => res();
+        setTimeout(() => rej(new Error('타임아웃')), 5000);
+      });
+      await video.play();
+
+      let remain = 5;
+      document.getElementById('bt-posture-timer').textContent = remain;
+      this.state.body.timerInterval = setInterval(() => {
+        remain--;
+        document.getElementById('bt-posture-timer').textContent = remain;
+        if (remain === 0) this._capturePosture();
+      }, 1000);
+    } catch (err) {
+      console.error('[Posture] 카메라 실패:', err);
+      alert('카메라 접근 실패: ' + err.message);
+      this.bodyStop();
+      this.startBodyTest('posture');
+    }
+  },
+
+  _capturePosture() {
+    console.log('[Posture] 사진 촬영');
+    const video = document.getElementById('posture-video');
+    const cv = document.createElement('canvas');
+    cv.width = video.videoWidth;
+    cv.height = video.videoHeight;
+    const ctx = cv.getContext('2d');
+    // 전면 카메라는 좌우 반전되어 보이므로 다시 뒤집어서 저장 (실제 모습)
+    ctx.translate(cv.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0);
+
+    const dataUrl = cv.toDataURL('image/jpeg', 0.85);
+    this.state.body.posture.capturedImage = dataUrl;
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+    // 분석
+    const analysis = this._analyzePosture(ctx, cv.width, cv.height);
+    this._showPostureResult(dataUrl, analysis);
+    this.bodyStop();
+  },
+
+  _analyzePosture(ctx, w, h) {
+    // 단순 분석: 좌우 영역 밝기/색상 차이로 어깨 위치 추정
+    // 정확한 자세 분석은 MediaPipe Pose 필요 — 여기선 간이 분석
+    const upperHalf = ctx.getImageData(0, h * 0.25, w, h * 0.3).data;
+    let leftR = 0, rightR = 0, leftN = 0, rightN = 0;
+    for (let i = 0; i < upperHalf.length; i += 4) {
+      const px = (i / 4) % w;
+      const r = upperHalf[i];
+      if (px < w / 2) { leftR += r; leftN++; }
+      else { rightR += r; rightN++; }
+    }
+    const leftAvg = leftR / leftN;
+    const rightAvg = rightR / rightN;
+    const diff = Math.abs(leftAvg - rightAvg);
+    const symmetry = Math.max(0, 100 - diff * 2);
+
+    return { symmetry, leftBrightness: leftAvg, rightBrightness: rightAvg };
+  },
+
+  _showPostureResult(imgUrl, a) {
+    const score = Math.round(a.symmetry);
+    const grade = score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 50 ? 'C' : 'D';
+    let cmt;
+    if (score >= 85) cmt = '좌우 대칭이 좋습니다. 자세가 균형 잡혀 있습니다.';
+    else if (score >= 70) cmt = '약간의 비대칭이 있지만 정상 범위입니다.';
+    else if (score >= 50) cmt = '좌우 비대칭이 있습니다. 거북목/한쪽 어깨 처짐 등을 확인해보세요.';
+    else cmt = '비대칭이 큽니다. 측정 환경(조명/거리) 확인 후 재측정해주세요.';
+
+    document.getElementById('bt-posture-running').style.display = 'none';
+    const result = document.getElementById('bt-posture-result');
+    result.style.display = 'block';
+    result.innerHTML = `
+      <div class="bt-result-card">
+        <div class="bt-result-title">🧍 자세 평가 결과</div>
+        <div class="bt-result-img"><img src="${imgUrl}" alt="자세 사진"/></div>
+        <div class="bt-result-value">${score}<span class="bt-result-unit">/ 100</span></div>
+        <div class="bt-result-grade ${grade}">${grade} 등급</div>
+        <div class="bt-result-row"><span class="bt-result-row-label">좌우 대칭도</span><span class="bt-result-row-value">${a.symmetry.toFixed(1)}%</span></div>
+        <div class="bt-result-cmt">⚠️ 정확한 자세 분석은 MediaPipe Pose 등 골격 검출 모델이 필요합니다. 현재는 간이 좌우 대칭 검사입니다.</div>
+        <div class="bt-result-cmt">${cmt}</div>
+      </div>
+      <button class="bt-redo" type="button" onclick="App.startBodyTest('posture')">🔄 다시 측정</button>
+    `;
+  },
 };
 
 window.addEventListener('DOMContentLoaded', () => App.init());

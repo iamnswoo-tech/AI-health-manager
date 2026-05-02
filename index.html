@@ -382,6 +382,93 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 .m-btn:active { transform: scale(.97); }
 
 footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: center; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); margin-bottom: 60px; }
+
+/* === BODY TEST PAGES === */
+.bt-stage, .bt-running { padding: 30px 20px; text-align: center; }
+.bt-icon { font-size: 64px; margin-bottom: 12px; }
+.bt-title { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 12px; }
+.bt-desc {
+  font-size: 14px; color: var(--text2); line-height: 1.6;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; margin-bottom: 12px;
+}
+.bt-desc strong { color: var(--body2); }
+.bt-tip {
+  font-size: 12px; color: var(--warn);
+  background: rgba(245,158,11,.08);
+  border: 1px solid rgba(245,158,11,.2);
+  border-radius: 10px; padding: 10px 14px;
+  margin-bottom: 20px;
+}
+.bt-stage .btn-main { margin-top: 4px; }
+
+.bt-phase { font-size: 16px; color: var(--body2); font-weight: 700; margin-bottom: 12px; }
+.bt-timer-big {
+  font-size: 88px; font-weight: 900; color: var(--text);
+  font-variant-numeric: tabular-nums; margin: 16px 0;
+  text-shadow: 0 0 30px rgba(16,185,129,.3);
+}
+.bt-instruction { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+.bt-stat { font-size: 14px; color: var(--text); margin: 12px 0; }
+.bt-stat span { color: var(--body2); font-weight: 800; font-size: 18px; }
+
+/* 반응속도 영역 */
+.bt-reaction-area {
+  margin: 20px 16px;
+  height: 360px;
+  border-radius: 16px;
+  background: var(--card); border: 2px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .1s;
+  user-select: none;
+}
+.bt-reaction-area.ready { background: linear-gradient(135deg, var(--body), var(--body2)); border-color: var(--body); }
+.bt-reaction-area.early { background: rgba(239,68,68,.2); border-color: var(--danger); }
+.bt-reaction-area.success { background: rgba(16,185,129,.2); border-color: var(--body); }
+.bt-reaction-text { font-size: 32px; font-weight: 900; color: var(--text); margin-bottom: 10px; }
+.bt-reaction-area.ready .bt-reaction-text { color: #fff; }
+.bt-reaction-sub { font-size: 14px; color: var(--text2); }
+.bt-reaction-area.ready .bt-reaction-sub { color: rgba(255,255,255,.85); }
+.bt-reaction-counter { position: absolute; top: 24px; right: 24px; font-size: 16px; font-weight: 700; color: var(--muted); }
+
+/* 결과 영역 */
+.bt-result { padding: 16px; }
+.bt-result-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px;
+  margin-bottom: 12px;
+}
+.bt-result-title { font-size: 13px; font-weight: 800; color: var(--muted); letter-spacing: .05em; margin-bottom: 8px; }
+.bt-result-value {
+  font-size: 36px; font-weight: 900; color: var(--text);
+  margin-bottom: 4px; font-variant-numeric: tabular-nums;
+}
+.bt-result-unit { font-size: 14px; color: var(--muted); margin-left: 6px; font-weight: 600; }
+.bt-result-grade { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 12px; margin-bottom: 10px; }
+.bt-result-grade.A { background: rgba(16,185,129,.15); color: var(--green); }
+.bt-result-grade.B { background: rgba(59,130,246,.15); color: var(--accent2); }
+.bt-result-grade.C { background: rgba(245,158,11,.15); color: var(--warn); }
+.bt-result-grade.D { background: rgba(239,68,68,.15); color: var(--danger); }
+.bt-result-cmt { font-size: 13px; color: var(--text2); line-height: 1.5; padding: 10px 12px; background: var(--bg2); border-radius: 8px; margin-top: 8px; }
+
+.bt-result-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.bt-result-row:last-child { border-bottom: none; }
+.bt-result-row-label { font-size: 13px; color: var(--text2); }
+.bt-result-row-value { font-size: 14px; color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.bt-result-img {
+  width: 100%; max-width: 400px; margin: 0 auto 14px;
+  border-radius: 12px; overflow: hidden;
+  background: #000;
+}
+.bt-result-img img { width: 100%; display: block; }
+.bt-redo {
+  width: 100%; padding: 14px;
+  border-radius: 12px; border: 1.5px solid var(--body);
+  background: transparent; color: var(--body2);
+  font-family: var(--sans); font-weight: 800; font-size: 14px;
+  cursor: pointer; margin-top: 8px;
+}
 </style>
 </head>
 <body>
@@ -398,7 +485,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">FACE + BODY</div>
     </div>
   </div>
-  <span class="hd-ver">v11.0</span>
+  <span class="hd-ver">v11.0 · STEP 7</span>
 </header>
 
 <!-- ═══════════ HOME PAGE ═══════════ -->
@@ -586,7 +673,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   </div>
 </div>
 
-<!-- ═══════════ BODY PAGE ═══════════ -->
+<!-- ═══════════ BODY PAGE (메뉴) ═══════════ -->
 <div class="page" id="page-body">
   <div class="back-bar">
     <button class="back-btn" type="button" onclick="App.goPage('home')">←</button>
@@ -598,49 +685,232 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 
   <div class="info-card">
     <div class="info-row">
-      <span class="info-icon">🚧</span>
-      <span class="info-text"><strong>STEP 7에서 활성화 예정</strong><br>모션 센서(가속도+자이로)와 카메라를 활용한 신체 분석 기능을 준비 중입니다.</span>
+      <span class="info-icon">📱</span>
+      <span class="info-text"><strong>측정 시 휴대폰 위치 안내</strong><br>균형/보행/손떨림은 휴대폰을 손이나 주머니에 두고 측정합니다. 자세/반응속도는 화면 터치로 진행됩니다.</span>
     </div>
   </div>
 
-  <div class="section-title">측정 가능 항목</div>
+  <div class="section-title">측정 항목 선택</div>
   <div class="measure-cards">
-    <div class="measure-card body" style="cursor:default">
+    <button type="button" class="measure-card body" onclick="App.startBodyTest('balance')">
       <div class="mc-icon body">⚖️</div>
       <div class="mc-content">
-        <div class="mc-title">균형 검사</div>
-        <div class="mc-desc">눈 뜬 상태 / 감은 상태 30초 (Romberg)</div>
+        <div class="mc-title">균형 검사 (Romberg)</div>
+        <div class="mc-desc">눈 뜨고/감고 각 15초 · 가속도 흔들림 분석</div>
       </div>
-    </div>
-    <div class="measure-card body" style="cursor:default">
+      <div class="mc-arrow">›</div>
+    </button>
+    <button type="button" class="measure-card body" onclick="App.startBodyTest('gait')">
       <div class="mc-icon body">🚶</div>
       <div class="mc-content">
         <div class="mc-title">보행 분석</div>
-        <div class="mc-desc">스텝 카운트 + 케이던스 + 좌우 대칭성</div>
+        <div class="mc-desc">30초간 평지 걷기 · 스텝/케이던스 측정</div>
       </div>
-    </div>
-    <div class="measure-card body" style="cursor:default">
-      <div class="mc-icon body">🧍</div>
-      <div class="mc-content">
-        <div class="mc-title">자세 평가</div>
-        <div class="mc-desc">정면/측면 사진으로 자세 균형 분석</div>
-      </div>
-    </div>
-    <div class="measure-card body" style="cursor:default">
+      <div class="mc-arrow">›</div>
+    </button>
+    <button type="button" class="measure-card body" onclick="App.startBodyTest('reaction')">
       <div class="mc-icon body">⚡</div>
       <div class="mc-content">
         <div class="mc-title">반응속도</div>
-        <div class="mc-desc">시각/촉각 자극 → 터치 반응 시간</div>
+        <div class="mc-desc">5회 시각 자극 · 평균 반응시간</div>
       </div>
-    </div>
-    <div class="measure-card body" style="cursor:default">
+      <div class="mc-arrow">›</div>
+    </button>
+    <button type="button" class="measure-card body" onclick="App.startBodyTest('tremor')">
       <div class="mc-icon body">✋</div>
       <div class="mc-content">
         <div class="mc-title">손떨림 측정</div>
-        <div class="mc-desc">가속도 센서 기반 진폭/주파수 분석</div>
+        <div class="mc-desc">손에 들고 15초 · 진폭/주파수 분석</div>
+      </div>
+      <div class="mc-arrow">›</div>
+    </button>
+    <button type="button" class="measure-card body" onclick="App.startBodyTest('posture')">
+      <div class="mc-icon body">🧍</div>
+      <div class="mc-content">
+        <div class="mc-title">자세 평가</div>
+        <div class="mc-desc">정면 사진 · 어깨/머리 균형 분석</div>
+      </div>
+      <div class="mc-arrow">›</div>
+    </button>
+  </div>
+
+  <!-- 화면 콘솔 -->
+  <div class="console-card">
+    <div class="console-head">
+      <span class="console-title">📋 화면 콘솔 (신체 측정)</span>
+      <button class="console-clear" type="button" onclick="App.clearConsole('body')">초기화</button>
+    </div>
+    <div class="console-output" id="body-console"></div>
+    <div class="console-note">측정 진행 상태가 실시간으로 표시됩니다</div>
+  </div>
+</div>
+
+<!-- ═══════════ BODY TEST PAGES ═══════════ -->
+
+<!-- 균형 검사 -->
+<div class="page" id="page-test-balance">
+  <div class="back-bar">
+    <button class="back-btn" type="button" onclick="App.cancelBodyTest('balance')">←</button>
+    <div>
+      <div class="page-title">⚖️ 균형 검사</div>
+      <div class="page-subtitle">Romberg test · 30초</div>
+    </div>
+  </div>
+  <div class="bt-stage" id="bt-balance-stage">
+    <div class="bt-icon">📱</div>
+    <div class="bt-title">측정 준비</div>
+    <div class="bt-desc">
+      휴대폰을 가슴 주머니에 넣거나 양손으로 가슴 앞에 잡아주세요.<br>
+      <strong>발을 모으고 똑바로 서서</strong> 측정 버튼을 누르면<br>
+      15초 눈 뜨고 → 15초 눈 감고 진행됩니다.
+    </div>
+    <div class="bt-tip">⚠️ 안전을 위해 벽 가까이에서 측정하세요</div>
+    <button class="btn-main body" type="button" onclick="App.bodyStart('balance')" id="bt-balance-btn">
+      <span>▶ 측정 시작</span>
+    </button>
+  </div>
+  <div class="bt-running" id="bt-balance-running" style="display:none">
+    <div class="bt-phase" id="bt-balance-phase">눈을 뜨고 정면을 보세요</div>
+    <div class="bt-timer-big" id="bt-balance-timer">15</div>
+    <div class="bt-instruction">움직이지 말고 가만히 서있으세요</div>
+    <canvas id="bt-balance-wave" class="wave-canvas" width="640" height="120" style="margin: 16px"></canvas>
+    <button class="btn-main stop" type="button" onclick="App.bodyStop()">측정 중지</button>
+  </div>
+  <div class="bt-result" id="bt-balance-result" style="display:none"></div>
+</div>
+
+<!-- 보행 분석 -->
+<div class="page" id="page-test-gait">
+  <div class="back-bar">
+    <button class="back-btn" type="button" onclick="App.cancelBodyTest('gait')">←</button>
+    <div>
+      <div class="page-title">🚶 보행 분석</div>
+      <div class="page-subtitle">30초 평지 걷기</div>
+    </div>
+  </div>
+  <div class="bt-stage" id="bt-gait-stage">
+    <div class="bt-icon">🚶</div>
+    <div class="bt-title">측정 준비</div>
+    <div class="bt-desc">
+      휴대폰을 <strong>주머니에 넣거나 손에 들고</strong>,<br>
+      평소 속도로 30초간 걸어주세요.<br>
+      직선 5~10m 정도의 평평한 공간에서 측정합니다.
+    </div>
+    <div class="bt-tip">📱 휴대폰 화면이 흔들리지 않도록 단단히 잡으세요</div>
+    <button class="btn-main body" type="button" onclick="App.bodyStart('gait')">
+      <span>▶ 측정 시작</span>
+    </button>
+  </div>
+  <div class="bt-running" id="bt-gait-running" style="display:none">
+    <div class="bt-phase">걷고 계세요</div>
+    <div class="bt-timer-big" id="bt-gait-timer">30</div>
+    <div class="bt-instruction">평소 속도로 자연스럽게 걸으세요</div>
+    <div class="bt-stat">스텝 카운트: <span id="bt-gait-steps">0</span></div>
+    <button class="btn-main stop" type="button" onclick="App.bodyStop()">측정 중지</button>
+  </div>
+  <div class="bt-result" id="bt-gait-result" style="display:none"></div>
+</div>
+
+<!-- 반응속도 -->
+<div class="page" id="page-test-reaction">
+  <div class="back-bar">
+    <button class="back-btn" type="button" onclick="App.cancelBodyTest('reaction')">←</button>
+    <div>
+      <div class="page-title">⚡ 반응속도 검사</div>
+      <div class="page-subtitle">5회 시각 자극</div>
+    </div>
+  </div>
+  <div class="bt-stage" id="bt-reaction-stage">
+    <div class="bt-icon">👆</div>
+    <div class="bt-title">측정 준비</div>
+    <div class="bt-desc">
+      화면에 <strong>녹색 신호</strong>가 나타나면<br>
+      <strong>가능한 한 빠르게 화면을 터치</strong>하세요.<br>
+      총 5번 측정합니다.
+    </div>
+    <div class="bt-tip">⚠️ 너무 빨리 누르면 반칙으로 카운트됩니다</div>
+    <button class="btn-main body" type="button" onclick="App.bodyStart('reaction')">
+      <span>▶ 측정 시작</span>
+    </button>
+  </div>
+  <div class="bt-running" id="bt-reaction-running" style="display:none">
+    <div class="bt-reaction-area" id="bt-reaction-area" onclick="App.reactionTap()">
+      <div class="bt-reaction-text" id="bt-reaction-text">대기 중...</div>
+      <div class="bt-reaction-sub" id="bt-reaction-sub">곧 신호가 나타납니다</div>
+      <div class="bt-reaction-counter">
+        <span id="bt-reaction-count">0</span> / 5
       </div>
     </div>
   </div>
+  <div class="bt-result" id="bt-reaction-result" style="display:none"></div>
+</div>
+
+<!-- 손떨림 -->
+<div class="page" id="page-test-tremor">
+  <div class="back-bar">
+    <button class="back-btn" type="button" onclick="App.cancelBodyTest('tremor')">←</button>
+    <div>
+      <div class="page-title">✋ 손떨림 측정</div>
+      <div class="page-subtitle">15초 가속도 분석</div>
+    </div>
+  </div>
+  <div class="bt-stage" id="bt-tremor-stage">
+    <div class="bt-icon">✋</div>
+    <div class="bt-title">측정 준비</div>
+    <div class="bt-desc">
+      휴대폰을 <strong>한 손으로 들고</strong>,<br>
+      팔을 앞으로 뻗어 화면이 위를 향하게 잡으세요.<br>
+      15초간 가만히 유지합니다.
+    </div>
+    <div class="bt-tip">💪 팔을 90도로 뻗어 떨림이 잘 감지되도록 하세요</div>
+    <button class="btn-main body" type="button" onclick="App.bodyStart('tremor')">
+      <span>▶ 측정 시작</span>
+    </button>
+  </div>
+  <div class="bt-running" id="bt-tremor-running" style="display:none">
+    <div class="bt-phase">손을 가만히 유지하세요</div>
+    <div class="bt-timer-big" id="bt-tremor-timer">15</div>
+    <div class="bt-instruction">팔을 앞으로 뻗고 떨지 마세요</div>
+    <canvas id="bt-tremor-wave" class="wave-canvas" width="640" height="120" style="margin: 16px"></canvas>
+    <button class="btn-main stop" type="button" onclick="App.bodyStop()">측정 중지</button>
+  </div>
+  <div class="bt-result" id="bt-tremor-result" style="display:none"></div>
+</div>
+
+<!-- 자세 평가 -->
+<div class="page" id="page-test-posture">
+  <div class="back-bar">
+    <button class="back-btn" type="button" onclick="App.cancelBodyTest('posture')">←</button>
+    <div>
+      <div class="page-title">🧍 자세 평가</div>
+      <div class="page-subtitle">정면 사진 · 5초 후 자동 촬영</div>
+    </div>
+  </div>
+  <div class="bt-stage" id="bt-posture-stage">
+    <div class="bt-icon">🧍</div>
+    <div class="bt-title">측정 준비</div>
+    <div class="bt-desc">
+      카메라가 <strong>휴대폰을 거울 앞에 거치</strong>하거나<br>
+      <strong>다른 사람이 정면 촬영</strong>해주세요.<br>
+      어깨와 머리 위치로 자세 균형을 평가합니다.
+    </div>
+    <div class="bt-tip">📷 상반신이 모두 보이도록 배치해주세요</div>
+    <button class="btn-main body" type="button" onclick="App.bodyStart('posture')">
+      <span>▶ 측정 시작</span>
+    </button>
+  </div>
+  <div class="bt-running" id="bt-posture-running" style="display:none">
+    <div class="cam-wrap">
+      <video id="posture-video" autoplay playsinline muted></video>
+      <div class="cam-status">
+        <div class="cam-msg" id="posture-msg">자세를 잡아주세요</div>
+        <div class="cam-sub" id="posture-sub">5초 후 자동 촬영됩니다</div>
+      </div>
+    </div>
+    <div class="bt-timer-big" id="bt-posture-timer">5</div>
+    <button class="btn-main stop" type="button" onclick="App.bodyStop()">측정 중지</button>
+  </div>
+  <div class="bt-result" id="bt-posture-result" style="display:none"></div>
 </div>
 
 <!-- ═══════════ LEGACY PAGE (손가락) ═══════════ -->
