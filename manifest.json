@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v11 STEP 7b",
-  "short_name": "건강측정 v11s7b",
-  "description": "v11.0 STEP 7b — 뒤로가기 + 음성 안내 + 자세 카메라 + RMSSD 신뢰성",
+  "name": "건강 측정 v11 STEP 8",
+  "short_name": "건강측정 v11s8",
+  "description": "v11.0 STEP 8 — 음성+시각 안내 통합 + HR 해설 명확화 + PWA 설치",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

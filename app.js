@@ -88,7 +88,7 @@ const App = {
 
   config: {
     face: {
-      durationSec: 30,
+      durationSec: 40,  // v11s8: 30→40초로 더 많은 피크 확보
       targetSR: 30,
       bufferSec: 35,
       minWarmupSec: 5,
@@ -110,26 +110,78 @@ const App = {
     history.replaceState({ page: 'home' }, '', '');
   },
 
-  // === 음성 안내 (Web Speech API) ===
+  // === 안내 시스템 v11s8 — 음성 + 시각 + 진동 통합 ===
+  // 환경에 맞춰 가능한 모든 방식으로 안내
   _speak(text) {
+    // 1. 시각적 안내 (항상 작동) — 화면 상단에 큰 메시지
+    this._showSpeechBanner(text);
+    // 2. 진동 (지원 시)
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    // 3. 음성 (지원 시)
+    this._tryTTS(text);
+  },
+
+  _showSpeechBanner(text) {
+    let banner = document.getElementById('speech-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'speech-banner';
+      banner.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(16,185,129,.95);color:#fff;padding:18px 24px;border-radius:18px;font-size:16px;font-weight:700;z-index:2000;backdrop-filter:blur(12px);max-width:80%;text-align:center;line-height:1.4;box-shadow:0 8px 32px rgba(0,0,0,.4);transition:opacity .3s, transform .3s;';
+      document.body.appendChild(banner);
+    }
+    banner.textContent = '🔊 ' + text;
+    banner.style.opacity = '1';
+    banner.style.transform = 'translate(-50%,-50%) scale(1)';
+    clearTimeout(this._speakBannerTimer);
+    // 텍스트 길이에 비례한 노출 시간 (최소 2초, 최대 6초)
+    const duration = Math.max(2000, Math.min(6000, text.length * 100));
+    this._speakBannerTimer = setTimeout(() => {
+      if (banner) {
+        banner.style.opacity = '0';
+        banner.style.transform = 'translate(-50%,-50%) scale(.95)';
+      }
+    }, duration);
+  },
+
+  _tryTTS(text) {
     if (!('speechSynthesis' in window)) {
-      console.log('[Speech] 미지원');
+      console.log('[Speech] TTS 미지원 — 시각 안내만');
       return;
     }
     try {
-      // 진행 중인 말 취소
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'ko-KR';
       utter.rate = 1.05;
       utter.pitch = 1.0;
       utter.volume = 1.0;
-      // 한국어 음성 선택 시도
-      const voices = window.speechSynthesis.getVoices();
-      const koVoice = voices.find(v => v.lang === 'ko-KR' || v.lang.startsWith('ko'));
-      if (koVoice) utter.voice = koVoice;
-      window.speechSynthesis.speak(utter);
-      console.log('[Speech]', text);
+      // voiceschanged 이벤트 후 voice 적용 (Chrome Android 호환)
+      const trySpeak = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          const koVoice = voices.find(v => v.lang === 'ko-KR' || v.lang.startsWith('ko'));
+          if (koVoice) utter.voice = koVoice;
+        }
+        window.speechSynthesis.speak(utter);
+        console.log('[Speech]', text);
+      };
+      // voices 이미 로드된 경우 즉시, 아니면 이벤트 기다림
+      if (window.speechSynthesis.getVoices().length > 0) {
+        trySpeak();
+      } else {
+        const onChange = () => {
+          window.speechSynthesis.onvoiceschanged = null;
+          trySpeak();
+        };
+        window.speechSynthesis.onvoiceschanged = onChange;
+        // 안전망: 500ms 후 강제 시도
+        setTimeout(() => {
+          if (window.speechSynthesis.onvoiceschanged === onChange) {
+            window.speechSynthesis.onvoiceschanged = null;
+            trySpeak();
+          }
+        }, 500);
+      }
     } catch (err) {
       console.warn('[Speech] 실패:', err);
     }
@@ -139,6 +191,8 @@ const App = {
     if ('speechSynthesis' in window) {
       try { window.speechSynthesis.cancel(); } catch (e) {}
     }
+    const banner = document.getElementById('speech-banner');
+    if (banner) banner.style.opacity = '0';
   },
 
   // === 뒤로가기 버튼 처리 (앱 종료 방지) ===
@@ -619,7 +673,7 @@ const App = {
     }
 
     // 마지막 25초만 사용
-    const winN = Math.min(sr * 25, samples.length);
+    const winN = Math.min(sr * 35, samples.length);  // 40초 측정 중 마지막 35초 분석
     const recent = samples.slice(-winN);
     const reds = recent.map(s => s.r);
     const greens = recent.map(s => s.g);
@@ -826,12 +880,19 @@ const App = {
       setBadge('fr-hr-badge', lbl, cls);
       // 해설 멘트
       let cmt;
-      if (r.hr < 50)       cmt = '운동선수 수준의 낮은 심박수입니다.';
-      else if (r.hr < 60)  cmt = '안정 시 서맥. 건강하면 정상 범위입니다.';
-      else if (r.hr <= 80) cmt = '안정 시 정상 심박수입니다.';
-      else if (r.hr <= 100) cmt = '평상시 심박수입니다.';
-      else if (r.hr <= 120) cmt = '약간 빠른 편. 카페인이나 스트레스 영향일 수 있습니다.';
-      else                 cmt = '심박수가 높습니다. 안정 후 재측정 권장.';
+      if (r.hr < 50) {
+        cmt = '심박수가 매우 낮은 편입니다 (50 미만). 평소 운동을 많이 하시는 분이라면 정상이지만, 어지러움이 있다면 주의가 필요합니다.';
+      } else if (r.hr < 60) {
+        cmt = '심박수가 다소 느린 편입니다 (50-60). 충분히 휴식 중이거나 운동 능력이 좋은 사람의 정상 범위입니다.';
+      } else if (r.hr <= 80) {
+        cmt = '안정된 정상 심박수입니다 (60-80). 가장 이상적인 휴식기 심박수입니다.';
+      } else if (r.hr <= 100) {
+        cmt = '정상 범위 안의 심박수입니다 (80-100). 평소 활동 중이거나 약간의 긴장 상태일 수 있습니다.';
+      } else if (r.hr <= 120) {
+        cmt = '심박수가 약간 빠른 편입니다 (100-120). 카페인, 스트레스, 가벼운 활동 후일 수 있습니다.';
+      } else {
+        cmt = '심박수가 빠른 편입니다 (120 이상). 충분히 휴식한 뒤 다시 측정해보세요.';
+      }
       setComment('fr-hr-cmt', cmt, '');
     } else {
       setComment('fr-hr-cmt', '심박수를 측정할 수 없었습니다.');
@@ -845,11 +906,17 @@ const App = {
       setBadge('fr-rr-badge', lbl, cls);
       // 해설
       let cmt;
-      if (r.respRate < 10)      cmt = '호흡이 매우 느립니다. 명상 상태일 수 있습니다.';
-      else if (r.respRate <= 12) cmt = '깊고 안정적인 호흡 패턴입니다.';
-      else if (r.respRate <= 20) cmt = '정상 호흡수입니다.';
-      else if (r.respRate <= 22) cmt = '약간 빠른 편. 가벼운 운동/긴장 상태.';
-      else                       cmt = '호흡이 빠릅니다. 휴식이 필요합니다.';
+      if (r.respRate < 10) {
+        cmt = '호흡이 매우 느립니다 (10 미만). 깊은 명상이나 깊은 휴식 상태에서 나타나는 패턴입니다.';
+      } else if (r.respRate <= 12) {
+        cmt = '깊고 안정적인 호흡입니다 (10-12). 매우 편안한 상태로 이상적인 호흡 패턴입니다.';
+      } else if (r.respRate <= 20) {
+        cmt = '정상 호흡수입니다 (12-20). 안정 시 일반적인 호흡 패턴입니다.';
+      } else if (r.respRate <= 22) {
+        cmt = '약간 빠른 호흡입니다 (20-22). 가벼운 활동 후나 긴장 상태일 수 있습니다.';
+      } else {
+        cmt = '호흡이 빠른 편입니다 (22 이상). 휴식 후 다시 측정해보세요.';
+      }
       setComment('fr-rr-cmt', cmt, '');
     } else {
       document.getElementById('fr-rr-val').textContent = '--';
@@ -864,11 +931,17 @@ const App = {
       const lbl = r.rmssd<20?'스트레스':r.rmssd<35?'보통':'이완';
       setBadge('fr-hv-badge', lbl, cls);
       let cmt;
-      if (r.rmssd < 15)      cmt = '심박변이도가 매우 낮음. 만성 스트레스 가능성.';
-      else if (r.rmssd < 25) cmt = '심박변이도 낮음. 스트레스/피로 상태일 수 있습니다.';
-      else if (r.rmssd < 40) cmt = '평균적인 자율신경 균형 상태입니다.';
-      else if (r.rmssd < 60) cmt = '좋은 심박변이도. 자율신경이 건강합니다.';
-      else                   cmt = '매우 높은 심박변이도. 운동선수 수준의 회복력입니다.';
+      if (r.rmssd < 15) {
+        cmt = '심박변이도가 매우 낮습니다 (15 미만). 자율신경 균형이 좋지 않은 상태로, 만성 스트레스나 피로가 누적된 상태일 수 있습니다.';
+      } else if (r.rmssd < 25) {
+        cmt = '심박변이도가 다소 낮습니다 (15-25). 일시적 스트레스나 피로가 있는 상태입니다.';
+      } else if (r.rmssd < 40) {
+        cmt = '심박변이도가 평균 범위입니다 (25-40). 자율신경이 정상적으로 작동하고 있습니다.';
+      } else if (r.rmssd < 60) {
+        cmt = '심박변이도가 좋습니다 (40-60). 자율신경이 건강하고 회복력이 좋은 상태입니다.';
+      } else {
+        cmt = '심박변이도가 매우 높습니다 (60 이상). 매우 이완되었거나 운동 능력이 뛰어난 사람에게서 보이는 수치입니다.';
+      }
       setComment('fr-hv-cmt', cmt, '');
     } else {
       document.getElementById('fr-hv-val').textContent = '--';

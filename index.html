@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>건강 측정 v11 — 얼굴 + 신체</title>
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <style>
 :root {
   --bg: #0a0e1a; --bg2: #131826; --card: #1a2030;
@@ -503,7 +506,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">FACE + BODY</div>
     </div>
   </div>
-  <span class="hd-ver">v11.0 · STEP 7b</span>
+  <span class="hd-ver">v11.0 · STEP 8</span>
 </header>
 
 <!-- ═══════════ HOME PAGE ═══════════ -->
@@ -1007,5 +1010,78 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 </footer>
 
 <script src="app.js"></script>
+<script>
+// Service Worker 등록 (PWA 설치 가능하게)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      console.log('[SW] 등록 성공:', reg.scope);
+    }).catch(err => {
+      console.warn('[SW] 등록 실패:', err);
+    });
+  });
+}
+
+// PWA 설치 안내 (beforeinstallprompt 이벤트)
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  console.log('[PWA] 설치 가능 — 안내 버튼 표시');
+  showInstallButton();
+});
+
+function showInstallButton() {
+  let btn = document.getElementById('pwa-install-btn');
+  if (btn) return;
+  btn = document.createElement('button');
+  btn.id = 'pwa-install-btn';
+  btn.type = 'button';
+  btn.innerHTML = '📱 홈 화면에 앱 추가';
+  btn.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;padding:14px 24px;border-radius:14px;font-size:14px;font-weight:800;z-index:1500;box-shadow:0 6px 20px rgba(59,130,246,.5);cursor:pointer;font-family:inherit;animation:pwaBounce 2s infinite';
+  btn.onclick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    console.log('[PWA] 사용자 선택:', choice.outcome);
+    deferredPrompt = null;
+    btn.remove();
+  };
+  document.body.appendChild(btn);
+  // 애니메이션 CSS 동적 추가
+  if (!document.getElementById('pwa-bounce-style')) {
+    const style = document.createElement('style');
+    style.id = 'pwa-bounce-style';
+    style.textContent = '@keyframes pwaBounce {0%,100%{transform:translateX(-50%) translateY(0);} 50%{transform:translateX(-50%) translateY(-6px);}}';
+    document.head.appendChild(style);
+  }
+}
+
+// 이미 설치된 경우 알림
+window.addEventListener('appinstalled', () => {
+  console.log('[PWA] 앱 설치 완료');
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.remove();
+});
+
+// iOS Safari용 안내 (beforeinstallprompt 이벤트 미지원)
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+function isInStandaloneMode() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+window.addEventListener('load', () => {
+  if (isIOS() && !isInStandaloneMode()) {
+    setTimeout(() => {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'position:fixed;bottom:80px;left:10px;right:10px;background:rgba(10,14,26,.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.15);color:#fff;padding:14px 16px;border-radius:14px;font-size:13px;z-index:1500;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.4);';
+      banner.innerHTML = '📱 <strong>홈 화면에 앱 추가:</strong> 공유 버튼 → "홈 화면에 추가" 선택<br><button type="button" style="margin-top:8px;padding:6px 14px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer">닫기</button>';
+      banner.querySelector('button').onclick = () => banner.remove();
+      document.body.appendChild(banner);
+    }, 3000);
+  }
+});
+</script>
 </body>
 </html>
