@@ -385,6 +385,24 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 
 /* === BODY TEST PAGES === */
 .bt-stage, .bt-running { padding: 30px 20px; text-align: center; }
+
+/* 자세 평가 카메라 — 상반신 보이게 4:3 비율 + object-fit: contain */
+.cam-wrap.posture-cam {
+  aspect-ratio: 3/4;
+  background: #050810;
+  margin: 14px;
+}
+.cam-wrap.posture-cam #posture-video {
+  width: 100%; height: 100%;
+  object-fit: contain; /* 잘리지 않고 전체 보이게 */
+  background: #000;
+}
+.posture-guide {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
 .bt-icon { font-size: 64px; margin-bottom: 12px; }
 .bt-title { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 12px; }
 .bt-desc {
@@ -485,7 +503,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">FACE + BODY</div>
     </div>
   </div>
-  <span class="hd-ver">v11.0 · STEP 7</span>
+  <span class="hd-ver">v11.0 · STEP 7b</span>
 </header>
 
 <!-- ═══════════ HOME PAGE ═══════════ -->
@@ -900,11 +918,30 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     </button>
   </div>
   <div class="bt-running" id="bt-posture-running" style="display:none">
-    <div class="cam-wrap">
+    <div class="cam-wrap posture-cam">
       <video id="posture-video" autoplay playsinline muted></video>
+      <!-- 상반신 가이드 라인 -->
+      <svg class="posture-guide" viewBox="0 0 100 133" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="guide-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#10b981" stop-opacity=".9"/>
+            <stop offset="100%" stop-color="#10b981" stop-opacity=".3"/>
+          </linearGradient>
+        </defs>
+        <!-- 머리 가이드 (위 1/4) -->
+        <ellipse cx="50" cy="22" rx="13" ry="16" fill="none" stroke="url(#guide-grad)" stroke-width="0.5" stroke-dasharray="2,1.5"/>
+        <!-- 어깨 가이드 라인 (가로선) -->
+        <line x1="20" y1="50" x2="80" y2="50" stroke="url(#guide-grad)" stroke-width="0.4" stroke-dasharray="3,2"/>
+        <!-- 몸통 가이드 (사다리꼴) -->
+        <path d="M30,50 L70,50 L75,100 L25,100 Z" fill="none" stroke="url(#guide-grad)" stroke-width="0.4" stroke-dasharray="2,1.5"/>
+        <!-- 중앙선 -->
+        <line x1="50" y1="10" x2="50" y2="100" stroke="rgba(16,185,129,.3)" stroke-width="0.2" stroke-dasharray="1,2"/>
+        <!-- 안내 텍스트 -->
+        <text x="50" y="115" text-anchor="middle" font-size="3" fill="#10b981" font-weight="700">상반신 가이드</text>
+      </svg>
       <div class="cam-status">
-        <div class="cam-msg" id="posture-msg">자세를 잡아주세요</div>
-        <div class="cam-sub" id="posture-sub">5초 후 자동 촬영됩니다</div>
+        <div class="cam-msg" id="posture-msg">상반신을 가이드에 맞춰주세요</div>
+        <div class="cam-sub" id="posture-sub">머리·어깨·몸통이 모두 보이게</div>
       </div>
     </div>
     <div class="bt-timer-big" id="bt-posture-timer">5</div>

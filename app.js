@@ -103,7 +103,86 @@ const App = {
     this._setupCanvas();
     this._bindFaceButton();
     this._bindVisibilityHandler();
+    this._setupBackButton(); // ★ 뒤로가기 버튼 처리
     window.addEventListener('beforeunload', () => this._cleanupAll());
+
+    // 초기 history 상태 설정 (홈)
+    history.replaceState({ page: 'home' }, '', '');
+  },
+
+  // === 음성 안내 (Web Speech API) ===
+  _speak(text) {
+    if (!('speechSynthesis' in window)) {
+      console.log('[Speech] 미지원');
+      return;
+    }
+    try {
+      // 진행 중인 말 취소
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'ko-KR';
+      utter.rate = 1.05;
+      utter.pitch = 1.0;
+      utter.volume = 1.0;
+      // 한국어 음성 선택 시도
+      const voices = window.speechSynthesis.getVoices();
+      const koVoice = voices.find(v => v.lang === 'ko-KR' || v.lang.startsWith('ko'));
+      if (koVoice) utter.voice = koVoice;
+      window.speechSynthesis.speak(utter);
+      console.log('[Speech]', text);
+    } catch (err) {
+      console.warn('[Speech] 실패:', err);
+    }
+  },
+
+  _speakStop() {
+    if ('speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+  },
+
+  // === 뒤로가기 버튼 처리 (앱 종료 방지) ===
+  _setupBackButton() {
+    window.addEventListener('popstate', (e) => {
+      const state = e.state;
+      console.log('[Nav] popstate:', state);
+      if (!state || state.page === 'home') {
+        // 홈에서 뒤로 가면 종료 확인
+        if (this.state.page === 'home') {
+          // 다시 push (한 번 더 눌러야 종료)
+          history.pushState({ page: 'home' }, '', '');
+          this._toast('한 번 더 누르면 종료됩니다');
+          this._exitWarn = true;
+          setTimeout(() => { this._exitWarn = false; }, 2000);
+          if (this._exitWarn) {
+            // 이미 경고 후 다시 누름 → 그냥 두기 (브라우저가 떠남)
+          }
+        } else {
+          // 측정 페이지에서 뒤로 → 홈으로
+          this._goPageInternal('home');
+        }
+      } else if (state.page === 'body' && this.state.page.startsWith('test-')) {
+        // 신체 측정 중 뒤로 → 신체 메뉴로
+        this.bodyStop();
+        this._goPageInternal('body');
+      } else {
+        this._goPageInternal(state.page);
+      }
+    });
+  },
+
+  _toast(msg) {
+    const t = document.getElementById('toast') || (() => {
+      const el = document.createElement('div');
+      el.id = 'toast';
+      el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:2000;backdrop-filter:blur(8px);transition:opacity .3s';
+      document.body.appendChild(el);
+      return el;
+    })();
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 1500);
   },
 
   // ─── 페이지 전환 ───
@@ -113,6 +192,15 @@ const App = {
       console.log('[App] 페이지 이동 — 얼굴 측정 정지');
       this.faceStop();
     }
+    if (this.state.body.running && page !== 'body' && !this.state.page.startsWith('test-')) {
+      this.bodyStop();
+    }
+    this._goPageInternal(page);
+    // 새 페이지를 history에 push (뒤로가기 시 이전 페이지로)
+    history.pushState({ page }, '', '');
+  },
+
+  _goPageInternal(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
     document.getElementById('page-' + page).classList.add('on');
     document.querySelectorAll('.nav-btn').forEach(n => n.classList.remove('on'));
@@ -625,48 +713,55 @@ const App = {
     console.log('[Face] RR: 직접', directCount, '+ 보간', interpolatedCount,
                 '(보간율:', (interpRatio*100).toFixed(0) + '%)');
 
-    // === RMSSD v11s6b — 보간율에 따라 다른 전략 사용 ===
+    // === RMSSD v11s7 — 신뢰성 강화 ===
+    // 임상 신뢰성 기준:
+    //  - 보간율 50% 이하만 RMSSD 산출 (이전 70%에서 강화)
+    //  - 직접 RR 8개 이상일 때만 RMSSD 산출 (통계적 유의성)
+    //  - 임상 정상 범위 검증 (RMSSD 5~120ms)
+    //  - 위 조건 미달 시 명확하게 'low_confidence' 표시
     let rmssd = null;
-    if (interpRatio > 0.7) {
-      console.warn('[Face] 보간율 너무 높음 (' + (interpRatio*100).toFixed(0) + '%) — RMSSD 무효');
-    } else if (interpRatio > 0.3) {
-      // 보간율 30~70%: 직접 검출된 RR만으로 RMSSD 계산
-      // (보간 RR끼리는 인공값으로 차이=0 → 직접 RR과 합쳐지면 부풀림 발생)
-      console.log('[Face] 보간율 높음 (' + (interpRatio*100).toFixed(0) + '%) — 직접 RR만 사용');
-      // 직접 검출된 RR만 추출
-      const directRR = [];
-      let idx = 0;
-      for (let i = 1; i < peaks.length; i++) {
-        const ms = (peaks[i] - peaks[i-1]) / sr * 1000;
-        const minRR = expectedRRms * 0.5;
-        const maxRR = expectedRRms * 1.5;
-        if (ms >= minRR && ms <= maxRR) directRR.push(ms);
-      }
-      if (directRR.length >= 4) {
-        const mean = directRR.reduce((a,b)=>a+b,0) / directRR.length;
-        const cleanRR = directRR.filter(rr => Math.abs(rr - mean) < mean * 0.5);
+    let rmssdReason = null;
+
+    // 직접 검출된 RR만 추출
+    const directRR = [];
+    for (let i = 1; i < peaks.length; i++) {
+      const ms = (peaks[i] - peaks[i-1]) / sr * 1000;
+      const minRR = expectedRRms * 0.5;
+      const maxRR = expectedRRms * 1.5;
+      if (ms >= minRR && ms <= maxRR) directRR.push(ms);
+    }
+    console.log('[Face] 직접 RR 개수:', directRR.length, '(보간율:', (interpRatio*100).toFixed(0)+'%)');
+
+    if (interpRatio > 0.5) {
+      rmssdReason = 'high_interp';
+      console.warn('[Face] 보간율 너무 높음 (' + (interpRatio*100).toFixed(0) + '%) — RMSSD 신뢰 불가');
+    } else if (directRR.length < 8) {
+      rmssdReason = 'insufficient_peaks';
+      console.warn('[Face] 직접 RR 부족 (' + directRR.length + '개 < 8개) — RMSSD 신뢰 불가');
+    } else {
+      // 통계적 유의성 충분 — 직접 RR로 RMSSD 계산
+      const mean = directRR.reduce((a,b)=>a+b,0) / directRR.length;
+      const cleanRR = directRR.filter(rr => Math.abs(rr - mean) < mean * 0.4);
+
+      if (cleanRR.length < 6) {
+        rmssdReason = 'too_variable';
+        console.warn('[Face] 정제 후 RR 부족 (' + cleanRR.length + '개)');
+      } else {
         let sumSq = 0, n = 0;
         for (let i = 1; i < cleanRR.length; i++) {
           const diff = cleanRR[i] - cleanRR[i-1];
           sumSq += diff * diff;
           n++;
         }
-        rmssd = n >= 3 ? Math.round(Math.sqrt(sumSq / n)) : null;
-        console.log('[Face] 직접 RR RMSSD:', rmssd, 'ms (n=', n, ')');
-        if (rmssd != null && (rmssd < 5 || rmssd > 150)) rmssd = null;
+        rmssd = n >= 5 ? Math.round(Math.sqrt(sumSq / n)) : null;
+        console.log('[Face] RMSSD 산출:', rmssd, 'ms (n=', n, ')');
+        // 임상 정상 범위 검증 (Shaffer 2017)
+        if (rmssd != null && (rmssd < 5 || rmssd > 120)) {
+          console.warn('[Face] RMSSD 임상 범위 벗어남:', rmssd);
+          rmssdReason = 'out_of_clinical_range';
+          rmssd = null;
+        }
       }
-    } else if (rrIntervals.length >= 4) {
-      // 보간율 < 30%: 모든 RR 사용
-      const mean = rrIntervals.reduce((a,b)=>a+b,0) / rrIntervals.length;
-      const cleanRR = rrIntervals.filter(rr => Math.abs(rr - mean) < mean * 0.5);
-      let sumSq = 0, n = 0;
-      for (let i = 1; i < cleanRR.length; i++) {
-        const diff = cleanRR[i] - cleanRR[i-1];
-        if (Math.abs(diff) > 1) { sumSq += diff * diff; n++; }
-      }
-      rmssd = n >= 3 ? Math.round(Math.sqrt(sumSq / n)) : null;
-      console.log('[Face] RMSSD:', rmssd, 'ms');
-      if (rmssd != null && (rmssd < 5 || rmssd > 150)) rmssd = null;
     }
 
     // SDNN 폴백 데이터
@@ -677,28 +772,23 @@ const App = {
       sdnn = Math.round(Math.sqrt(sdSum / rrIntervals.length));
     }
 
-    // 스트레스 (Shaffer 2017)
+    // 스트레스 (Shaffer 2017) — 신뢰도 우선
     let stressIdx = null;
+    let stressFromRMSSD = false;
     if (rmssd && rmssd > 0) {
+      // RMSSD 기반 (가장 정확)
       if (rmssd < 15)       stressIdx = 85;
       else if (rmssd < 25)  stressIdx = 70;
       else if (rmssd < 40)  stressIdx = 50;
       else if (rmssd < 60)  stressIdx = 30;
       else                  stressIdx = 20;
-    } else if (sdnn) {
-      if (sdnn < 20)       stressIdx = 75;
-      else if (sdnn < 35)  stressIdx = 55;
-      else if (sdnn < 60)  stressIdx = 35;
-      else                 stressIdx = 25;
-    } else if (hr) {
-      if (hr <= 65) stressIdx = 25;
-      else if (hr <= 80) stressIdx = 45;
-      else if (hr <= 95) stressIdx = 60;
-      else stressIdx = 75;
+      stressFromRMSSD = true;
+      console.log('[Face] 스트레스 (RMSSD 기반):', stressIdx);
     }
+    // RMSSD 없을 때 SDNN/HR 폴백은 — 신뢰도 낮음 명시
 
     const sqi = Math.min(100, Math.round((snr - 1) * 30));
-    return { hr, rmssd, respRate, stressIdx, sqi, snr, peakCount: peaks.length };
+    return { hr, rmssd, rmssdReason, respRate, stressIdx, stressFromRMSSD, sqi, snr, peakCount: peaks.length };
   },
 
   _faceDisplayResults(r) {
@@ -773,7 +863,6 @@ const App = {
       const cls = r.rmssd<20?'bad':r.rmssd<35?'high':'normal';
       const lbl = r.rmssd<20?'스트레스':r.rmssd<35?'보통':'이완';
       setBadge('fr-hv-badge', lbl, cls);
-      // 해설
       let cmt;
       if (r.rmssd < 15)      cmt = '심박변이도가 매우 낮음. 만성 스트레스 가능성.';
       else if (r.rmssd < 25) cmt = '심박변이도 낮음. 스트레스/피로 상태일 수 있습니다.';
@@ -783,17 +872,25 @@ const App = {
       setComment('fr-hv-cmt', cmt, '');
     } else {
       document.getElementById('fr-hv-val').textContent = '--';
-      setBadge('fr-hv-badge', '피크 부족', 'wait');
-      setComment('fr-hv-cmt', '신호 품질이 낮아 HRV 산출이 어렵습니다. 움직이지 말고 재측정해주세요.');
+      setBadge('fr-hv-badge', '신뢰도 부족', 'wait');
+      // 사유별 안내 (사용자에게 정확한 원인 알림)
+      const reasonMap = {
+        'high_interp': '신호 품질이 낮아 누락된 피크가 많습니다. 조명을 밝게 하고 움직이지 말고 재측정해주세요.',
+        'insufficient_peaks': '직접 검출된 심박 피크가 부족합니다 (HRV는 8개 이상 필요). 정면을 보고 움직이지 말고 재측정해주세요.',
+        'too_variable': 'RR 간격 변동이 너무 큽니다. 안정된 상태에서 재측정해주세요.',
+        'out_of_clinical_range': '산출된 HRV 값이 임상 정상 범위를 벗어났습니다. 측정 환경을 개선해주세요.',
+      };
+      const cmt = reasonMap[r.rmssdReason] || '신호 품질이 낮아 HRV 산출이 어렵습니다.';
+      setComment('fr-hv-cmt', cmt, '');
     }
 
-    if (r.stressIdx != null) {
+    if (r.stressIdx != null && r.stressFromRMSSD) {
+      // RMSSD 기반 — 신뢰 가능
       document.getElementById('fr-st-val').textContent = r.stressIdx;
       setArc('fr-st-arc', r.stressIdx, 0, 100);
       const cls = r.stressIdx<35?'normal':r.stressIdx<60?'high':'bad';
       const lbl = r.stressIdx<35?'이완':r.stressIdx<60?'보통':'스트레스';
       setBadge('fr-st-badge', lbl, cls);
-      // 해설
       let cmt;
       if (r.stressIdx < 25)      cmt = '매우 이완된 상태. 명상이나 휴식 후 측정한 듯합니다.';
       else if (r.stressIdx < 40) cmt = '이완 상태. 좋은 컨디션입니다.';
@@ -802,9 +899,10 @@ const App = {
       else                       cmt = '높은 스트레스. 심호흡과 휴식이 필요합니다.';
       setComment('fr-st-cmt', cmt, '');
     } else {
+      // RMSSD 없으면 스트레스도 무효 — 정확도가 떨어지므로 표시 안 함
       document.getElementById('fr-st-val').textContent = '--';
-      setBadge('fr-st-badge', '데이터 부족', 'wait');
-      setComment('fr-st-cmt', '심박변이도 산출 실패로 스트레스 평가가 어렵습니다.');
+      setBadge('fr-st-badge', '신뢰도 부족', 'wait');
+      setComment('fr-st-cmt', '심박변이도(HRV) 산출이 신뢰 가능한 수준이 아니라 스트레스 평가를 보류합니다. HRV 측정이 정확해지면 스트레스도 함께 표시됩니다.');
     }
 
     let score = 100;
@@ -1011,12 +1109,13 @@ const App = {
     this.state.body.currentTest = test;
     document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
     document.getElementById('page-test-' + test).classList.add('on');
-    // 결과/실행 화면 초기화
     document.getElementById(`bt-${test}-stage`).style.display = 'block';
     const running = document.getElementById(`bt-${test}-running`);
     if (running) running.style.display = 'none';
     const result = document.getElementById(`bt-${test}-result`);
     if (result) { result.style.display = 'none'; result.innerHTML = ''; }
+    this.state.page = 'test-' + test;
+    history.pushState({ page: 'test-' + test }, '', '');
     window.scrollTo(0, 0);
   },
 
@@ -1045,6 +1144,7 @@ const App = {
 
   bodyStop() {
     console.log('[Body] bodyStop');
+    this._speakStop(); // 음성 중단
     const b = this.state.body;
     b.running = false;
     if (b.timerInterval) { clearInterval(b.timerInterval); b.timerInterval = null; }
@@ -1114,6 +1214,9 @@ const App = {
     let remain = 15;
     document.getElementById('bt-balance-timer').textContent = remain;
 
+    // ★ 음성 안내
+    this._speak('균형 검사를 시작합니다. 눈을 뜨고 정면을 보세요. 15초 동안 가만히 서있으세요.');
+
     this._startMotionListener(s => {
       this.state.body.balance.samples.push(s);
     });
@@ -1121,9 +1224,12 @@ const App = {
     this.state.body.timerInterval = setInterval(() => {
       remain--;
       document.getElementById('bt-balance-timer').textContent = remain;
+      // 카운트다운 음성 (마지막 3초)
+      if (remain === 5) {
+        this._speak('5초 남았습니다');
+      }
       if (remain === 0) {
         if (b.phase === 'eyes_open') {
-          // 눈 뜬 데이터 저장 후 눈 감고 단계
           b.openSamples = [...b.samples];
           b.samples = [];
           b.phase = 'eyes_closed';
@@ -1131,9 +1237,11 @@ const App = {
           remain = 15;
           document.getElementById('bt-balance-timer').textContent = remain;
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+          // ★ 음성 안내 (다음 단계)
+          this._speak('이제 눈을 감으세요. 그대로 15초간 가만히 서있으세요.');
         } else {
-          // 완료
           b.closedSamples = [...b.samples];
+          this._speak('측정이 완료되었습니다.');
           this._finalizeBalance();
         }
       }
@@ -1230,6 +1338,8 @@ const App = {
     document.getElementById('bt-gait-timer').textContent = remain;
     document.getElementById('bt-gait-steps').textContent = 0;
 
+    this._speak('보행 측정을 시작합니다. 평소 속도로 30초간 걸어주세요.');
+
     this._startMotionListener(s => {
       this.state.body.gait.samples.push(s);
     });
@@ -1244,7 +1354,11 @@ const App = {
         this.state.body.gait.steps = steps;
         document.getElementById('bt-gait-steps').textContent = steps;
       }
-      if (remain === 0) this._finalizeGait();
+      if (remain === 5) this._speak('5초 남았습니다');
+      if (remain === 0) {
+        this._speak('보행 측정이 완료되었습니다.');
+        this._finalizeGait();
+      }
     }, 1000);
   },
 
@@ -1326,6 +1440,8 @@ const App = {
     let remain = 15;
     document.getElementById('bt-tremor-timer').textContent = remain;
 
+    this._speak('손떨림 측정을 시작합니다. 팔을 앞으로 뻗고 가만히 유지해주세요. 15초간 측정합니다.');
+
     this._startMotionListener(s => {
       this.state.body.tremor.samples.push(s);
     });
@@ -1333,7 +1449,11 @@ const App = {
     this.state.body.timerInterval = setInterval(() => {
       remain--;
       document.getElementById('bt-tremor-timer').textContent = remain;
-      if (remain === 0) this._finalizeTremor();
+      if (remain === 5) this._speak('5초 남았습니다');
+      if (remain === 0) {
+        this._speak('손떨림 측정이 완료되었습니다.');
+        this._finalizeTremor();
+      }
     }, 1000);
   },
 
@@ -1415,7 +1535,32 @@ const App = {
     r.times = [];
     r.state = 'wait';
     document.getElementById('bt-reaction-count').textContent = 0;
-    this._reactionNextRound();
+
+    // ★ 터치 민감도 개선: pointerdown 이벤트 직접 바인딩 (300ms 지연 없음)
+    const area = document.getElementById('bt-reaction-area');
+    // 기존 핸들러 제거
+    if (this._reactionHandler) {
+      area.removeEventListener('pointerdown', this._reactionHandler);
+    }
+    this._reactionHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.reactionTap();
+    };
+    area.addEventListener('pointerdown', this._reactionHandler, { passive: false });
+    // 클릭도 추가 (마우스 호환)
+    if (this._reactionClickHandler) {
+      area.removeEventListener('click', this._reactionClickHandler);
+    }
+    this._reactionClickHandler = (e) => {
+      e.preventDefault();
+      this.reactionTap();
+    };
+    area.addEventListener('click', this._reactionClickHandler);
+
+    // 음성 안내
+    this._speak('반응속도 측정을 시작합니다. 녹색 신호가 나타나면 화면을 빠르게 누르세요.');
+    setTimeout(() => this._reactionNextRound(), 1500);
   },
 
   _reactionNextRound() {
@@ -1547,10 +1692,17 @@ const App = {
 
       let remain = 5;
       document.getElementById('bt-posture-timer').textContent = remain;
+      this._speak('자세 평가를 시작합니다. 화면 가이드에 맞춰 상반신이 모두 보이도록 거리를 조정하세요. 5초 후 촬영합니다.');
       this.state.body.timerInterval = setInterval(() => {
         remain--;
         document.getElementById('bt-posture-timer').textContent = remain;
-        if (remain === 0) this._capturePosture();
+        if (remain === 3) this._speak('3');
+        if (remain === 2) this._speak('2');
+        if (remain === 1) this._speak('1');
+        if (remain === 0) {
+          this._speak('촬영합니다');
+          this._capturePosture();
+        }
       }, 1000);
     } catch (err) {
       console.error('[Posture] 카메라 실패:', err);
