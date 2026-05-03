@@ -14,124 +14,165 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <style>
 :root {
-  --bg: #0a0e1a; --bg2: #131826; --card: #1a2030;
-  --border: rgba(255,255,255,.08); --border2: rgba(255,255,255,.15);
-  --accent: #3b82f6; --accent2: #60a5fa;
-  --face: #8b5cf6; --face2: #a78bfa;
-  --body: #10b981; --body2: #34d399;
+  /* 라이트 테마 (필라이즈 스타일) */
+  --bg: #f5f3ff; --bg2: #faf9ff; --card: #ffffff;
+  --border: rgba(124, 58, 237, .08); --border2: rgba(124, 58, 237, .18);
+  --shadow: 0 4px 16px rgba(124, 58, 237, .08);
+  --shadow-lg: 0 8px 32px rgba(124, 58, 237, .12);
+  --primary: #7c3aed; --primary2: #a78bfa; --primary-light: rgba(124, 58, 237, .08);
+  --accent: #6366f1; --accent2: #818cf8;
+  --face: #7c3aed; --face2: #a78bfa;
+  --body: #06b6d4; --body2: #22d3ee;
   --legacy: #f59e0b; --legacy2: #fbbf24;
-  --green: #10b981; --warn: #f59e0b; --danger: #ef4444;
-  --text: #f1f5f9; --text2: #cbd5e1; --muted: #64748b;
+  --green: #10b981; --green2: #34d399;
+  --warn: #f59e0b; --danger: #ef4444;
+  --text: #1f2937; --text2: #4b5563; --muted: #9ca3af;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --radius: 14px;
+  --radius: 16px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100dvh; overflow-x: hidden; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(1200px 600px at 0% -10%, rgba(167,139,250,.18), transparent 50%),
+              radial-gradient(900px 500px at 100% 110%, rgba(34,211,238,.10), transparent 50%);
+}
 
 /* HEADER */
 .hd {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; padding-top: max(14px, env(safe-area-inset-top));
-  background: rgba(10,14,26,.95); backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
   position: sticky; top: 0; z-index: 50;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(124,58,237,.25);
 }
-.hd-logo { display: flex; align-items: center; gap: 10px; }
+.hd-logo { display: flex; align-items: center; gap: 12px; }
 .hd-icon {
-  width: 34px; height: 34px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), var(--face));
+  width: 38px; height: 38px; border-radius: 12px;
+  background: rgba(255,255,255,.2);
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 12px rgba(139,92,246,.35);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.3);
 }
-.hd-title { font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
-.hd-sub { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: .05em; }
-.hd-ver { font-size: 11px; color: var(--accent2); background: rgba(59,130,246,.12); padding: 4px 11px; border-radius: 12px; font-weight: 700; }
+.hd-title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; color: #fff; }
+.hd-sub { font-size: 10px; color: rgba(255,255,255,.85); font-weight: 600; letter-spacing: .08em; }
+.hd-ver { font-size: 10px; color: #fff; background: rgba(255,255,255,.2); padding: 5px 12px; border-radius: 14px; font-weight: 700; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.25); }
 
 /* PAGE CONTAINER */
-.page { display: none; padding-bottom: 80px; }
+.page { display: none; padding-bottom: 80px; position: relative; z-index: 1; }
 .page.on { display: block; }
 
 /* === HOME PAGE === */
 .hero {
-  margin: 16px; padding: 22px 18px;
-  background: linear-gradient(135deg, rgba(59,130,246,.15), rgba(139,92,246,.1));
-  border: 1px solid rgba(139,92,246,.25);
-  border-radius: 18px;
+  margin: 16px; padding: 28px 22px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  border-radius: 22px;
+  color: #fff;
+  position: relative; overflow: hidden;
+  box-shadow: 0 10px 40px rgba(124,58,237,.3);
 }
-.hero-title { font-size: 22px; font-weight: 800; line-height: 1.3; margin-bottom: 6px; }
-.hero-sub { font-size: 13px; color: var(--text2); line-height: 1.5; }
+.hero::before {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 160px; height: 160px; border-radius: 50%;
+  background: rgba(255,255,255,.1);
+}
+.hero::after {
+  content: ''; position: absolute; bottom: -20px; left: -20px;
+  width: 100px; height: 100px; border-radius: 50%;
+  background: rgba(255,255,255,.08);
+}
+.hero-emoji { font-size: 32px; margin-bottom: 8px; position: relative; z-index: 1; }
+.hero-title { font-size: 22px; font-weight: 800; line-height: 1.3; margin-bottom: 6px; color: #fff; position: relative; z-index: 1; }
+.hero-sub { font-size: 13px; color: rgba(255,255,255,.9); line-height: 1.5; position: relative; z-index: 1; }
 
 .section-title {
-  font-size: 11px; font-weight: 700; color: var(--muted);
-  letter-spacing: .1em; text-transform: uppercase;
-  margin: 20px 16px 10px;
+  font-size: 12px; font-weight: 800; color: var(--primary);
+  letter-spacing: .08em; text-transform: uppercase;
+  margin: 24px 16px 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::before {
+  content: ''; width: 4px; height: 14px;
+  background: linear-gradient(to bottom, var(--primary), var(--primary2));
+  border-radius: 2px;
 }
 
 /* MEASUREMENT CARDS */
 .measure-cards { display: grid; gap: 12px; padding: 0 16px; }
 .measure-card {
   display: flex; align-items: center; gap: 14px;
-  padding: 16px; border-radius: var(--radius);
+  padding: 18px; border-radius: var(--radius);
   background: var(--card);
-  border: 1.5px solid var(--border);
-  cursor: pointer; transition: transform .1s, border-color .15s;
+  border: none;
+  box-shadow: var(--shadow);
+  cursor: pointer; transition: transform .12s, box-shadow .15s;
   text-align: left; width: 100%;
   font-family: var(--sans); color: var(--text);
+  position: relative; overflow: hidden;
 }
-.measure-card:active { transform: scale(.98); }
-.measure-card.face:hover, .measure-card.face { border-color: rgba(139,92,246,.35); }
-.measure-card.body:hover, .measure-card.body { border-color: rgba(16,185,129,.35); }
-.measure-card.legacy { border-color: rgba(245,158,11,.25); opacity: .85; }
+.measure-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 4px; background: var(--primary);
+}
+.measure-card.face::before  { background: linear-gradient(to bottom, #7c3aed, #a78bfa); }
+.measure-card.body::before  { background: linear-gradient(to bottom, #06b6d4, #22d3ee); }
+.measure-card.legacy::before{ background: linear-gradient(to bottom, #f59e0b, #fbbf24); }
+.measure-card:active { transform: scale(.98); box-shadow: 0 2px 8px rgba(124,58,237,.1); }
 .mc-icon {
-  width: 50px; height: 50px; flex-shrink: 0;
+  width: 52px; height: 52px; flex-shrink: 0;
   border-radius: 14px; display: flex; align-items: center; justify-content: center;
-  font-size: 26px;
+  font-size: 28px;
 }
-.mc-icon.face  { background: linear-gradient(135deg, var(--face), var(--face2)); }
-.mc-icon.body  { background: linear-gradient(135deg, var(--body), var(--body2)); }
-.mc-icon.legacy{ background: linear-gradient(135deg, var(--legacy), var(--legacy2)); }
+.mc-icon.face  { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+.mc-icon.body  { background: linear-gradient(135deg, #cffafe, #a5f3fc); }
+.mc-icon.legacy{ background: linear-gradient(135deg, #fef3c7, #fde68a); }
 .mc-content { flex: 1; }
 .mc-title { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-.mc-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 8px; letter-spacing: .05em; }
-.mc-badge.new { background: rgba(139,92,246,.2); color: var(--face2); }
-.mc-badge.beta { background: rgba(16,185,129,.2); color: var(--body2); }
-.mc-badge.legacy { background: rgba(245,158,11,.15); color: var(--legacy2); }
+.mc-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 8px; letter-spacing: .03em; }
+.mc-badge.new { background: #ede9fe; color: #7c3aed; }
+.mc-badge.beta { background: #cffafe; color: #0891b2; }
+.mc-badge.legacy { background: #fef3c7; color: #b45309; }
 .mc-desc { font-size: 12px; color: var(--text2); line-height: 1.4; }
-.mc-arrow { color: var(--muted); font-size: 18px; flex-shrink: 0; }
+.mc-arrow { color: var(--primary); font-size: 22px; flex-shrink: 0; font-weight: 800; }
 
 /* INFO CARD */
 .info-card {
-  margin: 16px; padding: 14px;
-  background: var(--card); border: 1px solid var(--border);
+  margin: 16px; padding: 16px 18px;
+  background: var(--card);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
-.info-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; }
-.info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.info-row { display: flex; align-items: flex-start; gap: 12px; padding: 6px 0; }
+.info-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
 .info-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+.info-text strong { color: var(--text); font-weight: 700; }
 
 /* === MEASUREMENT PAGE COMMON === */
 .back-bar {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 12px;
   padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 1px 0 var(--border);
 }
 .back-btn {
-  width: 36px; height: 36px;
-  border-radius: 10px; border: none;
-  background: var(--card); color: var(--text);
+  width: 40px; height: 40px;
+  border-radius: 12px; border: none;
+  background: var(--primary-light); color: var(--primary);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 18px;
+  cursor: pointer; font-size: 20px; font-weight: 800;
 }
-.back-btn:active { transform: scale(.95); }
-.page-title { font-size: 17px; font-weight: 800; }
-.page-subtitle { font-size: 11px; color: var(--muted); }
+.back-btn:active { transform: scale(.92); }
+.page-title { font-size: 17px; font-weight: 800; color: var(--text); }
+.page-subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 /* CAMERA AREA (face) */
 .cam-wrap {
   position: relative; margin: 14px 16px 0;
-  border-radius: var(--radius); overflow: hidden;
-  background: #000; aspect-ratio: 3/4;
-  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  border-radius: 20px; overflow: hidden;
+  background: #1f2937; aspect-ratio: 3/4;
+  box-shadow: 0 8px 32px rgba(124,58,237,.2);
+  border: 3px solid var(--card);
 }
 .cam-wrap.body-mode { aspect-ratio: 4/3; }
 #face-video, #body-video, #legacy-video { width: 100%; height: 100%; display: block; object-fit: cover; }
@@ -189,9 +230,10 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
 /* SQI BAR */
 .sqi-card {
-  margin: 12px 16px 0; padding: 12px 14px;
-  background: var(--card); border: 1px solid var(--border);
+  margin: 12px 16px 0; padding: 14px 16px;
+  background: var(--card);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 .sqi-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .sqi-label { font-size: 12px; color: var(--text2); font-weight: 700; min-width: 50px; }
@@ -202,46 +244,58 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
 /* WAVEFORM */
 .wave-card {
-  margin: 12px 16px 0; padding: 12px 14px;
-  background: var(--card); border: 1px solid var(--border);
+  margin: 12px 16px 0; padding: 14px 16px;
+  background: var(--card);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
-.wave-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
-.wave-canvas { width: 100%; height: 70px; display: block; background: #050810; border-radius: 8px; }
+.wave-title { font-size: 11px; color: var(--primary); margin-bottom: 8px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.wave-canvas { width: 100%; height: 70px; display: block; background: #1f2937; border-radius: 10px; }
 
 /* CONTROL BUTTON */
-.controls { padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.controls { padding: 14px 16px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
 .btn-main {
-  width: 100%; height: 56px; border: none;
-  border-radius: var(--radius);
-  font-family: var(--sans); font-size: 16px; font-weight: 800;
+  width: 100%; height: 60px; border: none;
+  border-radius: 18px;
+  font-family: var(--sans); font-size: 17px; font-weight: 800;
   cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: transform .1s;
+  transition: transform .1s, box-shadow .15s;
   color: #fff;
+  letter-spacing: -.01em;
 }
 .btn-main.face {
-  background: linear-gradient(135deg, var(--face), var(--face2));
-  box-shadow: 0 4px 16px rgba(139,92,246,.4);
+  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  box-shadow: 0 8px 24px rgba(124,58,237,.4);
 }
 .btn-main.body {
-  background: linear-gradient(135deg, var(--body), var(--body2));
-  box-shadow: 0 4px 16px rgba(16,185,129,.4);
+  background: linear-gradient(135deg, #06b6d4, #22d3ee);
+  box-shadow: 0 8px 24px rgba(6,182,212,.4);
 }
 .btn-main:active { transform: scale(.98); }
 .btn-main.stop {
-  background: transparent !important;
+  background: #fff !important;
   border: 2px solid var(--danger);
   color: var(--danger) !important;
-  box-shadow: none !important;
+  box-shadow: 0 4px 12px rgba(239,68,68,.15) !important;
 }
 .btn-main.stop > * { pointer-events: none; }
-.btn-main.stop::before { content: ''; width: 14px; height: 14px; background: var(--danger); border-radius: 2px; display: inline-block; margin-right: 6px; pointer-events: none; }
+.btn-main.stop::before { content: ''; width: 14px; height: 14px; background: var(--danger); border-radius: 3px; display: inline-block; margin-right: 6px; pointer-events: none; }
+
+/* ★ 카메라 바로 옆 측정 버튼 (UX 개선) */
+.cam-btn-row {
+  display: flex; gap: 10px; padding: 12px 16px 0;
+  position: sticky; top: 70px; z-index: 30;
+}
+.cam-btn-row .btn-main {
+  height: 54px; font-size: 16px;
+}
 
 /* RESULT PANEL */
 .result-panel {
-  margin: 14px 16px 0; padding: 14px;
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--radius);
+  margin: 14px 16px 0; padding: 18px;
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
   display: none;
 }
 .result-panel.show { display: block; animation: slideUp .3s ease; }
@@ -249,31 +303,30 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
 .result-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .result-title-text { font-size: 13px; font-weight: 800; color: var(--text); letter-spacing: .03em; text-transform: uppercase; }
-.result-grade { font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 12px; background: var(--bg2); }
-.result-grade.A { background: rgba(16,185,129,.15); color: var(--green); }
-.result-grade.B { background: rgba(59,130,246,.15); color: var(--accent2); }
-.result-grade.C { background: rgba(245,158,11,.15); color: var(--warn); }
-.result-grade.D { background: rgba(239,68,68,.15); color: var(--danger); }
+.result-grade { font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 12px; background: var(--bg); }
+.result-grade.A { background: #d1fae5; color: #047857; }
+.result-grade.B { background: #dbeafe; color: #1e40af; }
+.result-grade.C { background: #fef3c7; color: #b45309; }
+.result-grade.D { background: #fee2e2; color: #b91c1c; }
 
-.result-tabs { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.result-tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
 .r-tab {
-  flex: 1; padding: 10px 6px;
+  flex: 1; padding: 12px 6px;
   background: none; border: none;
-  font-family: var(--sans); font-size: 12px; font-weight: 700;
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
   color: var(--muted);
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   cursor: pointer;
 }
-.r-tab.on { color: var(--face2); border-bottom-color: var(--face); font-weight: 800; }
-.body-mode .r-tab.on { color: var(--body2); border-bottom-color: var(--body); }
+.r-tab.on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 800; }
 
 .r-panel { display: none; }
 .r-panel.on { display: block; }
 .r-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-.r-gauge-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; text-align: center; }
+.r-gauge-card { background: linear-gradient(135deg, #faf9ff, #f5f3ff); border: 1px solid var(--border); border-radius: 16px; padding: 14px 12px; text-align: center; }
 .r-gauge-card.wide { grid-column: 1/-1; }
-.rg-label { font-size: 10px; font-weight: 800; color: var(--muted); letter-spacing: .07em; margin-bottom: 6px; }
+.rg-label { font-size: 11px; font-weight: 800; color: var(--primary); letter-spacing: .05em; margin-bottom: 8px; }
 .rg-svg { width: 100%; max-width: 140px; display: block; margin: 0 auto; }
 .rg-range { font-size: 10px; color: var(--muted); margin-top: 2px; display: flex; justify-content: space-between; padding: 0 6px; }
 .rg-badge { font-size: 11px; font-weight: 800; margin-top: 4px; padding: 2px 10px; border-radius: 10px; display: inline-block; }
@@ -283,14 +336,15 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 .rg-badge.bad    { background: rgba(239,68,68,.15); color: var(--danger); }
 .rg-badge.wait   { background: var(--bg); color: var(--muted); }
 .rg-cmt {
-  margin-top: 8px; padding: 8px 10px;
-  font-size: 11px; line-height: 1.4;
+  margin-top: 10px; padding: 10px 12px;
+  font-size: 12px; line-height: 1.5;
   color: var(--text2);
-  background: rgba(255,255,255,.03);
-  border-radius: 8px;
+  background: var(--card);
+  border-radius: 10px;
   text-align: left;
   min-height: 32px;
   display: flex; align-items: center;
+  border: 1px solid var(--border);
 }
 .rg-cmt:empty { display: none; }
 
@@ -320,9 +374,10 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
   display: flex; padding: 6px 8px max(6px, env(safe-area-inset-bottom));
-  background: rgba(10,14,26,.95); backdrop-filter: blur(12px);
+  background: rgba(255,255,255,.95); backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
   z-index: 40;
+  box-shadow: 0 -4px 16px rgba(124,58,237,.06);
 }
 .nav-btn {
   flex: 1; padding: 10px 4px;
@@ -331,9 +386,11 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   color: var(--muted);
   cursor: pointer;
   font-family: var(--sans);
-  border-radius: 8px;
+  border-radius: 12px;
+  transition: color .15s;
 }
-.nav-btn.on { color: var(--face2); }
+.nav-btn.on { color: var(--primary); }
+.nav-btn.on .nav-label { font-weight: 800; }
 .nav-icon { font-size: 22px; }
 .nav-label { font-size: 10px; font-weight: 700; }
 
@@ -345,10 +402,10 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   padding: 20px;
 }
 .modal-card {
-  background: var(--card); border: 1px solid var(--border2);
-  border-radius: 18px; padding: 24px 22px;
+  background: var(--card);
+  border-radius: 22px; padding: 26px 22px;
   max-width: 380px; width: 100%;
-  box-shadow: 0 12px 48px rgba(0,0,0,.6);
+  box-shadow: 0 16px 60px rgba(0,0,0,.4);
 }
 .modal-icon { font-size: 48px; text-align: center; margin-bottom: 8px; }
 .modal-title { font-size: 19px; font-weight: 800; text-align: center; color: var(--text); margin-bottom: 14px; }
@@ -384,7 +441,7 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 }
 .m-btn:active { transform: scale(.97); }
 
-footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: center; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); margin-bottom: 60px; }
+footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: center; font-size: 10px; color: var(--muted); margin-bottom: 60px; margin-top: 30px; }
 
 /* === BODY TEST PAGES === */
 .bt-stage, .bt-running { padding: 30px 20px; text-align: center; }
@@ -425,9 +482,8 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 
 .bt-phase { font-size: 16px; color: var(--body2); font-weight: 700; margin-bottom: 12px; }
 .bt-timer-big {
-  font-size: 88px; font-weight: 900; color: var(--text);
+  font-size: 88px; font-weight: 900; color: var(--primary);
   font-variant-numeric: tabular-nums; margin: 16px 0;
-  text-shadow: 0 0 30px rgba(16,185,129,.3);
 }
 .bt-instruction { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
 .bt-stat { font-size: 14px; color: var(--text); margin: 12px 0; }
@@ -437,15 +493,16 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 .bt-reaction-area {
   margin: 20px 16px;
   height: 360px;
-  border-radius: 16px;
-  background: var(--card); border: 2px solid var(--border);
+  border-radius: 24px;
+  background: var(--card); border: 3px solid var(--border);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  cursor: pointer; transition: background .1s;
+  cursor: pointer; transition: background .1s, border-color .15s;
   user-select: none;
+  box-shadow: var(--shadow);
 }
-.bt-reaction-area.ready { background: linear-gradient(135deg, var(--body), var(--body2)); border-color: var(--body); }
-.bt-reaction-area.early { background: rgba(239,68,68,.2); border-color: var(--danger); }
-.bt-reaction-area.success { background: rgba(16,185,129,.2); border-color: var(--body); }
+.bt-reaction-area.ready { background: linear-gradient(135deg, #10b981, #34d399); border-color: #10b981; }
+.bt-reaction-area.early { background: #fee2e2; border-color: var(--danger); }
+.bt-reaction-area.success { background: #d1fae5; border-color: #10b981; }
 .bt-reaction-text { font-size: 32px; font-weight: 900; color: var(--text); margin-bottom: 10px; }
 .bt-reaction-area.ready .bt-reaction-text { color: #fff; }
 .bt-reaction-sub { font-size: 14px; color: var(--text2); }
@@ -455,9 +512,10 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 /* 결과 영역 */
 .bt-result { padding: 16px; }
 .bt-result-card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 18px;
+  background: var(--card);
+  border-radius: 20px; padding: 20px;
   margin-bottom: 12px;
+  box-shadow: var(--shadow);
 }
 .bt-result-title { font-size: 13px; font-weight: 800; color: var(--muted); letter-spacing: .05em; margin-bottom: 8px; }
 .bt-result-value {
@@ -466,11 +524,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 }
 .bt-result-unit { font-size: 14px; color: var(--muted); margin-left: 6px; font-weight: 600; }
 .bt-result-grade { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 12px; margin-bottom: 10px; }
-.bt-result-grade.A { background: rgba(16,185,129,.15); color: var(--green); }
-.bt-result-grade.B { background: rgba(59,130,246,.15); color: var(--accent2); }
-.bt-result-grade.C { background: rgba(245,158,11,.15); color: var(--warn); }
-.bt-result-grade.D { background: rgba(239,68,68,.15); color: var(--danger); }
-.bt-result-cmt { font-size: 13px; color: var(--text2); line-height: 1.5; padding: 10px 12px; background: var(--bg2); border-radius: 8px; margin-top: 8px; }
+.bt-result-grade.A { background: #d1fae5; color: #047857; }
+.bt-result-grade.B { background: #dbeafe; color: #1e40af; }
+.bt-result-grade.C { background: #fef3c7; color: #b45309; }
+.bt-result-grade.D { background: #fee2e2; color: #b91c1c; }
+.bt-result-cmt { font-size: 13px; color: var(--text2); line-height: 1.6; padding: 12px 14px; background: var(--bg); border-radius: 12px; margin-top: 10px; }
 
 .bt-result-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .bt-result-row:last-child { border-bottom: none; }
@@ -485,8 +543,8 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 .bt-result-img img { width: 100%; display: block; }
 .bt-redo {
   width: 100%; padding: 14px;
-  border-radius: 12px; border: 1.5px solid var(--body);
-  background: transparent; color: var(--body2);
+  border-radius: 14px; border: 2px solid var(--primary);
+  background: var(--card); color: var(--primary);
   font-family: var(--sans); font-weight: 800; font-size: 14px;
   cursor: pointer; margin-top: 8px;
 }
@@ -497,8 +555,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 <header class="hd">
   <div class="hd-logo">
     <div class="hd-icon">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.58 3 23 5.42 23 8.5C23 14.5 14 21 12 21Z" fill="white"/>
+      <!-- 친근한 사람 + 하트 아이콘 -->
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="8" r="3.5" fill="white"/>
+        <path d="M5 21C5 16.6 8.1 13 12 13C15.9 13 19 16.6 19 21" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M16 6.5L17 7.5L19 5.5" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>
     </div>
     <div>
@@ -506,14 +567,15 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">FACE + BODY</div>
     </div>
   </div>
-  <span class="hd-ver">v11.0 · STEP 8</span>
+  <span class="hd-ver">v11.0 · STEP 9</span>
 </header>
 
 <!-- ═══════════ HOME PAGE ═══════════ -->
 <div class="page on" id="page-home">
   <div class="hero">
+    <div class="hero-emoji">💜</div>
     <div class="hero-title">얼굴과 신체로<br>건강을 측정하세요</div>
-    <div class="hero-sub">의료기기 없이 카메라와 센서만으로 활력 징후, 균형, 보행 패턴 등을 분석합니다.</div>
+    <div class="hero-sub">의료기기 없이 카메라와 센서만으로<br>활력 징후, 균형, 보행 패턴을 분석합니다.</div>
   </div>
 
   <div class="section-title">측정 시작</div>
@@ -563,16 +625,22 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     </div>
   </div>
 
+  <!-- ★ v11s9: 측정 버튼을 카메라 바로 위에 배치 (UX 개선) -->
+  <div class="cam-btn-row">
+    <button class="btn-main face" type="button" id="face-btn-top">
+      <span id="face-btn-top-text">▶ 측정 시작</span>
+    </button>
+  </div>
   <div class="cam-wrap" id="face-cam-wrap">
     <video id="face-video" autoplay playsinline muted></video>
     <svg class="face-oval-svg" viewBox="0 0 100 133" preserveAspectRatio="none">
       <defs>
         <linearGradient id="oval-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#a78bfa" stop-opacity=".9"/>
-          <stop offset="100%" stop-color="#8b5cf6" stop-opacity=".9"/>
+          <stop offset="100%" stop-color="#7c3aed" stop-opacity=".9"/>
         </linearGradient>
       </defs>
-      <ellipse id="face-oval" cx="50" cy="58" rx="28" ry="36" fill="none" stroke="url(#oval-gradient)" stroke-width="0.6" stroke-dasharray="1.5,1" opacity=".6"/>
+      <ellipse id="face-oval" cx="50" cy="58" rx="28" ry="36" fill="none" stroke="url(#oval-gradient)" stroke-width="0.8" stroke-dasharray="2,1.5" opacity=".7"/>
     </svg>
     <div class="cam-chips">
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -619,11 +687,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
         <div class="r-gauge-card">
           <div class="rg-label">❤️ HEART RATE</div>
           <svg class="rg-svg" viewBox="0 0 200 110">
-            <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+            <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="round"/>
             <path id="fr-hr-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-hr)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
             <defs><linearGradient id="g-hr"><stop offset="0%" stop-color="#ef4444"/><stop offset="50%" stop-color="#f59e0b"/><stop offset="80%" stop-color="#10b981"/></linearGradient></defs>
-            <text id="fr-hr-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
-            <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">bpm</text>
+            <text id="fr-hr-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#1f2937">--</text>
+            <text x="100" y="106" text-anchor="middle" font-size="10" fill="#9ca3af">bpm</text>
           </svg>
           <div class="rg-range"><span>40</span><span>180</span></div>
           <span class="rg-badge wait" id="fr-hr-badge">대기</span>
@@ -632,11 +700,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
         <div class="r-gauge-card">
           <div class="rg-label">🫁 BREATHING</div>
           <svg class="rg-svg" viewBox="0 0 200 110">
-            <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+            <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="round"/>
             <path id="fr-rr-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-rr)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
             <defs><linearGradient id="g-rr"><stop offset="0%" stop-color="#ef4444"/><stop offset="50%" stop-color="#10b981"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs>
-            <text id="fr-rr-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
-            <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">bpm</text>
+            <text id="fr-rr-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#1f2937">--</text>
+            <text x="100" y="106" text-anchor="middle" font-size="10" fill="#9ca3af">bpm</text>
           </svg>
           <div class="rg-range"><span>8</span><span>30</span></div>
           <span class="rg-badge wait" id="fr-rr-badge">대기</span>
@@ -650,11 +718,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
         <div class="r-gauge-card wide">
           <div class="rg-label">💓 HRV (RMSSD)</div>
           <svg class="rg-svg" viewBox="0 0 200 110">
-            <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+            <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="round"/>
             <path id="fr-hv-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-hv)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
             <defs><linearGradient id="g-hv"><stop offset="0%" stop-color="#ef4444"/><stop offset="40%" stop-color="#f59e0b"/><stop offset="70%" stop-color="#10b981"/></linearGradient></defs>
-            <text id="fr-hv-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
-            <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">ms</text>
+            <text id="fr-hv-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#1f2937">--</text>
+            <text x="100" y="106" text-anchor="middle" font-size="10" fill="#9ca3af">ms</text>
           </svg>
           <div class="rg-range"><span>15</span><span>60</span></div>
           <span class="rg-badge wait" id="fr-hv-badge">대기</span>
@@ -663,11 +731,11 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
         <div class="r-gauge-card wide">
           <div class="rg-label">🧠 STRESS INDEX</div>
           <svg class="rg-svg" viewBox="0 0 200 110">
-            <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#1a2030" stroke-width="14" stroke-linecap="round"/>
+            <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="round"/>
             <path id="fr-st-arc" d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="url(#g-st)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" style="transition:stroke-dashoffset 1s ease"/>
             <defs><linearGradient id="g-st"><stop offset="0%" stop-color="#10b981"/><stop offset="50%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs>
-            <text id="fr-st-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#f1f5f9">--</text>
-            <text x="100" y="106" text-anchor="middle" font-size="10" fill="#64748b">/100</text>
+            <text id="fr-st-val" x="100" y="92" text-anchor="middle" font-size="34" font-weight="900" fill="#1f2937">--</text>
+            <text x="100" y="106" text-anchor="middle" font-size="10" fill="#9ca3af">/100</text>
           </svg>
           <div class="rg-range"><span style="color:#10b981">이완</span><span style="color:#f59e0b">보통</span><span style="color:#ef4444">스트레스</span></div>
           <span class="rg-badge wait" id="fr-st-badge">대기</span>

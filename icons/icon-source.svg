@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="heart-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <radialGradient id="cheek-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity=".7"/>
+      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 배경 둥근 사각형 -->
+  <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bg-grad)"/>
+
+  <!-- 데코 원 1 -->
+  <circle cx="80" cy="100" r="50" fill="rgba(255,255,255,.08)"/>
+  <!-- 데코 원 2 -->
+  <circle cx="450" cy="430" r="60" fill="rgba(255,255,255,.06)"/>
+
+  <!-- 친근한 사람 얼굴 (둥근 캐릭터) -->
+  <!-- 얼굴 -->
+  <circle cx="256" cy="220" r="95" fill="#fef3c7" stroke="#fff" stroke-width="6"/>
+
+  <!-- 양쪽 볼(분홍) -->
+  <ellipse cx="200" cy="240" rx="22" ry="14" fill="url(#cheek-grad)" opacity=".8"/>
+  <ellipse cx="312" cy="240" rx="22" ry="14" fill="url(#cheek-grad)" opacity=".8"/>
+
+  <!-- 눈 (웃는 눈 ^^) -->
+  <path d="M 215 210 Q 225 195 235 210" stroke="#1f2937" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M 277 210 Q 287 195 297 210" stroke="#1f2937" stroke-width="7" stroke-linecap="round" fill="none"/>
+
+  <!-- 입 (활짝 미소) -->
+  <path d="M 226 258 Q 256 285 286 258" stroke="#1f2937" stroke-width="7" stroke-linecap="round" fill="none"/>
+
+  <!-- 몸 -->
+  <path d="M 161 350 Q 161 305 256 305 Q 351 305 351 350 L 351 430 Q 351 462 320 462 L 192 462 Q 161 462 161 430 Z" 
+        fill="#06b6d4" stroke="#fff" stroke-width="6"/>
+
+  <!-- 가슴에 하트 (건강) -->
+  <g transform="translate(256, 380)">
+    <path d="M 0 18 Q -28 -10 -28 -25 Q -28 -45 -10 -45 Q 0 -45 0 -32 Q 0 -45 10 -45 Q 28 -45 28 -25 Q 28 -10 0 18 Z" 
+          fill="url(#heart-grad)" stroke="#fff" stroke-width="3"/>
+    <!-- 하트 안 반짝 -->
+    <circle cx="-8" cy="-30" r="3" fill="rgba(255,255,255,.7)"/>
+  </g>
+</svg>

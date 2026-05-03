@@ -103,11 +103,80 @@ const App = {
     this._setupCanvas();
     this._bindFaceButton();
     this._bindVisibilityHandler();
-    this._setupBackButton(); // ★ 뒤로가기 버튼 처리
+    this._setupBackButton();
     window.addEventListener('beforeunload', () => this._cleanupAll());
-
-    // 초기 history 상태 설정 (홈)
     history.replaceState({ page: 'home' }, '', '');
+
+    // ★ 첫 방문 시 권한 일괄 요청 안내
+    setTimeout(() => this._maybeShowPermissionGuide(), 1000);
+
+    // ★ 음성 합성 워밍업 (사용자 첫 인터랙션 후 한 번 깨우기)
+    document.addEventListener('click', () => this._warmupSpeech(), { once: true, capture: true });
+    document.addEventListener('touchstart', () => this._warmupSpeech(), { once: true, capture: true });
+  },
+
+  // 음성 합성 워밍업 (Chrome Android는 사용자 제스처 후에만 작동)
+  _warmupSpeech() {
+    if (this._speechWarmedUp) return;
+    if (!('speechSynthesis' in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0; u.rate = 10;
+      window.speechSynthesis.speak(u);
+      this._speechWarmedUp = true;
+      console.log('[Speech] 워밍업 완료');
+    } catch (e) {}
+  },
+
+  // === 권한 일괄 요청 안내 (첫 방문 시) ===
+  async _maybeShowPermissionGuide() {
+    // 한 번 보여주면 localStorage에 기록 (다시 안 띄움)
+    try {
+      if (localStorage.getItem('perm_guide_shown') === '1') return;
+    } catch(e) {}
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-card">
+        <div class="modal-icon">🔐</div>
+        <div class="modal-title">권한 안내</div>
+        <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:14px;text-align:center;">
+          정확한 측정을 위해 다음 권한이 필요합니다.<br>
+          측정 시작 시 자동으로 요청됩니다.
+        </p>
+        <div class="modal-step">
+          <div class="step-num">📷</div>
+          <div class="step-text"><strong>카메라</strong><br><small>얼굴 측정, 자세 평가에 사용</small></div>
+        </div>
+        <div class="modal-step">
+          <div class="step-num">📳</div>
+          <div class="step-text"><strong>모션 센서</strong><br><small>균형/보행/손떨림 측정에 사용</small></div>
+        </div>
+        <div class="modal-step">
+          <div class="step-num">🔊</div>
+          <div class="step-text"><strong>음성 안내</strong><br><small>측정 단계별 음성 가이드 (선택)</small></div>
+        </div>
+        <p style="font-size:11px;color:#9ca3af;line-height:1.5;margin:10px 0 12px;text-align:center;">
+          ※ 권한 데이터는 모두 기기 내에서만 처리되며,<br>외부로 전송되지 않습니다.
+        </p>
+        <div class="modal-btns">
+          <button class="m-btn ok" type="button" id="perm-ok">확인했어요</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('perm-ok').onclick = () => {
+      try { localStorage.setItem('perm_guide_shown', '1'); } catch(e) {}
+      modal.remove();
+      this._warmupSpeech();
+    };
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        try { localStorage.setItem('perm_guide_shown', '1'); } catch(e) {}
+        modal.remove();
+      }
+    });
   },
 
   // === 안내 시스템 v11s8 — 음성 + 시각 + 진동 통합 ===
@@ -270,13 +339,32 @@ const App = {
   // ════════════════════════════════════════════════════════════════
 
   _bindFaceButton() {
+    // 카메라 위 버튼 (UX 개선) + 하단 버튼 둘 다 바인딩
+    const btnTop = document.getElementById('face-btn-top');
     const btn = document.getElementById('face-btn');
-    if (btn) {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (this.state.face.running) this.faceStop();
-        else this.faceStart();
-      });
+    const handler = (e) => {
+      e.preventDefault();
+      if (this.state.face.running) this.faceStop();
+      else this.faceStart();
+    };
+    if (btnTop) btnTop.addEventListener('click', handler);
+    if (btn) btn.addEventListener('click', handler);
+  },
+
+  // 두 버튼 텍스트/스타일 동기화
+  _faceUpdateButtons(running) {
+    const elText = (id) => document.getElementById(id);
+    const elBtn = (id) => document.getElementById(id);
+    if (running) {
+      elText('face-btn-text').textContent = '측정 중지';
+      elText('face-btn-top-text').textContent = '측정 중지';
+      elBtn('face-btn').classList.add('stop');
+      elBtn('face-btn-top').classList.add('stop');
+    } else {
+      elText('face-btn-text').textContent = '▶ 측정 시작';
+      elText('face-btn-top-text').textContent = '▶ 측정 시작';
+      elBtn('face-btn').classList.remove('stop');
+      elBtn('face-btn-top').classList.remove('stop');
     }
   },
 
@@ -298,8 +386,7 @@ const App = {
       f.faceDetected = false;
 
       // 3. UI 변경
-      document.getElementById('face-btn').classList.add('stop');
-      document.getElementById('face-btn-text').textContent = '측정 중지';
+      this._faceUpdateButtons(true);
       document.getElementById('face-chip-fps').querySelector('.chip-dot').classList.add('live');
       document.getElementById('face-chip-fps').querySelector('.chip-dot').classList.remove('off');
       document.getElementById('face-chip-roi').style.display = 'flex';
@@ -338,8 +425,7 @@ const App = {
     try { document.getElementById('face-video').srcObject = null; } catch (e) {}
 
     // UI 복원
-    document.getElementById('face-btn').classList.remove('stop');
-    document.getElementById('face-btn-text').textContent = '▶ 측정 시작';
+    this._faceUpdateButtons(false);
     document.getElementById('face-chip-fps').querySelector('.chip-dot').classList.remove('live');
     document.getElementById('face-chip-fps').querySelector('.chip-dot').classList.add('off');
     document.getElementById('face-chip-fps-text').textContent = '대기';

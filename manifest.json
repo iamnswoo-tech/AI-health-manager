@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v11 STEP 8",
-  "short_name": "건강측정 v11s8",
-  "description": "v11.0 STEP 8 — 음성+시각 안내 통합 + HR 해설 명확화 + PWA 설치",
+  "name": "건강 측정 v11 STEP 9",
+  "short_name": "건강측정 v11s9",
+  "description": "v11.0 STEP 9 — 라이트 테마 + 카메라 옆 버튼 + 권한 일괄 안내 + 친근한 아이콘",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

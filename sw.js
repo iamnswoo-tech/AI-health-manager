@@ -1,5 +1,5 @@
 // 건강 측정 v11.0 — Service Worker
-const CACHE_NAME = 'healthmeas-v11-step8';
+const CACHE_NAME = 'healthmeas-v11-step9';
 const ASSETS = [
   './',
   './index.html',
