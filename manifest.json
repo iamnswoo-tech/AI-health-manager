@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v12 ME-rPPG",
-  "short_name": "건강측정 v12",
-  "description": "v12.0 ME-rPPG — State Space Duality 기반 정밀 얼굴 측정",
+  "name": "건강 측정 v12.1 ME-rPPG",
+  "short_name": "건강측정 v12.1",
+  "description": "v12.1 ME-rPPG — COEP credentialless 패치",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
