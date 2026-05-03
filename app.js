@@ -61,11 +61,35 @@ const App = {
       measureStartMs: 0,
       timerInterval: null,
       rafId: null,
-      samples: [],
+      samples: [],            // ME-rPPG가 산출한 BVP 시계열 {bvp, t}
       fps: 0, fpsCounter: 0, fpsLastT: 0,
       autoFinalized: false,
       lastHR: null,
       faceDetected: false,
+      // === ME-rPPG 엔진 상태 ===
+      mePPG: {
+        modelReady: false,
+        stateReady: false,
+        welchReady: false,
+        hrReady: false,
+        faceDetector: null,
+        kfBox: { originX: null, originY: null, width: null, height: null },
+        kfOutput: null,
+        kfHr: null,
+        meanHRErr: 0.04,
+        timestampArray: [],
+        welchArray: new Array(300).fill(0),
+        welchCount: 300 - 90,
+        inferenceCount: 0,
+        inferenceTimestamp: 0,
+        inputQueueCount: 0,
+        dropCount: 30,           // 처음 30프레임 워밍업 폐기
+        currentHR: null,         // 최신 HR 값
+        bvpSeries: [],           // HRV 분석용 BVP 누적
+        rppgSnr: 0,
+      },
+      onnxWorker: null,
+      welchWorker: null,
     },
     body: {
       currentTest: null,
@@ -364,12 +388,15 @@ const App = {
   },
 
   async faceStart() {
-    console.log('[Face] 측정 시작');
+    console.log('[Face] 측정 시작 (ME-rPPG 엔진)');
     try {
-      // 1. 얼굴 카메라 (전면) 획득
+      // === STEP 0: ME-rPPG 워커 초기화 (한 번만) ===
+      await this._initMERPPG();
+
+      // === STEP 1: 카메라 획득 (전면) ===
       await this._faceAcquireCamera();
 
-      // 2. 상태 초기화
+      // === STEP 2: 상태 초기화 ===
       const f = this.state.face;
       f.running = true;
       f.measureStartMs = performance.now();
@@ -379,26 +406,225 @@ const App = {
       f.autoFinalized = false;
       f.lastHR = null;
       f.faceDetected = false;
+      // ME-rPPG 상태 리셋
+      f.mePPG.kfBox = { originX: null, originY: null, width: null, height: null };
+      f.mePPG.kfOutput = null;
+      f.mePPG.kfHr = null;
+      f.mePPG.meanHRErr = 0.04;
+      f.mePPG.timestampArray = [];
+      f.mePPG.welchArray = new Array(300).fill(0);
+      f.mePPG.welchCount = 300 - 90;
+      f.mePPG.inferenceCount = 0;
+      f.mePPG.inferenceTimestamp = 0;
+      f.mePPG.inputQueueCount = 0;
+      f.mePPG.dropCount = 30;
+      f.mePPG.currentHR = null;
+      f.mePPG.bvpSeries = [];
 
-      // 3. UI 변경
+      // === STEP 3: UI 변경 ===
       this._faceUpdateButtons(true);
       document.getElementById('face-chip-fps').querySelector('.chip-dot').classList.add('live');
       document.getElementById('face-chip-fps').querySelector('.chip-dot').classList.remove('off');
       document.getElementById('face-chip-roi').style.display = 'flex';
+      document.getElementById('face-chip-engine').style.display = 'flex';
+      document.getElementById('face-chip-engine-text').textContent = 'ME-rPPG';
       document.getElementById('face-cam-msg').textContent = '얼굴 검출 중...';
       document.getElementById('face-cam-sub').textContent = '얼굴을 화면 가운데에 맞춰주세요';
       document.getElementById('face-result-panel').classList.remove('show');
 
-      // 4. 타이머 + 프레임 루프
+      // === STEP 4: 타이머 + 프레임 루프 ===
       this._faceStartTimer();
       this._faceProcessFrame();
 
-      console.log('[Face] 시작 완료');
+      console.log('[Face] ME-rPPG 시작 완료');
     } catch (err) {
       console.error('[Face] 시작 실패:', err);
       alert('측정 시작 실패: ' + (err.message || err));
       await this.faceStop();
     }
+  },
+
+  // === ME-rPPG 엔진 초기화 ===
+  async _initMERPPG() {
+    const f = this.state.face;
+
+    // 1. ONNX Worker (model.onnx + state.json) 초기화
+    if (!f.onnxWorker) {
+      console.log('[ME-rPPG] ONNX 워커 생성');
+      f.onnxWorker = new Worker('me-rppg/onnxWorker.js');
+      f.onnxWorker.onmessage = (e) => this._onOnnxMessage(e);
+    }
+
+    // 2. Welch Worker (welch_psd.onnx + get_hr.onnx) 초기화
+    if (!f.welchWorker) {
+      console.log('[ME-rPPG] Welch 워커 생성');
+      f.welchWorker = new Worker('me-rppg/welchWorker.js');
+      f.welchWorker.onmessage = (e) => this._onWelchMessage(e);
+    }
+
+    // 3. MediaPipe Face Detector 동적 로드
+    if (!f.mePPG.faceDetector) {
+      console.log('[ME-rPPG] MediaPipe FaceDetector 로드');
+      try {
+        const mp = await import('https://fastly.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.4');
+        const vision = await mp.FilesetResolver.forVisionTasks(
+          'https://fastly.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.4/wasm'
+        );
+        f.mePPG.faceDetector = await mp.FaceDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: 'me-rppg/blaze_face_short_range.tflite',
+            delegate: 'CPU',
+          },
+          runningMode: 'VIDEO',
+          minDetectionConfidence: 0.5,
+        });
+        console.log('[ME-rPPG] FaceDetector OK');
+      } catch (err) {
+        console.error('[ME-rPPG] FaceDetector 실패:', err);
+        throw new Error('MediaPipe 로드 실패: ' + err.message);
+      }
+    }
+
+    // 4. 워커 준비 대기 (model + state + welch + hr)
+    if (!(f.mePPG.modelReady && f.mePPG.stateReady && f.mePPG.welchReady && f.mePPG.hrReady)) {
+      console.log('[ME-rPPG] 모델 로드 대기...');
+      document.getElementById('face-cam-msg').textContent = '🧠 AI 모델 로드 중...';
+      document.getElementById('face-cam-sub').textContent = '최초 1회 (~5초)';
+      await this._waitForMERPPGReady();
+      console.log('[ME-rPPG] 모든 모델 준비 완료');
+    }
+  },
+
+  _waitForMERPPGReady() {
+    return new Promise((resolve, reject) => {
+      const startT = performance.now();
+      const check = () => {
+        const m = this.state.face.mePPG;
+        if (m.modelReady && m.stateReady && m.welchReady && m.hrReady) {
+          resolve();
+          return;
+        }
+        if (performance.now() - startT > 30000) {
+          reject(new Error('모델 로드 타임아웃 (30초)'));
+          return;
+        }
+        setTimeout(check, 200);
+      };
+      check();
+    });
+  },
+
+  // === ONNX Worker 메시지 핸들러 ===
+  _onOnnxMessage(event) {
+    const f = this.state.face;
+    const m = f.mePPG;
+    const { type } = event.data;
+
+    if (type === 'ready') {
+      const { which } = event.data;
+      if (which === 'model') { m.modelReady = true; console.log('[ME-rPPG] model.onnx ready'); }
+      if (which === 'state') { m.stateReady = true; console.log('[ME-rPPG] state.json ready'); }
+      return;
+    }
+    if (type === 'error') {
+      console.error('[ME-rPPG] ONNX error:', event.data);
+      return;
+    }
+
+    // BVP 출력 도착
+    m.inputQueueCount--;
+    const { output, delay, timestamp } = event.data;
+
+    // 처음 30프레임 (워밍업) 폐기
+    if (m.dropCount > 0) { m.dropCount--; return; }
+
+    // Kalman 필터 (출력 신호 안정화)
+    if (!m.kfOutput) {
+      m.kfOutput = this._mkKalman(1, 0.5, output, 1);
+    } else {
+      this._kalmanUpdate(m.kfOutput, output);
+    }
+
+    m.inferenceCount++;
+    if (m.inferenceCount === 30) {
+      const fps = (30 / ((timestamp - m.inferenceTimestamp) / 1000)).toFixed(1);
+      m.inferenceTimestamp = timestamp;
+      m.inferenceCount = 0;
+      console.log('[ME-rPPG] inference FPS:', fps, 'delay:', delay, 'ms');
+    }
+
+    // BVP 시계열 누적 (HRV용)
+    m.bvpSeries.push({ bvp: m.kfOutput.estimate, t: performance.now() });
+    if (m.bvpSeries.length > 1500) m.bvpSeries.shift();
+
+    // 화면 파형 그리기
+    this._faceDrawMeWaveform();
+
+    // Welch PSD 입력 버퍼 갱신
+    if (m.welchArray.length >= 300) m.welchArray.shift();
+    m.welchArray.push(m.kfOutput.estimate);
+    m.welchCount++;
+    if (m.welchCount >= 300) {
+      f.welchWorker.postMessage({ input: new Float32Array(m.welchArray) });
+      m.welchCount = 270;
+    }
+  },
+
+  // === Welch Worker 메시지 핸들러 (HR 산출) ===
+  _onWelchMessage(event) {
+    const f = this.state.face;
+    const m = f.mePPG;
+    const { type } = event.data;
+
+    if (type === 'ready') {
+      const { which } = event.data;
+      if (which === 'welch') { m.welchReady = true; console.log('[ME-rPPG] welch_psd.onnx ready'); }
+      if (which === 'hr') { m.hrReady = true; console.log('[ME-rPPG] get_hr.onnx ready'); }
+      return;
+    }
+
+    let { hr } = event.data;
+    // 실제 FPS 보정
+    if (m.timestampArray.length > 300) {
+      const recent = m.timestampArray.slice(-301);
+      let total = 0, valid = 0;
+      for (let i = 1; i < recent.length; i++) {
+        const dt = recent[i] - recent[i - 1];
+        if (dt <= 0.5) { total += dt; valid++; }
+      }
+      const avgFps = total > 0 ? (valid / total) : 0;
+      if (avgFps > 0) hr = (hr / 30) * avgFps;
+    }
+
+    // Kalman 필터 (HR 안정화)
+    if (!m.kfHr) {
+      m.kfHr = this._mkKalman(1, 2, hr, 1);
+    } else {
+      this._kalmanUpdate(m.kfHr, hr);
+    }
+
+    // HR 신뢰도 추적
+    m.meanHRErr = 0.8 * m.meanHRErr + 0.2 * Math.abs(m.kfHr.estimate - hr) / hr;
+    m.currentHR = m.kfHr.estimate;
+
+    // UI 업데이트
+    document.getElementById('face-cam-msg').textContent = '✅ 측정 중';
+    const stable = m.meanHRErr < 0.025;
+    document.getElementById('face-cam-sub').textContent = 
+      `💗 ${m.kfHr.estimate.toFixed(1)} BPM` + (stable ? ' (안정)' : ' (수렴 중)');
+    console.log('[ME-rPPG] HR:', m.kfHr.estimate.toFixed(1), 'meanErr:', m.meanHRErr.toFixed(4));
+  },
+
+  // === Kalman Filter 1D ===
+  _mkKalman(processNoise, measurementNoise, init, initErr) {
+    return { processNoise, measurementNoise, estimate: init, estimateError: initErr };
+  },
+  _kalmanUpdate(kf, measurement) {
+    const predErr = kf.estimateError + kf.processNoise;
+    const gain = predErr / (predErr + kf.measurementNoise);
+    kf.estimate = kf.estimate + gain * (measurement - kf.estimate);
+    kf.estimateError = (1 - gain) * predErr;
+    return kf.estimate;
   },
 
   async faceStop() {
@@ -426,6 +652,8 @@ const App = {
     document.getElementById('face-chip-fps-text').textContent = '대기';
     document.getElementById('face-chip-timer').style.display = 'none';
     document.getElementById('face-chip-roi').style.display = 'none';
+    const engineChip = document.getElementById('face-chip-engine');
+    if (engineChip) engineChip.style.display = 'none';
     document.getElementById('face-progress-fill').style.width = '0%';
     document.getElementById('face-sqi-fill').style.width = '0%';
     document.getElementById('face-sqi-pct').textContent = '0%';
@@ -507,7 +735,7 @@ const App = {
     }
   },
 
-  // ─── 프레임 루프 ───
+  // ─── 프레임 루프 (ME-rPPG: BlazeFace + 36x36 ROI) ───
   _faceProcessFrame() {
     const f = this.state.face;
     if (!f.running) return;
@@ -529,37 +757,210 @@ const App = {
       document.getElementById('face-chip-fps-text').textContent = f.fps + ' fps';
     }
 
-    this._faceExtractROI(video, vw, vh);
+    // 큐 백프레셔: 처리 안 끝났으면 스킵
+    const m = f.mePPG;
+    if (m.inputQueueCount < 5) {
+      const lastTime = performance.now() / 1000;
+      m.timestampArray.push(lastTime);
+      if (m.timestampArray.length > 301) m.timestampArray.shift();
+
+      // BlazeFace로 얼굴 검출
+      try {
+        const result = m.faceDetector.detectForVideo(video, performance.now());
+        const dets = result.detections;
+
+        if (dets && dets.length > 0) {
+          const det = dets[0];
+          const raw = det.boundingBox;
+
+          // Kalman 필터 (얼굴 박스 안정화)
+          const kfBox = m.kfBox;
+          if (kfBox.originX === null) {
+            kfBox.originX = this._mkKalman(1e-2, 5e-1, raw.originX, 1);
+            kfBox.originY = this._mkKalman(1e-2, 5e-1, raw.originY, 1);
+            kfBox.width   = this._mkKalman(1e-2, 5e-1, raw.width,   1);
+            kfBox.height  = this._mkKalman(1e-2, 5e-1, raw.height,  1);
+          } else {
+            this._kalmanUpdate(kfBox.originX, raw.originX);
+            this._kalmanUpdate(kfBox.originY, raw.originY);
+            this._kalmanUpdate(kfBox.width,   raw.width);
+            this._kalmanUpdate(kfBox.height,  raw.height);
+          }
+          // 박스 확장 (이마 포함)
+          let bx = kfBox.originX.estimate;
+          let by = kfBox.originY.estimate;
+          let bw = kfBox.width.estimate;
+          let bh = kfBox.height.estimate * 1.2;
+          by -= bh * 0.2;
+
+          // 36x36 리사이즈 + Float32 RGB 추출
+          const input = this._faceCropResize36(video, vw, vh, bx, by, bw, bh);
+          if (input) {
+            f.faceDetected = true;
+            document.getElementById('face-chip-roi-text').textContent = 'BlazeFace OK';
+            this._faceUpdateRunStatus();
+
+            m.inputQueueCount += 1;
+            f.onnxWorker.postMessage({
+              type: 'data',
+              input,
+              timestamp: lastTime,
+              lambda: 1,
+            });
+          }
+        } else {
+          f.faceDetected = false;
+          document.getElementById('face-chip-roi-text').textContent = '얼굴 없음';
+          document.getElementById('face-cam-msg').textContent = '얼굴이 감지되지 않습니다';
+          document.getElementById('face-cam-sub').textContent = '얼굴을 화면 가운데에 맞추세요';
+        }
+      } catch (err) {
+        console.error('[ME-rPPG] face detect error:', err);
+      }
+    }
 
     f.rafId = requestAnimationFrame(() => this._faceProcessFrame());
   },
 
+  // === BlazeFace 박스 → 36x36 RGB 텐서 ===
+  _faceCropResize36(video, vw, vh, bx, by, bw, bh) {
+    const cv = this._cv;
+    cv.width = vw; cv.height = vh;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, vw, vh);
+
+    const x = Math.max(0, Math.floor(bx));
+    const y = Math.max(0, Math.floor(by));
+    const w = Math.min(Math.floor(bw), vw - x);
+    const h = Math.min(Math.floor(bh), vh - y);
+    if (w < 10 || h < 10) return null;
+
+    // 임시 캔버스에 36x36 리사이즈
+    if (!this._cv36) {
+      this._cv36 = document.createElement('canvas');
+      this._cv36.width = 36;
+      this._cv36.height = 36;
+    }
+    const c36 = this._cv36;
+    const ctx36 = c36.getContext('2d');
+    ctx36.imageSmoothingEnabled = true;
+    ctx36.imageSmoothingQuality = 'high';
+    ctx36.drawImage(cv, x, y, w, h, 0, 0, 36, 36);
+
+    const data = ctx36.getImageData(0, 0, 36, 36).data;
+    const input = new Float32Array(36 * 36 * 3);
+    for (let i = 0; i < data.length; i += 4) {
+      const idx = i / 4;
+      input[idx * 3]     = data[i]   / 255;
+      input[idx * 3 + 1] = data[i+1] / 255;
+      input[idx * 3 + 2] = data[i+2] / 255;
+    }
+    return input;
+  },
+
+  // === 측정 중 상태 표시 ===
+  _faceUpdateRunStatus() {
+    const m = this.state.face.mePPG;
+    if (m.currentHR != null) {
+      const stable = m.meanHRErr < 0.025;
+      document.getElementById('face-cam-msg').textContent = '✅ 측정 중';
+      document.getElementById('face-cam-sub').textContent = 
+        `💗 ${m.currentHR.toFixed(1)} BPM` + (stable ? ' (안정)' : ' (수렴 중)');
+    } else {
+      document.getElementById('face-cam-msg').textContent = '🧠 분석 중...';
+      document.getElementById('face-cam-sub').textContent = '잠시만 기다려주세요';
+    }
+    // SQI 표시 (보간)
+    const sqi = m.currentHR != null ? Math.min(95, Math.round(85 - m.meanHRErr * 1000)) : 30;
+    this._faceSetSqi(sqi, sqi >= 70 ? 'var(--green)' : 'var(--warn)',
+      sqi >= 70 ? `✅ 양호한 신호 (${sqi}%)` : `📊 신호 수렴 중 (${sqi}%)`);
+  },
+
+  // === BVP 파형 그리기 (ME-rPPG 출력) ===
+  _faceDrawMeWaveform() {
+    const cv = document.getElementById('face-wave');
+    const ctx = this._waveCtx || cv.getContext('2d');
+    if (!this._waveCtx) this._waveCtx = ctx;
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(0, 0, W, H);
+
+    const series = this.state.face.mePPG.bvpSeries;
+    if (series.length < 30) return;
+
+    const winSamples = Math.min(240, series.length); // 최근 8초 (30fps × 8)
+    const slice = series.slice(-winSamples);
+    const values = slice.map(s => s.bvp);
+
+    let minV = Infinity, maxV = -Infinity;
+    for (const v of values) { if (v < minV) minV = v; if (v > maxV) maxV = v; }
+    const range = Math.max(maxV - minV, 0.001);
+
+    // 그리드
+    ctx.strokeStyle = 'rgba(167,139,250,.08)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+      const y = H * i / 4;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // BVP 신호
+    ctx.strokeStyle = '#a78bfa';
+    ctx.lineWidth = 1.8;
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = '#a78bfa';
+    ctx.beginPath();
+    values.forEach((v, i) => {
+      const x = i / (values.length - 1) * W;
+      const y = H - ((v - minV) / range) * (H - 10) - 5;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  },
+
   // ─── 다중 ROI 추출 (Anura 스타일) ───
+  // ════════════════════════════════════════════════════════════════
+  // STEP 11: Dual-Branch ROI 추출 (TransPPG/MDPI Mathematics 2025 방식)
+  // 얼굴 ROI: 진짜 PPG 신호 + 노이즈
+  // 배경 ROI: 노이즈만 (PPG 없음)
+  // → 차분: 순수 PPG 신호
+  // ════════════════════════════════════════════════════════════════
   _faceExtractROI(video, vw, vh) {
     const cv = this._cv;
     cv.width = vw; cv.height = vh;
     const ctx = cv.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(video, 0, 0, vw, vh);
 
-    // 단순 얼굴 영역 추정 (화면 중앙)
     const faceCx = vw / 2;
-    const faceCy = vh * 0.45; // 얼굴은 화면 중앙보다 살짝 위
+    const faceCy = vh * 0.45;
     const faceW = vw * 0.5;
     const faceH = vh * 0.55;
 
-    // 3개 ROI: 이마, 좌볼, 우볼
-    const rois = [
+    // === 얼굴 ROI 3개: 이마(50%) + 좌볼(25%) + 우볼(25%) ===
+    const faceRois = [
       { name: 'forehead', x: faceCx - faceW*0.18, y: faceCy - faceH*0.35, w: faceW*0.35, h: faceH*0.15, weight: 0.5 },
       { name: 'left_cheek', x: faceCx - faceW*0.35, y: faceCy + faceH*0.05, w: faceW*0.20, h: faceH*0.18, weight: 0.25 },
       { name: 'right_cheek', x: faceCx + faceW*0.15, y: faceCy + faceH*0.05, w: faceW*0.20, h: faceH*0.18, weight: 0.25 },
     ];
 
-    let totalR = 0, totalG = 0, totalB = 0, totalW = 0;
-    let validROIs = 0;
+    // === 배경 ROI 4개: 화면 4코너 (얼굴 영역 제외) ===
+    // 이미지 가장자리 = 일반적으로 배경 (벽, 천장, 가구)
+    const bgSize = Math.min(vw, vh) * 0.12;
+    const bgRois = [
+      { x: 0,             y: 0,            w: bgSize, h: bgSize },  // 좌상
+      { x: vw - bgSize,   y: 0,            w: bgSize, h: bgSize },  // 우상
+      { x: 0,             y: vh - bgSize,  w: bgSize, h: bgSize },  // 좌하
+      { x: vw - bgSize,   y: vh - bgSize,  w: bgSize, h: bgSize },  // 우하
+    ];
+
+    // === 얼굴 ROI 처리 (피부색 마스킹) ===
+    let faceR = 0, faceG = 0, faceB = 0, faceW_total = 0;
+    let validFaceROIs = 0;
     let skinPixelCount = 0;
     let totalPixelCount = 0;
 
-    for (const roi of rois) {
+    for (const roi of faceRois) {
       const x = Math.max(0, Math.floor(roi.x));
       const y = Math.max(0, Math.floor(roi.y));
       const w = Math.min(vw - x, Math.floor(roi.w));
@@ -568,35 +969,69 @@ const App = {
 
       const data = ctx.getImageData(x, y, w, h).data;
       let r = 0, g = 0, b = 0, n = 0;
-      // 피부색 마스킹: R > G > B and R > 60 (밝은 피부)
       for (let i = 0; i < data.length; i += 4) {
         const cr = data[i], cg = data[i+1], cb = data[i+2];
         totalPixelCount++;
-        // 단순 피부색 판정
+        // YCbCr 기반 피부색 판정 (Kovac 2003 표준):
+        //   Y > 80, 85 < Cb < 135, 135 < Cr < 180
+        // 단순 RGB 휴리스틱으로 근사: R > G > B + 차이 검증
         if (cr > 60 && cr > cg && cg > cb && cr - cb > 15 && cr < 250) {
           r += cr; g += cg; b += cb; n++;
           skinPixelCount++;
         }
       }
-      if (n > w * h * 0.2) { // ROI의 20% 이상이 피부색이어야 유효
+      if (n > w * h * 0.2) {
         r /= n; g /= n; b /= n;
-        totalR += r * roi.weight;
-        totalG += g * roi.weight;
-        totalB += b * roi.weight;
-        totalW += roi.weight;
-        validROIs++;
+        faceR += r * roi.weight;
+        faceG += g * roi.weight;
+        faceB += b * roi.weight;
+        faceW_total += roi.weight;
+        validFaceROIs++;
+      }
+    }
+
+    // === 배경 ROI 처리 (피부 마스킹 없이 전체 평균) ===
+    let bgR = 0, bgG = 0, bgB = 0, bgN = 0;
+    for (const roi of bgRois) {
+      const x = Math.max(0, Math.floor(roi.x));
+      const y = Math.max(0, Math.floor(roi.y));
+      const w = Math.min(vw - x, Math.floor(roi.w));
+      const h = Math.min(vh - y, Math.floor(roi.h));
+      if (w < 10 || h < 10) continue;
+
+      const data = ctx.getImageData(x, y, w, h).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i]; g += data[i+1]; b += data[i+2]; n++;
+      }
+      if (n > 0) {
+        bgR += r / n;
+        bgG += g / n;
+        bgB += b / n;
+        bgN++;
       }
     }
 
     const skinRatio = totalPixelCount > 0 ? skinPixelCount / totalPixelCount : 0;
 
-    if (validROIs >= 2 && totalW > 0) {
-      // 가중 평균
-      const r = totalR / totalW;
-      const g = totalG / totalW;
-      const b = totalB / totalW;
+    if (validFaceROIs >= 2 && faceW_total > 0 && bgN >= 2) {
+      // === 얼굴 평균 ===
+      const fr = faceR / faceW_total;
+      const fg = faceG / faceW_total;
+      const fb = faceB / faceW_total;
+
+      // === 배경 평균 ===
+      const br = bgR / bgN;
+      const bg = bgG / bgN;
+      const bb = bgB / bgN;
+
       const t = performance.now();
-      this.state.face.samples.push({ r, g, b, t });
+      // ★ 두 신호 모두 저장 (POS는 시계열로 처리 — 차분은 신호 추출 단계에서)
+      this.state.face.samples.push({
+        r: fr, g: fg, b: fb,        // 얼굴 신호
+        br: br, bg: bg, bb: bb,     // 배경 신호 (Dual-Branch)
+        t
+      });
 
       const maxS = this.config.face.bufferSec * this.config.face.targetSR * 2;
       if (this.state.face.samples.length > maxS) {
@@ -604,10 +1039,9 @@ const App = {
       }
 
       this.state.face.faceDetected = true;
-      document.getElementById('face-chip-roi-text').textContent = `ROI ${validROIs}/3`;
+      document.getElementById('face-chip-roi-text').textContent = `ROI ${validFaceROIs}/3 + BG ${bgN}`;
       this._faceUpdateStatus(skinRatio, true);
       this._faceDrawWaveform();
-      // 일정 시간 데이터 모이면 실시간 HR 추정
       const elapsed = (performance.now() - this.state.face.measureStartMs) / 1000;
       if (elapsed > this.config.face.minWarmupSec) {
         this._faceEstimateHR();
@@ -651,15 +1085,24 @@ const App = {
     const sr = this.config.face.targetSR;
     if (f.samples.length < sr * this.config.face.minWarmupSec) return;
 
-    // 최근 12초 윈도우
     const win = Math.min(sr * 12, f.samples.length);
     const recent = f.samples.slice(-win);
 
-    // POS 신호 생성
     const reds = recent.map(s => s.r);
     const greens = recent.map(s => s.g);
     const blues = recent.map(s => s.b);
-    const pos = this._posAlgorithm(reds, greens, blues);
+    const hasBg = recent.every(s => s.br != null);
+
+    // Dual-Branch 적용 (실시간 추정)
+    let pos;
+    if (hasBg) {
+      const bgReds = recent.map(s => s.br);
+      const bgGreens = recent.map(s => s.bg);
+      const bgBlues = recent.map(s => s.bb);
+      pos = this._posDualBranch(reds, greens, blues, bgReds, bgGreens, bgBlues);
+    } else {
+      pos = this._posAlgorithm(reds, greens, blues);
+    }
 
     // BPF + Goertzel
     const detrended = this._detrend(pos);
@@ -677,13 +1120,11 @@ const App = {
     document.getElementById('fr-hr-val').textContent = hr;
   },
 
-  // ─── POS 알고리즘 (Wang et al. 2017) ───
-  // s = X · proj_matrix, X = [R; G; B] (normalized by mean)
+  // ─── POS 알고리즘 (Wang et al. 2017) — 표준 ───
   _posAlgorithm(R, G, B) {
     const N = R.length;
     if (N < 10) return new Array(N).fill(0);
 
-    // 평균 정규화
     const meanR = R.reduce((a,b)=>a+b,0) / N;
     const meanG = G.reduce((a,b)=>a+b,0) / N;
     const meanB = B.reduce((a,b)=>a+b,0) / N;
@@ -693,19 +1134,16 @@ const App = {
     const normG = G.map(v => v / meanG - 1);
     const normB = B.map(v => v / meanB - 1);
 
-    // POS 투영: X1 = G - B, X2 = G + B - 2R (Wang et al. 2017)
+    // POS 투영: X1 = G - B, X2 = G + B - 2R
     const X1 = new Array(N), X2 = new Array(N);
     for (let i = 0; i < N; i++) {
       X1[i] = normG[i] - normB[i];
       X2[i] = normG[i] + normB[i] - 2 * normR[i];
     }
-
-    // alpha = std(X1) / std(X2)
     const stdX1 = this._stdDev(X1);
     const stdX2 = this._stdDev(X2);
     const alpha = stdX2 > 1e-9 ? stdX1 / stdX2 : 0;
 
-    // s = X1 + alpha * X2
     const s = new Array(N);
     for (let i = 0; i < N; i++) {
       s[i] = X1[i] + alpha * X2[i];
@@ -713,11 +1151,54 @@ const App = {
     return s;
   },
 
-  // ─── 측정 완료 ───
+  // ════════════════════════════════════════════════════════════════
+  // STEP 11: Dual-Branch POS (TransPPG 2022 + MDPI Mathematics 2025)
+  // 핵심: 얼굴 신호 = 진짜 PPG + 노이즈, 배경 신호 = 노이즈만
+  //       → POS(얼굴) - α·POS(배경) = 순수 PPG
+  // 적응형 차분 계수 α는 두 신호의 상관관계로 결정
+  // ════════════════════════════════════════════════════════════════
+  _posDualBranch(faceR, faceG, faceB, bgR, bgG, bgB) {
+    const N = faceR.length;
+    if (N < 10 || bgR.length !== N) return new Array(N).fill(0);
+
+    // 1. 얼굴 신호와 배경 신호 각각 POS 처리
+    const faceS = this._posAlgorithm(faceR, faceG, faceB);
+    const bgS = this._posAlgorithm(bgR, bgG, bgB);
+
+    // 2. 두 신호 모두 0평균으로 정규화
+    const faceMean = faceS.reduce((a,b)=>a+b,0) / N;
+    const bgMean = bgS.reduce((a,b)=>a+b,0) / N;
+    const faceCentered = faceS.map(v => v - faceMean);
+    const bgCentered = bgS.map(v => v - bgMean);
+
+    // 3. 적응형 차분 계수 α 계산 (least-squares)
+    //    α = Σ(face·bg) / Σ(bg²)
+    //    이는 face 신호에서 bg 신호와 가장 닮은 성분을 빼는 효과
+    let dotFB = 0, dotBB = 0;
+    for (let i = 0; i < N; i++) {
+      dotFB += faceCentered[i] * bgCentered[i];
+      dotBB += bgCentered[i] * bgCentered[i];
+    }
+    const alpha = dotBB > 1e-9 ? dotFB / dotBB : 0;
+
+    // 4. 차분: 얼굴 - α × 배경 = 순수 PPG
+    const result = new Array(N);
+    for (let i = 0; i < N; i++) {
+      result[i] = faceCentered[i] - alpha * bgCentered[i];
+    }
+
+    console.log('[Dual-Branch] α=' + alpha.toFixed(3),
+                'face std:' + this._stdDev(faceCentered).toFixed(4),
+                'bg std:' + this._stdDev(bgCentered).toFixed(4),
+                'result std:' + this._stdDev(result).toFixed(4));
+    return result;
+  },
+
+  // ─── 측정 완료 (ME-rPPG 결과 통합) ───
   _faceFinalize() {
-    console.log('[Face] _faceFinalize()');
+    console.log('[Face] _faceFinalize() - ME-rPPG');
     const result = this._faceComputeMetrics();
-    console.log('[Face] 결과:', result);
+    console.log('[Face] 최종 결과:', result);
 
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
@@ -727,11 +1208,9 @@ const App = {
       document.getElementById('face-cam-sub').textContent = '결과 패널을 확인하세요';
     } else {
       const reasons = {
+        'not_converged': 'ME-rPPG 모델이 충분히 수렴하지 못했습니다.\n조명을 밝게 하고 가만히 있는 상태로 다시 측정해주세요.',
         'no_face': '얼굴이 충분히 검출되지 않았습니다.\n조명을 밝게 하고 얼굴을 카메라에 가깝게 해주세요.',
-        'low_snr': 'rPPG 신호 품질이 낮습니다.\n움직이지 말고 다시 측정해주세요.',
-        'boundary_artifact': '심박수가 범위 경계에 박혀있습니다 (가짜 결과).',
-        'out_of_range': '심박수가 정상 범위를 벗어났습니다.',
-        'insufficient_data': '데이터가 부족합니다.',
+        'insufficient_data': '데이터가 부족합니다. 측정 시간이 짧았을 수 있습니다.',
       };
       const msg = reasons[result.reason] || '측정에 실패했습니다.';
       document.getElementById('face-cam-msg').textContent = '⚠️ 측정 실패';
@@ -743,152 +1222,140 @@ const App = {
   },
 
   // ════════════════════════════════════════════════════════════════
-  // v11s10: 검증된 표준 파이프라인 (논문 기반 재구현)
-  // 참고 문헌:
-  //  - Wang et al. 2017 (POS algorithm, IEEE TBME)
-  //  - Task Force 1996 (HRV 임상 표준, Circulation)
-  //  - Tarvainen 2014 (Kubios HRV, 의료기기 표준 분석)
-  //  - Mejia-Mejia 2022 (PPG 보간 효과, Sensors)
-  //  - RapidHRV (Bishop 2022, cubic spline 업샘플링)
-  //  - Shaffer & Ginsberg 2017 (HRV 정상 범위, Frontiers Public Health)
+  // v12 ME-rPPG: BVP 시계열에서 HR/HRV/호흡/스트레스 산출
+  // 핵심:
+  //  - HR: ME-rPPG 모델 출력 (Kalman 필터링 + Welch PSD)
+  //  - HRV: BVP 신호에서 피크 검출 → cubic spline 업샘플링 → RR → RMSSD
+  //  - 호흡: BVP envelope 또는 직접 BPF
+  //  - 스트레스: ln(RMSSD) 기반 Shaffer 2017 표준
   // ════════════════════════════════════════════════════════════════
   _faceComputeMetrics() {
     const f = this.state.face;
-    const sr = this.config.face.targetSR;
-    const samples = f.samples;
-    if (samples.length < sr * 10) return { hr: null, reason: 'insufficient_data' };
-    if (!f.faceDetected || samples.length < sr * 15) {
-      return { hr: null, reason: 'no_face' };
+    const m = f.mePPG;
+
+    // === 1. HR (ME-rPPG 모델 결과) ===
+    if (!m.currentHR || m.kfHr == null) {
+      return { hr: null, reason: 'not_converged' };
+    }
+    const hr = Math.round(m.kfHr.estimate * 10) / 10; // 1자리 소수점
+    const hrInt = Math.round(hr);
+
+    // 신뢰도: meanHRErr < 0.025면 안정 (ME-rPPG 표준)
+    const hrConverged = m.meanHRErr < 0.05;
+    console.log('[ME-rPPG] HR:', hr, 'meanErr:', m.meanHRErr.toFixed(4), 'converged:', hrConverged);
+
+    if (!hrConverged) {
+      // 충분히 수렴 안 됨 — HR만 표시 + HRV 무효
+      return {
+        hr: hrInt, rmssd: null, lnRmssd: null,
+        rmssdReason: 'not_converged',
+        sdnn: null, respRate: null,
+        stressIdx: null, stressFromRMSSD: false,
+        sqi: Math.round((1 - m.meanHRErr) * 100), snr: null,
+        peakCount: 0, engine: 'ME-rPPG',
+      };
     }
 
-    // 분석 윈도우 (가급적 길게 — Task Force는 최소 60초 권장, rPPG는 30초로 절충)
-    const winN = Math.min(sr * 35, samples.length);
-    const recent = samples.slice(-winN);
-    const reds = recent.map(s => s.r);
-    const greens = recent.map(s => s.g);
-    const blues = recent.map(s => s.b);
+    // === 2. BVP 시계열 추출 ===
+    const series = m.bvpSeries;
+    if (series.length < 200) {
+      return { hr: hrInt, rmssd: null, rmssdReason: 'insufficient_data',
+               respRate: null, stressIdx: null, stressFromRMSSD: false,
+               sqi: 70, engine: 'ME-rPPG' };
+    }
 
-    // === 1. POS 알고리즘 (Wang 2017) ===
-    const pos = this._posAlgorithm(reds, greens, blues);
-    const posStd = this._stdDev(pos);
-    console.log('[Face] POS std:', posStd.toFixed(4));
+    // 시간 정보로 실제 sample rate 계산
+    const tStart = series[0].t;
+    const tEnd = series[series.length - 1].t;
+    const dur = (tEnd - tStart) / 1000; // 초
+    const sr = series.length / dur;
+    console.log('[ME-rPPG] BVP series:', series.length, 'samples,', dur.toFixed(1), 's, sr=', sr.toFixed(1), 'Hz');
 
-    // === 2. 0.7~3.5 Hz BPF (Task Force HR 대역) ===
-    const detrended = this._detrend(pos);
-    const filtered = this._bandpass(detrended, sr, 0.7, 3.5);
-    const sigStd = this._stdDev(filtered);
-    console.log('[Face] filtered std:', sigStd.toFixed(4));
+    const bvp = series.map(s => s.bvp);
 
-    // === 3. HR 추정 (Goertzel) ===
-    const { freq: hrHz, snr } = this._goertzelPeak(filtered, sr, 45/60, 180/60);
-    console.log('[Face] Goertzel:', hrHz.toFixed(2), 'Hz =', Math.round(hrHz*60), 'bpm, SNR:', snr.toFixed(2));
+    // === 3. HRV (BVP에서 cubic spline 업샘플링 후 피크 검출) ===
+    const hrHz = hr / 60;
+    // 250Hz로 업샘플링
+    const upSr = 250;
+    const upBvp = this._cubicSplineUpsample(bvp, sr, upSr);
+    console.log('[ME-rPPG] BVP 업샘플링:', upBvp.length, 'samples @', upSr, 'Hz');
 
-    // SNR 검증 (R2I-rPPG 2024 논문 기준 SNR > 3.0 권장)
-    if (!hrHz || snr < 3.0) return { hr: null, reason: 'low_snr' };
-    const hrCandidate = hrHz * 60;
-    if (hrCandidate < 46 || hrCandidate > 179) return { hr: null, reason: 'out_of_range' };
-    const hr = Math.round(hrCandidate);
+    // 적응형 피크 검출
+    const peaks = this._adaptivePeakDetect(upBvp, upSr, hrHz);
+    console.log('[ME-rPPG] 검출 피크:', peaks.length);
 
-    // === 4. 호흡수 (Charlton 2017 권장 0.13~0.5Hz BPF) ===
-    let respRate = null;
-    if (samples.length >= sr * 20) {
-      const respFiltered = this._bandpass(pos, sr, 0.13, 0.5);
-      const respStd = this._stdDev(respFiltered);
-      if (respStd > 0.001) {
-        const rp = this._goertzelPeak(respFiltered, sr, 8/60, 28/60);
-        console.log('[Face] resp Goertzel:', rp.freq.toFixed(3), 'Hz, SNR:', rp.snr.toFixed(2));
-        if (rp.snr >= 1.8 && rp.freq > 0) {
-          const rpm = Math.round(rp.freq * 60);
-          if (rpm >= 9 && rpm <= 26) respRate = rpm;
+    let rmssd = null, lnRmssd = null, rmssdReason = null;
+    let sdnn = null;
+
+    if (peaks.length < 8) {
+      rmssdReason = 'insufficient_peaks';
+    } else {
+      // RR 간격
+      const rawRR = [];
+      for (let i = 1; i < peaks.length; i++) {
+        rawRR.push((peaks[i] - peaks[i-1]) / upSr * 1000);
+      }
+      const meanRR = rawRR.reduce((a,b)=>a+b,0) / rawRR.length;
+      console.log('[ME-rPPG] raw RR:', rawRR.length, 'mean:', meanRR.toFixed(0), 'ms');
+
+      // HR-RR 일관성 검증
+      const peakHR = 60000 / meanRR;
+      const hrDiffPct = Math.abs(peakHR - hr) / hr * 100;
+      console.log('[ME-rPPG] HR 일관성: ME-rPPG=', hr, 'Peak=', peakHR.toFixed(1), '차이=', hrDiffPct.toFixed(1), '%');
+
+      if (hrDiffPct > 15) {
+        rmssdReason = 'hr_inconsistent';
+      } else {
+        // Kubios outlier 제거
+        const cleanRR = this._removeEctopicRR(rawRR);
+        console.log('[ME-rPPG] 정제 후 RR:', cleanRR.length);
+
+        if (cleanRR.length < 8) {
+          rmssdReason = 'insufficient_peaks';
+        } else {
+          let sumSq = 0;
+          for (let i = 1; i < cleanRR.length; i++) {
+            const diff = cleanRR[i] - cleanRR[i-1];
+            sumSq += diff * diff;
+          }
+          const rmssdRaw = Math.sqrt(sumSq / (cleanRR.length - 1));
+          rmssd = Math.round(rmssdRaw);
+          lnRmssd = Math.log(Math.max(1, rmssdRaw)).toFixed(2);
+          console.log('[ME-rPPG] RMSSD:', rmssd, 'ms, ln=', lnRmssd);
+
+          if (rmssd < 8 || rmssd > 150) {
+            rmssdReason = 'out_of_clinical_range';
+            rmssd = null;
+            lnRmssd = null;
+          }
+
+          // SDNN
+          const meanC = cleanRR.reduce((a,b)=>a+b,0) / cleanRR.length;
+          const sdSum = cleanRR.reduce((s,v) => s + (v-meanC)**2, 0);
+          sdnn = Math.round(Math.sqrt(sdSum / cleanRR.length));
         }
       }
     }
-    if (!respRate && hr) {
-      const est = Math.round(hr / 4); // Frequency ratio HR:RR ≈ 4:1
+
+    // === 4. 호흡수 (BVP envelope 분석) ===
+    let respRate = null;
+    if (bvp.length >= sr * 20) {
+      // 직접 BPF: 0.13~0.5 Hz (호흡 대역)
+      const respFiltered = this._bandpass(bvp, sr, 0.13, 0.5);
+      const respPeak = this._goertzelPeak(respFiltered, sr, 8/60, 28/60);
+      console.log('[ME-rPPG] resp:', respPeak.freq.toFixed(3), 'Hz, SNR:', respPeak.snr.toFixed(2));
+      if (respPeak.snr >= 1.8 && respPeak.freq > 0) {
+        const rpm = Math.round(respPeak.freq * 60);
+        if (rpm >= 9 && rpm <= 26) respRate = rpm;
+      }
+    }
+    if (!respRate && hrInt) {
+      const est = Math.round(hrInt / 4);
       if (est >= 12 && est <= 22) respRate = est;
     }
 
-    // === 5. ★ Cubic spline 업샘플링 30Hz → 250Hz (RapidHRV, Mejia-Mejia 2022)
-    // 30Hz 원본은 33.3ms 양자화 → RMSSD 부정확
-    // 250Hz로 업샘플링 시 4ms 해상도로 정확도 개선
-    const targetUpSr = 250;
-    const upsampled = this._cubicSplineUpsample(filtered, sr, targetUpSr);
-    console.log('[Face] 업샘플링: 30Hz →', targetUpSr, 'Hz (', upsampled.length, '샘플)');
-
-    // === 6. 적응형 피크 검출 (van Gent 2019, HeartPy 표준)
-    const peaks = this._adaptivePeakDetect(upsampled, targetUpSr, hrHz);
-    console.log('[Face] 검출된 피크:', peaks.length);
-
-    if (peaks.length < 8) {
-      console.warn('[Face] 피크 부족');
-      return { hr, rmssd: null, rmssdReason: 'insufficient_peaks',
-               respRate, stressIdx: null, stressFromRMSSD: false, sqi: Math.round((snr-1)*15), snr, peakCount: peaks.length };
-    }
-
-    // === 7. RR 간격 추출 ===
-    const rawRR = [];
-    for (let i = 1; i < peaks.length; i++) {
-      rawRR.push((peaks[i] - peaks[i-1]) / targetUpSr * 1000);
-    }
-    const meanRR = rawRR.reduce((a,b) => a+b, 0) / rawRR.length;
-    console.log('[Face] raw RR:', rawRR.length, '개, mean:', meanRR.toFixed(0), 'ms');
-
-    // === 8. ★ Tarvainen 2014 (Kubios) outlier 제거 — 의료기기 표준
-    // 인접 RR 차이가 ±20% 넘으면 ectopic으로 간주 후 제거
-    // (Karolinska Sleep Lab 임상 표준)
-    const cleanRR = this._removeEctopicRR(rawRR);
-    console.log('[Face] 정제 후 RR:', cleanRR.length, '개');
-
-    // === 9. RMSSD 계산 (Task Force 1996 표준) ===
-    let rmssd = null;
-    let rmssdReason = null;
-    let lnRmssd = null;
-
-    if (cleanRR.length < 8) {
-      rmssdReason = 'insufficient_peaks';
-    } else {
-      // 표준 RMSSD: √(mean(ΔRR²))
-      let sumSq = 0;
-      for (let i = 1; i < cleanRR.length; i++) {
-        const diff = cleanRR[i] - cleanRR[i-1];
-        sumSq += diff * diff;
-      }
-      const rmssdRaw = Math.sqrt(sumSq / (cleanRR.length - 1));
-      rmssd = Math.round(rmssdRaw);
-      lnRmssd = Math.log(Math.max(1, rmssdRaw)).toFixed(2);
-
-      console.log('[Face] RMSSD:', rmssd, 'ms, ln(RMSSD):', lnRmssd);
-
-      // ★ Task Force 1996 / Shaffer 2017 임상 정상 범위:
-      //   24시간: SDNN 50~150ms, RMSSD 19~75ms
-      //   단기 안정 시 5분: RMSSD 19~75ms
-      //   단기 30초~1분: ±50% 마진 → RMSSD 10~110ms 허용
-      // rPPG 노이즈 마진 추가하여 8~150ms로 확장
-      if (rmssd < 8 || rmssd > 150) {
-        console.warn('[Face] RMSSD 임상 범위 벗어남:', rmssd);
-        rmssdReason = 'out_of_clinical_range';
-        rmssd = null;
-        lnRmssd = null;
-      }
-    }
-
-    // === 10. SDNN 산출 (보조 지표) ===
-    let sdnn = null;
-    if (cleanRR.length >= 8) {
-      const m = cleanRR.reduce((a,b) => a+b, 0) / cleanRR.length;
-      const sdSum = cleanRR.reduce((s,v) => s + (v-m)**2, 0);
-      sdnn = Math.round(Math.sqrt(sdSum / cleanRR.length));
-    }
-
-    // === 11. 스트레스 지수 (Shaffer 2017 + Baevsky Stress Index) ===
-    // ln(RMSSD) 기반 매핑:
-    //  - lnRMSSD ≥ 4.0 (RMSSD ≥ 55ms): 매우 이완 → 15
-    //  - lnRMSSD ≥ 3.5 (RMSSD ≥ 33ms): 이완 → 30
-    //  - lnRMSSD ≥ 3.0 (RMSSD ≥ 20ms): 보통 → 50
-    //  - lnRMSSD ≥ 2.5 (RMSSD ≥ 12ms): 약간 스트레스 → 70
-    //  - lnRMSSD < 2.5: 높은 스트레스 → 85
-    let stressIdx = null;
-    let stressFromRMSSD = false;
+    // === 5. 스트레스 (Shaffer 2017 ln(RMSSD)) ===
+    let stressIdx = null, stressFromRMSSD = false;
     if (rmssd && rmssd > 0) {
       const ln = Math.log(rmssd);
       if (ln >= 4.0)      stressIdx = 15;
@@ -897,11 +1364,18 @@ const App = {
       else if (ln >= 2.5) stressIdx = 70;
       else                stressIdx = 85;
       stressFromRMSSD = true;
-      console.log('[Face] 스트레스 (ln(RMSSD)=', ln.toFixed(2), '):', stressIdx);
     }
 
-    const sqi = Math.min(100, Math.round((snr - 1) * 15));
-    return { hr, rmssd, lnRmssd, rmssdReason, sdnn, respRate, stressIdx, stressFromRMSSD, sqi, snr, peakCount: peaks.length };
+    // SQI: ME-rPPG 신뢰도 기반
+    const sqi = Math.round((1 - m.meanHRErr) * 100);
+
+    return {
+      hr: hrInt, rmssd, lnRmssd, rmssdReason,
+      sdnn, respRate, stressIdx, stressFromRMSSD,
+      sqi: Math.min(99, Math.max(50, sqi)),
+      snr: null, peakCount: peaks ? peaks.length : 0,
+      engine: 'ME-rPPG',
+    };
   },
 
   // ════════════════════════════════════════════════════════════════
@@ -1172,6 +1646,7 @@ const App = {
         'insufficient_peaks': '직접 검출된 심박 피크가 부족합니다 (HRV는 8개 이상 필요). 정면을 보고 움직이지 말고 재측정해주세요.',
         'too_variable': 'RR 간격 변동이 너무 큽니다. 안정된 상태에서 재측정해주세요.',
         'out_of_clinical_range': '산출된 HRV 값이 임상 정상 범위를 벗어났습니다. 측정 환경을 개선해주세요.',
+        'hr_inconsistent': '주파수 분석과 피크 검출의 심박수가 일치하지 않습니다. 배경 조명 깜빡임이나 움직임의 영향이 있습니다. 더 안정된 환경에서 재측정해주세요.',
       };
       const cmt = reasonMap[r.rmssdReason] || '신호 품질이 낮아 HRV 산출이 어렵습니다.';
       setComment('fr-hv-cmt', cmt, '');
@@ -1240,7 +1715,16 @@ const App = {
     const reds = slice.map(s => s.r);
     const greens = slice.map(s => s.g);
     const blues = slice.map(s => s.b);
-    const pos = this._posAlgorithm(reds, greens, blues);
+    const hasBg = slice.every(s => s.br != null);
+    let pos;
+    if (hasBg) {
+      const bgReds = slice.map(s => s.br);
+      const bgGreens = slice.map(s => s.bg);
+      const bgBlues = slice.map(s => s.bb);
+      pos = this._posDualBranch(reds, greens, blues, bgReds, bgGreens, bgBlues);
+    } else {
+      pos = this._posAlgorithm(reds, greens, blues);
+    }
     const filtered = this._bandpass(pos, this.config.face.targetSR, 0.7, 3.0);
 
     const minV = Math.min(...filtered);

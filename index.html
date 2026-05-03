@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>건강 측정 v11 — 얼굴 + 신체</title>
+<title>건강 측정 v12 — ME-rPPG</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -567,7 +567,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div class="hd-sub">FACE + BODY</div>
     </div>
   </div>
-  <span class="hd-ver">v11.0 · STEP 10</span>
+  <span class="hd-ver">v12.0 · ME-rPPG</span>
 </header>
 
 <!-- ═══════════ HOME PAGE ═══════════ -->
@@ -621,7 +621,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
     <button class="back-btn" type="button" onclick="App.goPage('home')">←</button>
     <div>
       <div class="page-title">😊 얼굴 측정</div>
-      <div class="page-subtitle">rPPG · POS 알고리즘 · 30초</div>
+      <div class="page-subtitle">ME-rPPG · State Space Duality · 30초</div>
     </div>
   </div>
 
@@ -646,6 +646,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <span class="chip" id="face-chip-fps"><span class="chip-dot off"></span><span id="face-chip-fps-text">대기</span></span>
         <span class="chip" id="face-chip-roi" style="display:none">🎯 <span id="face-chip-roi-text">ROI 검출중</span></span>
+        <span class="chip" id="face-chip-engine" style="display:none">🧠 <span id="face-chip-engine-text">ME-rPPG</span></span>
       </div>
       <span class="chip timer" id="face-chip-timer" style="display:none">⏱ <span id="face-chip-timer-text">30초</span></span>
     </div>
@@ -750,7 +751,7 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
   <!-- 화면 콘솔 -->
   <div class="console-card">
     <div class="console-head">
-      <span class="console-title">📋 화면 콘솔 (얼굴 측정)</span>
+      <span class="console-title">📋 화면 콘솔 (ME-rPPG 엔진)</span>
       <button class="console-clear" type="button" onclick="App.clearConsole('face')">초기화</button>
     </div>
     <div class="console-output" id="face-console"></div>
@@ -1069,6 +1070,12 @@ footer { padding: 14px 16px max(20px, env(safe-area-inset-bottom)); text-align: 
 </nav>
 
 <footer>
+  <div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;padding:0 16px">
+    rPPG 엔진: <a href="https://github.com/Health-HCI-Group/ME-rPPG-demo" target="_blank" style="color:var(--primary);text-decoration:none">ME-rPPG</a> (Apache 2.0)<br>
+    얼굴 검출: MediaPipe BlazeFace · ONNX Runtime Web<br>
+    <span style="color:#9ca3af">⚠️ 본 앱은 의료기기가 아닌 건강 참고용 도구입니다.</span>
+  </div>
+
   v11.0 · 얼굴 + 신체 측정 분리<br>
   이 앱은 의료기기가 아닙니다. 건강 참고용.
 </footer>

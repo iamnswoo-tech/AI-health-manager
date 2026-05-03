@@ -1,5 +1,5 @@
-// 건강 측정 v11.0 — Service Worker
-const CACHE_NAME = 'healthmeas-v11-step10';
+// 건강 측정 v12.0 ME-rPPG — Service Worker
+const CACHE_NAME = 'healthmeas-v12-s1';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,15 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './legacy/index.html',
+  // ME-rPPG assets
+  './me-rppg/onnxWorker.js',
+  './me-rppg/welchWorker.js',
+  './me-rppg/model.onnx',
+  './me-rppg/welch_psd.onnx',
+  './me-rppg/get_hr.onnx',
+  './me-rppg/state.json',
+  './me-rppg/blaze_face_short_range.tflite',
+  './me-rppg/LICENSE',
 ];
 
 self.addEventListener('install', e => {

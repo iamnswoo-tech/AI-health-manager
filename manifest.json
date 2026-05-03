@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v11 STEP 10",
-  "short_name": "건강측정 v11s10",
-  "description": "v11.0 STEP 10 — 검증된 임상 표준 알고리즘 (cubic spline + Kubios + Task Force)",
+  "name": "건강 측정 v12 ME-rPPG",
+  "short_name": "건강측정 v12",
+  "description": "v12.0 ME-rPPG — State Space Duality 기반 정밀 얼굴 측정",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
