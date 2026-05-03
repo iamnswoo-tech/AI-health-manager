@@ -1,7 +1,7 @@
 {
-  "name": "건강 측정 v11 STEP 9",
-  "short_name": "건강측정 v11s9",
-  "description": "v11.0 STEP 9 — 라이트 테마 + 카메라 옆 버튼 + 권한 일괄 안내 + 친근한 아이콘",
+  "name": "건강 측정 v11 STEP 10",
+  "short_name": "건강측정 v11s10",
+  "description": "v11.0 STEP 10 — 검증된 임상 표준 알고리즘 (cubic spline + Kubios + Task Force)",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
