@@ -500,15 +500,29 @@ const App = {
       const startT = performance.now();
       const check = () => {
         const m = this.state.face.mePPG;
+        const elapsed = ((performance.now() - startT) / 1000).toFixed(1);
+
+        // 진행 상황 표시 (어떤 모델이 로드되었는지)
+        const ready = [
+          m.modelReady ? '✅' : '⏳', '메인 모델',
+          m.stateReady ? '✅' : '⏳', '초기 상태',
+          m.welchReady ? '✅' : '⏳', 'PSD 분석',
+          m.hrReady ? '✅' : '⏳', 'HR 산출'
+        ];
+        const subText = `${ready[0]} 메인 ${ready[2]} 상태 ${ready[4]} PSD ${ready[6]} HR  (${elapsed}초)`;
+        const sub = document.getElementById('face-cam-sub');
+        if (sub) sub.textContent = subText;
+
         if (m.modelReady && m.stateReady && m.welchReady && m.hrReady) {
           resolve();
           return;
         }
-        if (performance.now() - startT > 30000) {
-          reject(new Error('모델 로드 타임아웃 (30초)'));
+        // 60초 타임아웃 (느린 네트워크 고려)
+        if (performance.now() - startT > 60000) {
+          reject(new Error('모델 로드 타임아웃 (60초)\n네트워크 연결을 확인하고 재시도해주세요.'));
           return;
         }
-        setTimeout(check, 200);
+        setTimeout(check, 300);
       };
       check();
     });
